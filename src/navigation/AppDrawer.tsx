@@ -10,17 +10,19 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { ClosingsScreen } from '../screens/ClosingsScreen';
 import { CompletedServicesScreen } from '../screens/CompletedServicesScreen';
+import { PropietarioHomeScreen } from '../screens/PropietarioHomeScreen';
 import { ServiceStatusScreen } from '../screens/ServiceStatusScreen';
 import { ServicesScreen } from '../screens/ServicesScreen';
 import { colors, spacing } from '../theme';
 import { Role } from '../types/domain';
 import { useSession } from '../store/session';
 
-type DrawerParamList = {
+export type DrawerParamList = {
   EstadoDeServicios: undefined;
   Servicios: undefined;
+  PropietarioHome: undefined;
   Cierres: undefined;
-  ServiciosPrestados: undefined;
+  ServiciosPrestados: { fromDate?: string; toDate?: string; autoApply?: boolean } | undefined;
 };
 
 const Drawer = createDrawerNavigator<DrawerParamList>();
@@ -110,6 +112,11 @@ export function AppDrawer() {
           </>
         ) : (
           <>
+            <Drawer.Screen
+              component={PropietarioHomeScreen}
+              name="PropietarioHome"
+              options={{ title: 'Inicio', drawerLabel: 'Inicio' }}
+            />
             <Drawer.Screen
               component={ClosingsScreen}
               name="Cierres"

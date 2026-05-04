@@ -1,8 +1,10 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { DrawerScreenProps } from '@react-navigation/drawer';
 
 import { RoleGate } from '../components/RoleGate';
 import { SectionCard } from '../components/SectionCard';
+import { DrawerParamList } from '../navigation/AppDrawer';
 import { useSession } from '../store/session';
 import { colors, spacing } from '../theme';
 import { SortKey } from '../types/domain';
@@ -25,12 +27,23 @@ function currency(value: number) {
   return `$ ${value.toLocaleString('es-CO')}`;
 }
 
-export function CompletedServicesScreen() {
+type Props = DrawerScreenProps<DrawerParamList, 'ServiciosPrestados'>;
+
+export function CompletedServicesScreen({ route }: Props) {
   const defaults = currentMonthRange();
   const { services } = useSession();
-  const [fromDate, setFromDate] = useState(defaults.from);
-  const [toDate, setToDate] = useState(defaults.to);
+  const [fromDate, setFromDate] = useState(route.params?.fromDate ?? defaults.from);
+  const [toDate, setToDate] = useState(route.params?.toDate ?? defaults.to);
   const [sortKey, setSortKey] = useState<SortKey>('numeroServicio');
+
+  // Cuando se navega con autoApply aplica el rango recibido
+  useEffect(() => {
+    if (route.params?.autoApply) {
+      setFromDate(route.params.fromDate ?? defaults.from);
+      setToDate(route.params.toDate ?? defaults.to);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [route.params]);
 
   const completedServices = useMemo(() => {
     return services
