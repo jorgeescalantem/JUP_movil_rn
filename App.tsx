@@ -1,26 +1,25 @@
 import { StatusBar } from 'expo-status-bar';
-import { SafeAreaView, ScrollView, StyleSheet } from 'react-native';
+import { StyleSheet } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
-import { HomeScreen } from './src/screens/HomeScreen';
+import { AppDrawer } from './src/navigation/AppDrawer';
+import { SessionProvider } from './src/store/session';
 import { colors } from './src/theme';
 
 export default function App() {
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <GestureHandlerRootView style={styles.root}>
       <StatusBar style="light" />
-      <ScrollView contentContainerStyle={styles.content}>
-        <HomeScreen />
-      </ScrollView>
-    </SafeAreaView>
+      <SessionProvider>
+        <AppDrawer />
+      </SessionProvider>
+    </GestureHandlerRootView>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
+  root: {
     flex: 1,
     backgroundColor: colors.background,
-  },
-  content: {
-    flexGrow: 1,
   },
 });
