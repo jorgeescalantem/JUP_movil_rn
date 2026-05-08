@@ -1,5 +1,6 @@
+import { FontAwesome5, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useState } from 'react';
-import { Alert, Linking, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Linking, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { RoleGate } from '../components/RoleGate';
 import { SectionCard } from '../components/SectionCard';
@@ -14,10 +15,10 @@ function formatDateTime(value: string) {
 
 function buildMapUrl(service: Service, app: 'google' | 'waze') {
   if (app === 'waze') {
-    return `https://waze.com/ul?ll=${service.destinoLat},${service.destinoLng}&navigate=yes`;
+    return `https://waze.com/ul?ll=${service.origenLat},${service.origenLng}&navigate=yes`;
   }
 
-  return `https://www.google.com/maps/dir/?api=1&destination=${service.destinoLat},${service.destinoLng}`;
+  return `https://www.google.com/maps/dir/?api=1&destination=${service.origenLat},${service.origenLng}`;
 }
 
 const STATE_COLORS: Record<ServiceState, string> = {
@@ -37,6 +38,7 @@ export function ServicesScreen() {
   const { services, activeService, arrivedAtOrigin, arrivedAtDestination, deliverService } = useSession();
   const [modalConfig, setModalConfig] = useState<ModalConfig>(null);
   const [codeInput, setCodeInput] = useState('');
+  const [refreshing, setRefreshing] = useState(false);
 
   const orderedServices = [...services].sort(
     (a, b) => new Date(a.fechaServicio).getTime() - new Date(b.fechaServicio).getTime(),
@@ -51,6 +53,33 @@ export function ServicesScreen() {
     }
 
     await Linking.openURL(url);
+  };
+
+  const openPhones = (service: Service) => {
+    if (service.telefonos.length === 0) {
+      Alert.alert('Sin telefonos', 'Este servicio no tiene telefonos disponibles.');
+      return;
+    }
+
+    Alert.alert(
+      'Telefonos disponibles',
+      'Selecciona un numero para llamar al paciente.',
+      [
+        ...service.telefonos.map((phone) => ({
+          text: phone,
+          onPress: () => openExternalUrl(`tel:${phone}`),
+        })),
+        { text: 'Cancelar', style: 'cancel' as const },
+      ],
+    );
+  };
+
+  const handleRefresh = () => {
+    setRefreshing(true);
+
+    setTimeout(() => {
+      setRefreshing(false);
+    }, 450);
   };
 
   const handleModalConfirm = () => {
@@ -74,8 +103,11 @@ export function ServicesScreen() {
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.content}>
-      <RoleGate allowedRoles={['CONDUCTOR']}>
+    <ScrollView
+      contentContainerStyle={styles.content}
+      refreshControl={<RefreshControl onRefresh={handleRefresh} refreshing={refreshing} />}
+    >
+      <RoleGate allowedRoles={['CONDUCTOR', 'PROPIETARIO']}>
         {/* Modal para validaciones con input */}
         <Modal animationType="fade" onRequestClose={() => setModalConfig(null)} transparent visible={!!modalConfig}>
           <View style={styles.modalOverlay}>
@@ -115,8 +147,8 @@ export function ServicesScreen() {
         </Modal>
 
         <SectionCard
-          title="Servicios del dia"
-          subtitle="Vista compacta con fecha, origen, destino y acciones segun el estado actual del servicio."
+          title="Servicios"
+          subtitle="Asignados del mas proximo al mas lejano con accesos rapidos hacia paciente y origen."
         >
           {activeService ? (
             <View style={styles.activeBanner}>
@@ -137,7 +169,10 @@ export function ServicesScreen() {
                 style={[styles.serviceCard, isActive ? styles.serviceCardActive : null]}
               >
                 <View style={styles.rowBetween}>
-                  <Text style={styles.serviceNumber}>#{service.numeroServicio}</Text>
+                  <View style={styles.contractWrap}>
+                    <MaterialCommunityIcons color="#0fa0f3" name="file-document-outline" size={18} />
+                    <Text style={styles.contractText}>{service.contrato}</Text>
+                  </View>
                   <View style={[styles.statePill, { backgroundColor: STATE_COLORS[service.estado] + '22' }]}>
                     <Text style={[styles.stateText, { color: STATE_COLORS[service.estado] }]}>
                       {service.estado}
@@ -145,6 +180,7 @@ export function ServicesScreen() {
                   </View>
                 </View>
 
+                <Text style={styles.companyText}>{service.companiaNombre}</Text>
                 <Text style={styles.dateText}>{formatDateTime(service.fechaServicio)}</Text>
                 <Text style={styles.routeLabel}>Origen</Text>
                 <Text style={styles.routeValue}>{service.origenDireccion}</Text>
@@ -154,21 +190,30 @@ export function ServicesScreen() {
                 {/* Acciones externas: siempre visibles */}
                 <View style={styles.actionsRow}>
                   <Pressable
-                    onPress={() => openExternalUrl(`tel:${service.telefonos[0]}`)}
-                    style={styles.actionButton}
+                    onPress={() => openPhones(service)}
+                    style={styles.actionCircleWrap}
                   >
-                    <Text style={styles.actionText}>Telefono</Text>
+                    <View style={[styles.actionCircle, styles.actionButtonPhone]}>
+                      <MaterialCommunityIcons color="#ffffff" name="phone" size={24} />
+                    </View>
+                    <Text style={styles.actionText}>Telefonos</Text>
                   </Pressable>
                   <Pressable
                     onPress={() => openExternalUrl(buildMapUrl(service, 'google'))}
-                    style={styles.actionButton}
+                    style={styles.actionCircleWrap}
                   >
-                    <Text style={styles.actionText}>Google Maps</Text>
+                    <View style={[styles.actionCircle, styles.actionButtonMaps]}>
+                      <MaterialCommunityIcons color="#ffffff" name="google-maps" size={24} />
+                    </View>
+                    <Text style={styles.actionText}>Maps</Text>
                   </Pressable>
                   <Pressable
                     onPress={() => openExternalUrl(buildMapUrl(service, 'waze'))}
-                    style={styles.actionButton}
+                    style={styles.actionCircleWrap}
                   >
+                    <View style={[styles.actionCircle, styles.actionButtonWaze]}>
+                      <FontAwesome5 color="#ffffff" name="waze" size={22} brand />
+                    </View>
                     <Text style={styles.actionText}>Waze</Text>
                   </Pressable>
                 </View>
@@ -236,34 +281,44 @@ export function ServicesScreen() {
 
 const styles = StyleSheet.create({
   content: {
+    backgroundColor: colors.background,
     gap: spacing.lg,
     padding: spacing.lg,
   },
   activeBanner: {
-    backgroundColor: colors.accentSoft,
+    backgroundColor: '#dff6ea',
+    borderColor: '#b8e7cf',
     borderRadius: 18,
+    borderWidth: 1,
     gap: spacing.xs,
     padding: spacing.md,
   },
   activeLabel: {
-    color: colors.accent,
+    color: '#12805c',
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '800',
     textTransform: 'uppercase',
   },
   activeText: {
-    color: colors.textStrong,
+    color: '#121417',
     fontSize: 15,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   serviceCard: {
-    backgroundColor: colors.surfaceAlt,
-    borderRadius: 18,
+    backgroundColor: '#f7fafb',
+    borderColor: '#d8e5ea',
+    borderRadius: 22,
+    borderWidth: 1,
     gap: spacing.xs,
-    padding: spacing.md,
+    padding: spacing.lg,
+    shadowColor: '#0b2239',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.05,
+    shadowRadius: 16,
   },
   serviceCardActive: {
-    borderColor: colors.accent,
+    backgroundColor: '#2e95e6',
+    borderColor: '#2e95e6',
     borderWidth: 1,
   },
   rowBetween: {
@@ -271,10 +326,26 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
-  serviceNumber: {
+  contractWrap: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: spacing.xs,
+  },
+  contractText: {
     color: colors.textStrong,
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  companyText: {
+    color: '#006493',
+    fontSize: 17,
+    fontWeight: '800',
+  },
+  dateText: {
+    color: '#41535c',
+    fontSize: 14,
+    fontWeight: '600',
+    marginTop: 4,
   },
   statePill: {
     borderRadius: 999,
@@ -285,36 +356,48 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
   },
-  dateText: {
-    color: colors.muted,
-    fontSize: 13,
-  },
   routeLabel: {
-    color: colors.muted,
-    fontSize: 12,
-    marginTop: spacing.xs,
-    textTransform: 'uppercase',
+    color: '#7c8f99',
+    fontSize: 14,
+    fontWeight: '700',
+    marginTop: spacing.sm,
   },
   routeValue: {
-    color: colors.text,
-    fontSize: 14,
-    lineHeight: 20,
+    color: '#161a1d',
+    fontSize: 16,
+    fontWeight: '800',
+    lineHeight: 26,
   },
   actionsRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-    marginTop: spacing.sm,
+    justifyContent: 'space-evenly',
+    marginTop: spacing.md,
   },
-  actionButton: {
-    backgroundColor: colors.backgroundAlt,
+  actionCircleWrap: {
+    alignItems: 'center',
+    gap: 8,
+  },
+  actionCircle: {
+    alignItems: 'center',
+    borderColor: '#ffffff',
     borderRadius: 999,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+    borderWidth: 5,
+    height: 74,
+    justifyContent: 'center',
+    width: 74,
+  },
+  actionButtonPhone: {
+    backgroundColor: '#48b749',
+  },
+  actionButtonMaps: {
+    backgroundColor: '#ff6424',
+  },
+  actionButtonWaze: {
+    backgroundColor: '#169cf3',
   },
   actionText: {
-    color: colors.textStrong,
-    fontSize: 13,
+    color: '#1b2328',
+    fontSize: 12,
     fontWeight: '700',
   },
   opsRow: {
@@ -324,10 +407,10 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
   },
   opsButton: {
+    alignItems: 'center',
     borderRadius: 14,
     flex: 1,
     paddingVertical: spacing.md,
-    alignItems: 'center',
   },
   opsButtonPrimary: {
     backgroundColor: colors.info,

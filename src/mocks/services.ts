@@ -3,6 +3,7 @@ import { Service } from '../types/domain';
 export const mockServices: Service[] = [
   {
     numeroServicio: '10021',
+    contrato: 'CT-27319',
     estado: 'ASIGNADA',
     fechaServicio: '2026-05-04T07:15:00.000Z',
     origenDireccion: 'Cra. 15 #93-60, Bogota',
@@ -22,6 +23,7 @@ export const mockServices: Service[] = [
   },
   {
     numeroServicio: '10022',
+    contrato: 'CT-38009',
     estado: 'EN_TRANSITO',
     fechaServicio: '2026-05-04T09:40:00.000Z',
     origenDireccion: 'Av. Boyaca #52-10, Bogota',
@@ -41,6 +43,7 @@ export const mockServices: Service[] = [
   },
   {
     numeroServicio: '10018',
+    contrato: 'CT-29207',
     estado: 'TERMINADO',
     fechaServicio: '2026-05-03T15:20:00.000Z',
     origenDireccion: 'Calle 26 #68C-61, Bogota',
@@ -60,6 +63,7 @@ export const mockServices: Service[] = [
   },
   {
     numeroServicio: '10011',
+    contrato: 'CT-24410',
     estado: 'COMPLETADO',
     fechaServicio: '2026-05-01T14:10:00.000Z',
     origenDireccion: 'Fontibon Centro, Bogota',
@@ -79,6 +83,7 @@ export const mockServices: Service[] = [
   },
   {
     numeroServicio: '09998',
+    contrato: 'CT-19098',
     estado: 'procesado',
     fechaServicio: '2026-04-29T11:30:00.000Z',
     origenDireccion: 'Chapinero Alto, Bogota',
@@ -98,6 +103,7 @@ export const mockServices: Service[] = [
   },
   {
     numeroServicio: '10005',
+    contrato: 'CT-31105',
     estado: 'COMPLETADO',
     fechaServicio: '2026-05-02T18:05:00.000Z',
     origenDireccion: 'Suba Rincon, Bogota',

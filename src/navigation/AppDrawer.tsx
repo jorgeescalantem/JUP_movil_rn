@@ -6,7 +6,8 @@ import {
   DrawerItemList,
   createDrawerNavigator,
 } from '@react-navigation/drawer';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { ClosingsScreen } from '../screens/ClosingsScreen';
 import { CompletedServicesScreen } from '../screens/CompletedServicesScreen';
@@ -45,14 +46,16 @@ function CustomDrawerContent(props: DrawerContentComponentProps) {
   return (
     <DrawerContentScrollView {...props} contentContainerStyle={styles.drawerContent}>
       <View style={styles.drawerHeader}>
+        <Image source={require('../../assets/logo1.png')} style={styles.logo} />
         <Text style={styles.drawerEyebrow}>JUP movil</Text>
-        <Text style={styles.drawerTitle}>Panel de trabajo</Text>
-        <Text style={styles.drawerText}>Cambia entre conductor y propietario para validar flujos.</Text>
+        <Text style={styles.drawerTitle}>Acciones</Text>
+        <Text style={styles.drawerText}>Intercambiar entre roles para navegar.</Text>
       </View>
 
       <View style={styles.roleSwitch}>
         {(['CONDUCTOR', 'PROPIETARIO'] as Role[]).map((item) => {
           const isActive = item === role;
+          const iconName = item === 'CONDUCTOR' ? 'steering' : 'account-tie';
 
           return (
             <Pressable
@@ -60,6 +63,11 @@ function CustomDrawerContent(props: DrawerContentComponentProps) {
               onPress={() => setRole(item)}
               style={[styles.roleButton, isActive ? styles.roleButtonActive : null]}
             >
+              <MaterialCommunityIcons
+                color={isActive ? '#ffffff' : '#334155'}
+                name={iconName}
+                size={18}
+              />
               <Text style={[styles.roleButtonText, isActive ? styles.roleButtonTextActive : null]}>{item}</Text>
             </Pressable>
           );
@@ -86,6 +94,7 @@ export function AppDrawer() {
   return (
     <NavigationContainer theme={navigationTheme}>
       <Drawer.Navigator
+        initialRouteName="Servicios"
         drawerContent={(props) => <CustomDrawerContent {...props} />}
         screenOptions={{
           drawerActiveBackgroundColor: colors.accentSoft,
@@ -100,14 +109,14 @@ export function AppDrawer() {
         {role === 'CONDUCTOR' ? (
           <>
             <Drawer.Screen
-              component={ServiceStatusScreen}
-              name="EstadoDeServicios"
-              options={{ title: 'Estado de servicios', drawerLabel: 'Estado de servicios' }}
-            />
-            <Drawer.Screen
               component={ServicesScreen}
               name="Servicios"
               options={{ title: 'Servicios', drawerLabel: 'Servicios' }}
+            />
+            <Drawer.Screen
+              component={ServiceStatusScreen}
+              name="EstadoDeServicios"
+              options={{ title: 'Estado de servicios', drawerLabel: 'Estado de servicios' }}
             />
           </>
         ) : (
@@ -149,9 +158,17 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.lg,
   },
   drawerHeader: {
+    alignItems: 'center',
     gap: spacing.xs,
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.lg,
+  },
+  logo: {
+    height: 56,
+    marginBottom: spacing.xs,
+    alignSelf: 'center',
+    resizeMode: 'contain',
+    width: 56,
   },
   drawerEyebrow: {
     color: colors.accent,
@@ -177,11 +194,15 @@ const styles = StyleSheet.create({
     marginTop: spacing.lg,
   },
   roleButton: {
+    alignItems: 'center',
     backgroundColor: colors.surfaceAlt,
     borderColor: colors.border,
     borderRadius: 999,
     borderWidth: 1,
+    flexDirection: 'row',
     flex: 1,
+    gap: spacing.xs,
+    justifyContent: 'center',
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.sm,
   },
@@ -196,7 +217,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   roleButtonTextActive: {
-    color: colors.background,
+    color: '#ffffff',
   },
   drawerList: {
     flex: 1,

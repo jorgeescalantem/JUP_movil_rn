@@ -16,7 +16,13 @@ export function ServiceStatusScreen() {
 
   return (
     <ScrollView contentContainerStyle={styles.content}>
-      <RoleGate allowedRoles={['CONDUCTOR']}>
+      <RoleGate allowedRoles={['CONDUCTOR', 'PROPIETARIO']}>
+        <View style={styles.headerBlock}>
+          <Text style={styles.headerEyebrow}>JUP-movil Version</Text>
+          <Text style={styles.headerTitle}>Estado de Servicios</Text>
+          <Text style={styles.headerSubtitle}>Vista operativa con el mismo lenguaje visual del login.</Text>
+        </View>
+
         <SectionCard
           title="Estado operativo"
           subtitle="Resumen rapido para validar carga, servicio activo y reglas del flujo conductor."
@@ -25,7 +31,7 @@ export function ServiceStatusScreen() {
             {Object.entries(statusCounts).map(([status, count]) => (
               <View key={status} style={styles.statCard}>
                 <Text style={styles.statValue}>{count}</Text>
-                <Text style={styles.statLabel}>{status}</Text>
+                <Text style={styles.statLabel}>{status.replace('_', ' ')}</Text>
               </View>
             ))}
           </View>
@@ -66,8 +72,36 @@ export function ServiceStatusScreen() {
 
 const styles = StyleSheet.create({
   content: {
+    backgroundColor: colors.background,
     gap: spacing.lg,
     padding: spacing.lg,
+    paddingBottom: spacing.xl,
+  },
+  headerBlock: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: 20,
+    borderWidth: 1,
+    gap: spacing.xs,
+    padding: spacing.lg,
+  },
+  headerEyebrow: {
+    color: '#006493',
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+  },
+  headerTitle: {
+    color: '#121417',
+    fontSize: 28,
+    fontWeight: '900',
+    letterSpacing: -0.5,
+  },
+  headerSubtitle: {
+    color: '#3b4a42',
+    fontSize: 14,
+    lineHeight: 20,
   },
   statsGrid: {
     flexDirection: 'row',
@@ -75,45 +109,54 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   statCard: {
-    backgroundColor: colors.surfaceAlt,
-    borderRadius: 18,
+    backgroundColor: '#f3f4f5',
+    borderColor: '#d6e1db',
+    borderRadius: 14,
+    borderWidth: 1,
     minWidth: '30%',
     padding: spacing.md,
   },
   statValue: {
-    color: colors.textStrong,
-    fontSize: 24,
-    fontWeight: '700',
+    color: '#006493',
+    fontSize: 26,
+    fontWeight: '800',
   },
   statLabel: {
-    color: colors.muted,
+    color: '#2f3e36',
     fontSize: 12,
+    fontWeight: '600',
+    letterSpacing: 0.3,
     marginTop: spacing.xs,
+    textTransform: 'uppercase',
   },
   activeCard: {
-    backgroundColor: colors.surfaceAlt,
-    borderRadius: 18,
+    backgroundColor: '#f3f4f5',
+    borderColor: '#d6e1db',
+    borderRadius: 14,
+    borderWidth: 1,
     gap: spacing.xs,
     padding: spacing.md,
   },
   activeTitle: {
-    color: colors.accent,
+    color: '#006493',
     fontSize: 18,
-    fontWeight: '700',
+    fontWeight: '800',
   },
   activeRoute: {
-    color: colors.text,
+    color: '#191c1d',
     fontSize: 15,
     lineHeight: 22,
   },
   separator: {
-    color: colors.muted,
+    color: '#6b7b72',
     fontSize: 13,
+    fontWeight: '700',
     textTransform: 'uppercase',
   },
   emptyText: {
-    color: colors.muted,
+    color: '#3b4a42',
     fontSize: 15,
+    lineHeight: 22,
   },
   ruleRow: {
     alignItems: 'flex-start',
@@ -121,14 +164,14 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   ruleDot: {
-    backgroundColor: colors.accent,
+    backgroundColor: '#00affe',
     borderRadius: 999,
     height: 10,
     marginTop: 6,
     width: 10,
   },
   ruleText: {
-    color: colors.text,
+    color: '#191c1d',
     flex: 1,
     fontSize: 15,
     lineHeight: 22,
