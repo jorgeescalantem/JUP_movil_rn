@@ -12,6 +12,7 @@ import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { ClosingsScreen } from '../screens/ClosingsScreen';
 import { CompletedServicesScreen } from '../screens/CompletedServicesScreen';
 import { PropietarioHomeScreen } from '../screens/PropietarioHomeScreen';
+import { ServiceDetailScreen } from '../screens/ServiceDetailScreen';
 import { ServiceStatusScreen } from '../screens/ServiceStatusScreen';
 import { ServicesScreen } from '../screens/ServicesScreen';
 import { colors, spacing } from '../theme';
@@ -21,6 +22,7 @@ import { useSession } from '../store/session';
 export type DrawerParamList = {
   EstadoDeServicios: undefined;
   Servicios: undefined;
+  ServicioDetalle: { serviceNumber: string };
   PropietarioHome: undefined;
   Cierres: undefined;
   ServiciosPrestados: { fromDate?: string; toDate?: string; autoApply?: boolean } | undefined;
@@ -117,6 +119,14 @@ export function AppDrawer() {
               component={ServiceStatusScreen}
               name="EstadoDeServicios"
               options={{ title: 'Estado de servicios', drawerLabel: 'Estado de servicios' }}
+            />
+            <Drawer.Screen
+              component={ServiceDetailScreen}
+              name="ServicioDetalle"
+              options={{
+                title: 'Detalle del servicio',
+                drawerItemStyle: { display: 'none' },
+              }}
             />
           </>
         ) : (

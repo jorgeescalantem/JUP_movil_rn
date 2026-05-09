@@ -1,8 +1,11 @@
 import { FontAwesome5, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useState } from 'react';
 import { Alert, Linking, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import { DrawerNavigationProp } from '@react-navigation/drawer';
 
 import { RoleGate } from '../components/RoleGate';
+import { DrawerParamList } from '../navigation/AppDrawer';
 import { SectionCard } from '../components/SectionCard';
 import { useSession } from '../store/session';
 import { colors, spacing } from '../theme';
@@ -35,6 +38,7 @@ type ModalConfig =
   | null;
 
 export function ServicesScreen() {
+  const navigation = useNavigation<DrawerNavigationProp<DrawerParamList>>();
   const { services, activeService, arrivedAtOrigin, arrivedAtDestination, deliverService } = useSession();
   const [modalConfig, setModalConfig] = useState<ModalConfig>(null);
   const [codeInput, setCodeInput] = useState('');
@@ -164,8 +168,9 @@ export function ServicesScreen() {
             const isBlocked = !!activeService && activeService.numeroServicio !== service.numeroServicio;
 
             return (
-              <View
+              <Pressable
                 key={service.numeroServicio}
+                onPress={() => navigation.navigate('ServicioDetalle', { serviceNumber: service.numeroServicio })}
                 style={[styles.serviceCard, isActive ? styles.serviceCardActive : null]}
               >
                 <View style={styles.rowBetween}>
@@ -270,7 +275,7 @@ export function ServicesScreen() {
                 {isBlocked && service.estado === 'ASIGNADA' && (
                   <Text style={styles.blockedText}>Hay un servicio activo. Finaliza ese primero.</Text>
                 )}
-              </View>
+              </Pressable>
             );
           })}
         </SectionCard>

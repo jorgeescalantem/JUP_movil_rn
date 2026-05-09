@@ -3,7 +3,7 @@ import { Service } from '../types/domain';
 export const mockServices: Service[] = [
   {
     numeroServicio: '10021',
-    contrato: 'CT-27319',
+    contrato: 'CAPITAL FAMISANAR',
     estado: 'ASIGNADA',
     fechaServicio: '2026-05-04T07:15:00.000Z',
     origenDireccion: 'Cra. 15 #93-60, Bogota',
