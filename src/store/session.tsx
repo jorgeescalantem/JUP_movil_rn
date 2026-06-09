@@ -72,6 +72,22 @@ function buildStatusCounts(services: Service[]): Record<ServiceState, number> {
   );
 }
 
+function mergeServicesWithMocks(persistedServices: Service[], baseMocks: Service[]): Service[] {
+  const persistedByNumber = new Map(persistedServices.map((service) => [service.numeroServicio, service]));
+
+  // Keep mock catalog updated while preserving any runtime changes for existing service IDs.
+  const merged = baseMocks.map((mockService) => persistedByNumber.get(mockService.numeroServicio) ?? mockService);
+
+  // Preserve old persisted services that are not in current mocks.
+  persistedServices.forEach((service) => {
+    if (!baseMocks.some((mockService) => mockService.numeroServicio === service.numeroServicio)) {
+      merged.push(service);
+    }
+  });
+
+  return merged;
+}
+
 export function SessionProvider({ children }: { children: ReactNode }) {
   const [isReady, setIsReady] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -105,7 +121,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         }
 
         if (Array.isArray(parsed.services) && parsed.services.length > 0) {
-          setServices(parsed.services as Service[]);
+          setServices(mergeServicesWithMocks(parsed.services as Service[], mockServices));
         }
 
         if (parsed.preoperationalByUser && typeof parsed.preoperationalByUser === 'object') {

@@ -1,6 +1,7 @@
 import { FontAwesome5, MaterialCommunityIcons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useState } from 'react';
-import { Alert, Linking, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Linking, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { DrawerNavigationProp } from '@react-navigation/drawer';
 
@@ -32,6 +33,11 @@ const STATE_COLORS: Record<ServiceState, string> = {
   procesado: colors.accent,
 };
 
+function formatStatusLabel(status: ServiceState) {
+  if (status === 'ASIGNADA') return 'ASIGNADO';
+  return status.replace('_', ' ');
+}
+
 type ModalConfig =
   | { type: 'origin'; serviceNumber: string }
   | { type: 'deliver'; serviceNumber: string }
@@ -43,8 +49,18 @@ export function ServicesScreen() {
   const [modalConfig, setModalConfig] = useState<ModalConfig>(null);
   const [codeInput, setCodeInput] = useState('');
   const [refreshing, setRefreshing] = useState(false);
+  const [phonesDialogService, setPhonesDialogService] = useState<Service | null>(null);
+  const [destinationConfirmService, setDestinationConfirmService] = useState<Service | null>(null);
+  const [feedbackDialog, setFeedbackDialog] = useState<{ title: string; message: string } | null>(null);
 
-  const orderedServices = [...services].sort(
+  const visibleServices = services.filter(
+    (service) =>
+      service.estado === 'ASIGNADA' ||
+      service.estado === 'EN_TRANSITO' ||
+      service.estado === 'TERMINADO',
+  );
+
+  const orderedServices = [...visibleServices].sort(
     (a, b) => new Date(a.fechaServicio).getTime() - new Date(b.fechaServicio).getTime(),
   );
 
@@ -52,7 +68,7 @@ export function ServicesScreen() {
     const supported = await Linking.canOpenURL(url);
 
     if (!supported) {
-      Alert.alert('No disponible', 'No se pudo abrir la accion solicitada.');
+      setFeedbackDialog({ title: 'No disponible', message: 'No se pudo abrir la accion solicitada.' });
       return;
     }
 
@@ -61,21 +77,11 @@ export function ServicesScreen() {
 
   const openPhones = (service: Service) => {
     if (service.telefonos.length === 0) {
-      Alert.alert('Sin telefonos', 'Este servicio no tiene telefonos disponibles.');
+      setFeedbackDialog({ title: 'Sin telefonos', message: 'Este servicio no tiene telefonos disponibles.' });
       return;
     }
 
-    Alert.alert(
-      'Telefonos disponibles',
-      'Selecciona un numero para llamar al paciente.',
-      [
-        ...service.telefonos.map((phone) => ({
-          text: phone,
-          onPress: () => openExternalUrl(`tel:${phone}`),
-        })),
-        { text: 'Cancelar', style: 'cancel' as const },
-      ],
-    );
+    setPhonesDialogService(service);
   };
 
   const handleRefresh = () => {
@@ -98,12 +104,23 @@ export function ServicesScreen() {
     }
 
     if (!result.ok) {
-      Alert.alert('No fue posible continuar', result.message ?? 'Intenta nuevamente.');
+      setFeedbackDialog({ title: 'No fue posible continuar', message: result.message ?? 'Intenta nuevamente.' });
       return;
     }
 
     setModalConfig(null);
     setCodeInput('');
+  };
+
+  const confirmArrivedAtDestination = () => {
+    if (!destinationConfirmService) return;
+
+    const result = arrivedAtDestination(destinationConfirmService.numeroServicio);
+    setDestinationConfirmService(null);
+
+    if (!result.ok) {
+      setFeedbackDialog({ title: 'No fue posible continuar', message: result.message ?? 'Intenta nuevamente.' });
+    }
   };
 
   return (
@@ -150,42 +167,138 @@ export function ServicesScreen() {
           </View>
         </Modal>
 
+        <Modal
+          animationType="fade"
+          onRequestClose={() => setPhonesDialogService(null)}
+          transparent
+          visible={!!phonesDialogService}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalBox}>
+              <Text style={styles.modalTitle}>Telefonos disponibles</Text>
+              <Text style={styles.modalSubtitle}>Selecciona un numero para llamar al paciente.</Text>
+
+              <View style={styles.modalList}>
+                {phonesDialogService?.telefonos.map((phone) => (
+                  <Pressable
+                    key={phone}
+                    onPress={() => {
+                      setPhonesDialogService(null);
+                      void openExternalUrl(`tel:${phone}`);
+                    }}
+                    style={[styles.modalBtn, styles.modalBtnConfirm, styles.modalSingleActionBtn]}
+                  >
+                    <Text style={[styles.modalBtnText, styles.modalBtnConfirmText]}>{phone}</Text>
+                  </Pressable>
+                ))}
+              </View>
+
+              <Pressable
+                onPress={() => setPhonesDialogService(null)}
+                style={[styles.modalBtn, styles.modalBtnCancel, styles.modalSingleActionBtn]}
+              >
+                <Text style={styles.modalBtnText}>Cancelar</Text>
+              </Pressable>
+            </View>
+          </View>
+        </Modal>
+
+        <Modal
+          animationType="fade"
+          onRequestClose={() => setDestinationConfirmService(null)}
+          transparent
+          visible={!!destinationConfirmService}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalBox}>
+              <Text style={styles.modalTitle}>Llegue al destino</Text>
+              <Text style={styles.modalSubtitle}>¿Confirmas que llegaste al destino de este servicio?</Text>
+
+              <View style={styles.modalActions}>
+                <Pressable onPress={() => setDestinationConfirmService(null)} style={[styles.modalBtn, styles.modalBtnCancel]}>
+                  <Text style={styles.modalBtnText}>Cancelar</Text>
+                </Pressable>
+                <Pressable onPress={confirmArrivedAtDestination} style={[styles.modalBtn, styles.modalBtnConfirm]}>
+                  <Text style={[styles.modalBtnText, styles.modalBtnConfirmText]}>Confirmar</Text>
+                </Pressable>
+              </View>
+            </View>
+          </View>
+        </Modal>
+
+        <Modal
+          animationType="fade"
+          onRequestClose={() => setFeedbackDialog(null)}
+          transparent
+          visible={!!feedbackDialog}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalBox}>
+              <Text style={styles.modalTitle}>{feedbackDialog?.title}</Text>
+              <Text style={styles.modalSubtitle}>{feedbackDialog?.message}</Text>
+
+              <Pressable
+                onPress={() => setFeedbackDialog(null)}
+                style={[styles.modalBtn, styles.modalBtnConfirm, styles.modalSingleActionBtn]}
+              >
+                <Text style={[styles.modalBtnText, styles.modalBtnConfirmText]}>Aceptar</Text>
+              </Pressable>
+            </View>
+          </View>
+        </Modal>
+
         <SectionCard
           title="Servicios"
           subtitle="Asignados del mas proximo al mas lejano con accesos rapidos hacia paciente y origen."
         >
           {activeService ? (
-            <View style={styles.activeBanner}>
+            <Pressable
+              onPress={() => navigation.navigate('ServicioDetalle', { serviceNumber: activeService.numeroServicio })}
+              style={styles.activeBanner}
+            >
               <Text style={styles.activeLabel}>Servicio activo</Text>
               <Text style={styles.activeText}>
-                #{activeService.numeroServicio} — {activeService.estado}
+                #{activeService.numeroServicio} — {formatStatusLabel(activeService.estado)}
               </Text>
-            </View>
+            </Pressable>
           ) : null}
 
           {orderedServices.map((service) => {
-            const isActive = service.estado === 'EN_TRANSITO' || service.estado === 'TERMINADO';
+            const isInTransit = service.estado === 'EN_TRANSITO';
+            const isFinished = service.estado === 'TERMINADO';
             const isBlocked = !!activeService && activeService.numeroServicio !== service.numeroServicio;
 
             return (
               <Pressable
                 key={service.numeroServicio}
                 onPress={() => navigation.navigate('ServicioDetalle', { serviceNumber: service.numeroServicio })}
-                style={[styles.serviceCard, isActive ? styles.serviceCardActive : null]}
+                style={[
+                  styles.serviceCard,
+                  isInTransit ? styles.serviceCardInTransit : null,
+                  isFinished ? styles.serviceCardFinished : null,
+                ]}
               >
                 <View style={styles.rowBetween}>
                   <View style={styles.contractWrap}>
                     <MaterialCommunityIcons color="#0fa0f3" name="file-document-outline" size={18} />
                     <Text style={styles.contractText}>{service.contrato}</Text>
                   </View>
-                  <View style={[styles.statePill, { backgroundColor: STATE_COLORS[service.estado] + '22' }]}>
-                    <Text style={[styles.stateText, { color: STATE_COLORS[service.estado] }]}>
-                      {service.estado}
+                  <View
+                    style={[
+                      styles.statePill,
+                      isInTransit ? styles.statePillTransit : { backgroundColor: STATE_COLORS[service.estado] + '22' },
+                    ]}
+                  >
+                    <Text style={[styles.stateText, isInTransit ? styles.stateTextTransit : { color: STATE_COLORS[service.estado] }]}>
+                      {formatStatusLabel(service.estado)}
                     </Text>
                   </View>
                 </View>
 
                 <Text style={styles.companyText}>{service.companiaNombre}</Text>
+                {service.estado === 'EN_TRANSITO' ? (
+                  <Text style={styles.inTransitServiceNumber}>Servicio #{service.numeroServicio}</Text>
+                ) : null}
                 <Text style={styles.dateText}>{formatDateTime(service.fechaServicio)}</Text>
                 <Text style={styles.routeLabel}>Origen</Text>
                 <Text style={styles.routeValue}>{service.origenDireccion}</Text>
@@ -237,27 +350,17 @@ export function ServicesScreen() {
 
                     {service.estado === 'EN_TRANSITO' && (
                       <Pressable
-                        onPress={() => {
-                          Alert.alert(
-                            'Llegue al destino',
-                            `¿Confirmas que llegaste al destino del servicio #${service.numeroServicio}?`,
-                            [
-                              { text: 'Cancelar', style: 'cancel' },
-                              {
-                                text: 'Confirmar',
-                                onPress: () => {
-                                  const result = arrivedAtDestination(service.numeroServicio);
-                                  if (!result.ok) {
-                                    Alert.alert('Error', result.message ?? 'Intenta nuevamente.');
-                                  }
-                                },
-                              },
-                            ],
-                          );
-                        }}
-                        style={[styles.opsButton, styles.opsButtonPrimary]}
+                        onPress={() => setDestinationConfirmService(service)}
+                        style={[styles.opsButton, styles.opsButtonTransitPressable]}
                       >
-                        <Text style={styles.opsButtonText}>Llegue al destino</Text>
+                        <LinearGradient
+                          colors={['#ff8a3d', '#ff6b2c', '#ea4f16']}
+                          end={{ x: 1, y: 0.5 }}
+                          start={{ x: 0, y: 0.5 }}
+                          style={styles.opsButtonTransit}
+                        >
+                          <Text style={styles.opsButtonText}>Llegue al destino</Text>
+                        </LinearGradient>
                       </Pressable>
                     )}
 
@@ -321,9 +424,14 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 16,
   },
-  serviceCardActive: {
-    backgroundColor: '#2e95e6',
-    borderColor: '#2e95e6',
+  serviceCardInTransit: {
+    backgroundColor: '#cfe9ff',
+    borderColor: '#5aaeea',
+    borderWidth: 1,
+  },
+  serviceCardFinished: {
+    backgroundColor: '#e9eff4',
+    borderColor: '#c8d6e2',
     borderWidth: 1,
   },
   rowBetween: {
@@ -346,6 +454,12 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: '800',
   },
+  inTransitServiceNumber: {
+    color: '#0b4f7e',
+    fontSize: 13,
+    fontWeight: '800',
+    marginTop: 2,
+  },
   dateText: {
     color: '#41535c',
     fontSize: 14,
@@ -357,9 +471,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     paddingVertical: 4,
   },
+  statePillTransit: {
+    backgroundColor: '#9fd8ff',
+    borderColor: '#3f97d8',
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+  },
   stateText: {
     fontSize: 12,
     fontWeight: '700',
+  },
+  stateTextTransit: {
+    color: '#004c7c',
+    fontSize: 12,
+    fontWeight: '800',
   },
   routeLabel: {
     color: '#7c8f99',
@@ -420,6 +547,18 @@ const styles = StyleSheet.create({
   opsButtonPrimary: {
     backgroundColor: colors.info,
   },
+  opsButtonTransit: {
+    alignItems: 'center',
+    borderRadius: 14,
+    justifyContent: 'center',
+    paddingVertical: spacing.md,
+    width: '100%',
+  },
+  opsButtonTransitPressable: {
+    borderRadius: 14,
+    flex: 1,
+    overflow: 'hidden',
+  },
   opsButtonSuccess: {
     backgroundColor: colors.accent,
   },
@@ -476,11 +615,20 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     marginTop: spacing.sm,
   },
+  modalList: {
+    gap: spacing.sm,
+  },
   modalBtn: {
+    alignItems: 'center',
     borderRadius: 14,
     flex: 1,
+    justifyContent: 'center',
+    minHeight: 48,
     paddingVertical: spacing.md,
-    alignItems: 'center',
+  },
+  modalSingleActionBtn: {
+    alignSelf: 'stretch',
+    flex: 0,
   },
   modalBtnCancel: {
     backgroundColor: colors.surfaceAlt,
@@ -494,6 +642,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   modalBtnConfirmText: {
-    color: colors.background,
+    color: '#0b2239',
   },
 });

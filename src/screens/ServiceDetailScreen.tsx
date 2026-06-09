@@ -2,8 +2,9 @@ import { FontAwesome5, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { DrawerNavigationProp } from '@react-navigation/drawer';
-import { useMemo, useState } from 'react';
-import { Alert, Linking, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useMemo, useRef, useState } from 'react';
+import { Linking, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import SignatureScreen from 'react-native-signature-canvas';
 
 import { DrawerParamList } from '../navigation/AppDrawer';
 import { useSession } from '../store/session';
@@ -33,14 +34,46 @@ function buildMapUrl(lat: number, lng: number, app: 'google' | 'waze') {
   return `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
 }
 
+const signatureWebStyle = `
+  .m-signature-pad {
+    box-shadow: none;
+    border: none;
+    height: 100%;
+    margin: 0;
+  }
+  .m-signature-pad--body {
+    border: none;
+  }
+  .m-signature-pad--footer {
+    display: none;
+    margin: 0;
+  }
+  body, html {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+  }
+`;
+
 export function ServiceDetailScreen() {
   const route = useRoute<DetailRoute>();
   const navigation = useNavigation<DrawerNavigationProp<DrawerParamList>>();
-  const { services, arrivedAtOrigin } = useSession();
+  const { services, arrivedAtOrigin, arrivedAtDestination, deliverService } = useSession();
 
   const [originDialogOpen, setOriginDialogOpen] = useState(false);
   const [originCode, setOriginCode] = useState('');
   const [originError, setOriginError] = useState<string | null>(null);
+  const [deliveryDialogOpen, setDeliveryDialogOpen] = useState(false);
+  const [signatureFullScreenOpen, setSignatureFullScreenOpen] = useState(false);
+  const [guideControl, setGuideControl] = useState('');
+  const [deliveryError, setDeliveryError] = useState<string | null>(null);
+  const [signatureData, setSignatureData] = useState<string | null>(null);
+  const [phonesDialogOpen, setPhonesDialogOpen] = useState(false);
+  const [destinationDialogOpen, setDestinationDialogOpen] = useState(false);
+  const [feedbackDialog, setFeedbackDialog] = useState<{ title: string; message: string } | null>(null);
+  const signatureRef = useRef<any>(null);
+  const signatureFullScreenRef = useRef<any>(null);
 
   const service = useMemo(
     () => services.find((item) => item.numeroServicio === route.params.serviceNumber) ?? null,
@@ -68,7 +101,7 @@ export function ServiceDetailScreen() {
     const supported = await Linking.canOpenURL(url);
 
     if (!supported) {
-      Alert.alert('No disponible', 'No se pudo abrir la accion solicitada.');
+      setFeedbackDialog({ title: 'No disponible', message: 'No se pudo abrir la accion solicitada.' });
       return;
     }
 
@@ -77,21 +110,19 @@ export function ServiceDetailScreen() {
 
   const openPhones = () => {
     if (service.telefonos.length === 0) {
-      Alert.alert('Sin telefonos', 'Este servicio no tiene telefonos disponibles.');
+      setFeedbackDialog({ title: 'Sin telefonos', message: 'Este servicio no tiene telefonos disponibles.' });
       return;
     }
 
-    Alert.alert(
-      'Telefonos disponibles',
-      'Selecciona un numero para llamar al paciente.',
-      [
-        ...service.telefonos.map((phone) => ({
-          text: phone,
-          onPress: () => openExternalUrl(`tel:${phone}`),
-        })),
-        { text: 'Cancelar', style: 'cancel' as const },
-      ],
-    );
+    setPhonesDialogOpen(true);
+  };
+
+  const resetDeliveryDialog = () => {
+    setDeliveryDialogOpen(false);
+    setSignatureFullScreenOpen(false);
+    setGuideControl('');
+    setDeliveryError(null);
+    setSignatureData(null);
   };
 
   const handleConfirmOriginCode = () => {
@@ -110,7 +141,92 @@ export function ServiceDetailScreen() {
     setOriginDialogOpen(false);
     setOriginCode('');
     setOriginError(null);
-    Alert.alert('Codigo correcto', 'Validacion correcta. El flujo continua con el servicio en transito.');
+    setFeedbackDialog({
+      title: 'Codigo correcto',
+      message: 'Validacion correcta. El servicio ahora esta en transito.',
+    });
+  };
+
+  const handleArrivedAtDestination = () => {
+    setDestinationDialogOpen(true);
+  };
+
+  const confirmArrivedAtDestination = () => {
+    const result = arrivedAtDestination(service.numeroServicio);
+    setDestinationDialogOpen(false);
+    if (!result.ok) {
+      setFeedbackDialog({ title: 'No fue posible continuar', message: result.message ?? 'Intenta nuevamente.' });
+    }
+  };
+
+  const handleConfirmDelivery = () => {
+    if (!/^\d{1,10}$/.test(guideControl.trim())) {
+      setDeliveryError('Ingresa una GuíaControl numerica entre 1 y 10 digitos.');
+      return;
+    }
+
+    if (!signatureData) {
+      setDeliveryError('La firma del cliente es obligatoria para entregar el servicio.');
+      return;
+    }
+
+    const result = deliverService(service.numeroServicio, guideControl.trim());
+    if (!result.ok) {
+      setDeliveryError(result.message ?? 'No fue posible entregar el servicio.');
+      return;
+    }
+
+    resetDeliveryDialog();
+    setFeedbackDialog({ title: 'Servicio entregado', message: 'Entrega confirmada con GuíaControl y firma del cliente.' });
+  };
+
+  const handleSignatureOk = (signature: string) => {
+    setSignatureData(signature);
+    if (deliveryError) {
+      setDeliveryError(null);
+    }
+  };
+
+  const handleSignatureEmpty = () => {
+    setSignatureData(null);
+  };
+
+  const requestSignatureSnapshot = (ref: React.MutableRefObject<any>) => {
+    ref.current?.readSignature();
+  };
+
+  const ctaLabel =
+    service.estado === 'ASIGNADA'
+      ? 'Llegue al origen'
+      : service.estado === 'EN_TRANSITO'
+        ? 'Llegue al destino'
+        : service.estado === 'TERMINADO'
+          ? 'Entregar servicio'
+          : 'Completado';
+
+  const ctaDisabled = service.estado === 'COMPLETADO' || service.estado === 'procesado';
+  const ctaColors: readonly [string, string, ...string[]] = ctaDisabled
+    ? ['#8ea1b4', '#7b8fa3']
+    : service.estado === 'EN_TRANSITO'
+      ? ['#2f8cff', '#1f6feb', '#1454cc']
+      : service.estado === 'TERMINADO'
+        ? ['#39b86b', '#2fa45d', '#218a4b']
+        : ['#ff7b39', '#ff6424', '#f54d14'];
+
+  const handleMainAction = () => {
+    if (service.estado === 'ASIGNADA') {
+      setOriginDialogOpen(true);
+      return;
+    }
+
+    if (service.estado === 'EN_TRANSITO') {
+      handleArrivedAtDestination();
+      return;
+    }
+
+    if (service.estado === 'TERMINADO') {
+      setDeliveryDialogOpen(true);
+    }
   };
 
   return (
@@ -129,7 +245,7 @@ export function ServiceDetailScreen() {
           <View style={styles.dialogCard}>
             <Text style={styles.dialogTitle}>Llegue al origen</Text>
             <Text style={styles.dialogSubtitle}>
-              Ingresa el codigo del servicio para validar la llegada. El numero de servicio permanece oculto.
+              Ingresa el codigo del servicio para iniciar el recorrido. El numero de servicio fue enviado al cliente.
             </Text>
 
             <TextInput
@@ -162,6 +278,226 @@ export function ServiceDetailScreen() {
                 <Text style={styles.dialogConfirmText}>Validar</Text>
               </Pressable>
             </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        animationType="slide"
+        onRequestClose={resetDeliveryDialog}
+        transparent
+        visible={deliveryDialogOpen}
+      >
+        <View style={styles.dialogOverlay}>
+          <View style={styles.dialogCardLarge}>
+            <Text style={styles.dialogTitle}>Entregar servicio</Text>
+            <Text style={styles.dialogSubtitle}>
+              Captura la GuíaControl y solicita la firma del cliente para completar la entrega.
+            </Text>
+
+            <TextInput
+              keyboardType="number-pad"
+              onChangeText={(value) => {
+                setGuideControl(value);
+                if (deliveryError) setDeliveryError(null);
+              }}
+              placeholder="GuíaControl (1-10 digitos)"
+              placeholderTextColor="#7b8791"
+              style={styles.dialogInput}
+              value={guideControl}
+            />
+
+            <View style={styles.signatureHeaderRow}>
+              <Text style={styles.signatureLabel}>Firma del cliente</Text>
+              <View style={styles.signatureHeaderActions}>
+                <Pressable
+                  onPress={() => setSignatureFullScreenOpen(true)}
+                  style={styles.signatureExpandButton}
+                >
+                  <Text style={styles.signatureExpandText}>Pantalla completa</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => {
+                    signatureRef.current?.clearSignature();
+                    signatureFullScreenRef.current?.clearSignature();
+                    setSignatureData(null);
+                  }}
+                  style={styles.signatureClearButton}
+                >
+                  <Text style={styles.signatureClearText}>Limpiar</Text>
+                </Pressable>
+              </View>
+            </View>
+
+            <View style={styles.signaturePad}>
+              <SignatureScreen
+                autoClear={false}
+                bgHeight={220}
+                bgWidth={300}
+                clearText=""
+                confirmText=""
+                dataURL={signatureData ?? undefined}
+                descriptionText=""
+                imageType="image/png"
+                onEnd={() => requestSignatureSnapshot(signatureRef)}
+                onEmpty={handleSignatureEmpty}
+                onOK={handleSignatureOk}
+                penColor="#0f172a"
+                ref={signatureRef}
+                webStyle={signatureWebStyle}
+              />
+            </View>
+
+            <Modal
+              animationType="slide"
+              onRequestClose={() => setSignatureFullScreenOpen(false)}
+              visible={signatureFullScreenOpen}
+            >
+              <View style={styles.fullSignatureScreen}>
+                <View style={styles.fullSignatureHeader}>
+                  <Pressable onPress={() => setSignatureFullScreenOpen(false)} style={styles.fullSignatureHeaderBtn}>
+                    <Text style={styles.fullSignatureHeaderBtnText}>Cerrar</Text>
+                  </Pressable>
+                  <Text style={styles.fullSignatureHeaderTitle}>Firma del cliente</Text>
+                  <Pressable
+                    onPress={() => {
+                      signatureFullScreenRef.current?.clearSignature();
+                      signatureRef.current?.clearSignature();
+                      setSignatureData(null);
+                    }}
+                    style={styles.fullSignatureHeaderBtn}
+                  >
+                    <Text style={styles.fullSignatureHeaderBtnText}>Limpiar</Text>
+                  </Pressable>
+                </View>
+
+                <View style={styles.fullSignatureCanvasWrap}>
+                  <SignatureScreen
+                    autoClear={false}
+                    clearText=""
+                    confirmText=""
+                    dataURL={signatureData ?? undefined}
+                    descriptionText=""
+                    imageType="image/png"
+                    onEnd={() => requestSignatureSnapshot(signatureFullScreenRef)}
+                    onEmpty={handleSignatureEmpty}
+                    onOK={handleSignatureOk}
+                    penColor="#0f172a"
+                    ref={signatureFullScreenRef}
+                    webStyle={signatureWebStyle}
+                  />
+                </View>
+
+                <View style={styles.fullSignatureFooter}>
+                  <Pressable
+                    onPress={() => {
+                      requestSignatureSnapshot(signatureFullScreenRef);
+                      setSignatureFullScreenOpen(false);
+                    }}
+                    style={styles.fullSignatureUseBtn}
+                  >
+                    <Text style={styles.fullSignatureUseBtnText}>Usar firma</Text>
+                  </Pressable>
+                </View>
+              </View>
+            </Modal>
+
+            {deliveryError ? <Text style={styles.dialogError}>{deliveryError}</Text> : null}
+
+            <View style={styles.dialogActions}>
+              <Pressable onPress={resetDeliveryDialog} style={[styles.dialogButton, styles.dialogCancelButton]}>
+                <Text style={styles.dialogCancelText}>Cancelar</Text>
+              </Pressable>
+              <Pressable onPress={handleConfirmDelivery} style={[styles.dialogButton, styles.dialogConfirmButton]}>
+                <Text style={styles.dialogConfirmText}>Confirmar entrega</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        animationType="fade"
+        onRequestClose={() => setDestinationDialogOpen(false)}
+        transparent
+        visible={destinationDialogOpen}
+      >
+        <View style={styles.dialogOverlay}>
+          <View style={styles.dialogCard}>
+            <Text style={styles.dialogTitle}>Llegue al destino</Text>
+            <Text style={styles.dialogSubtitle}>¿Confirmar la llegada al destino de este servicio?</Text>
+
+            <View style={styles.dialogActions}>
+              <Pressable
+                onPress={() => setDestinationDialogOpen(false)}
+                style={[styles.dialogButton, styles.dialogCancelButton]}
+              >
+                <Text style={styles.dialogCancelText}>Cancelar</Text>
+              </Pressable>
+              <Pressable
+                onPress={confirmArrivedAtDestination}
+                style={[styles.dialogButton, styles.dialogConfirmButton]}
+              >
+                <Text style={styles.dialogConfirmText}>Confirmar</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        animationType="fade"
+        onRequestClose={() => setPhonesDialogOpen(false)}
+        transparent
+        visible={phonesDialogOpen}
+      >
+        <View style={styles.dialogOverlay}>
+          <View style={styles.dialogCard}>
+            <Text style={styles.dialogTitle}>Telefonos disponibles</Text>
+            <Text style={styles.dialogSubtitle}>Selecciona un numero para llamar al paciente.</Text>
+
+            <View style={styles.phoneActionsWrap}>
+              {service.telefonos.map((phone) => (
+                <Pressable
+                  key={phone}
+                  onPress={() => {
+                    setPhonesDialogOpen(false);
+                    void openExternalUrl(`tel:${phone}`);
+                  }}
+                  style={[styles.dialogButton, styles.dialogConfirmButton, styles.dialogSingleActionButton]}
+                >
+                  <Text style={styles.dialogConfirmText}>{phone}</Text>
+                </Pressable>
+              ))}
+            </View>
+
+            <Pressable
+              onPress={() => setPhonesDialogOpen(false)}
+              style={[styles.dialogButton, styles.dialogCancelButton, styles.dialogSingleActionButton]}
+            >
+              <Text style={styles.dialogCancelText}>Cancelar</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        animationType="fade"
+        onRequestClose={() => setFeedbackDialog(null)}
+        transparent
+        visible={!!feedbackDialog}
+      >
+        <View style={styles.dialogOverlay}>
+          <View style={styles.dialogCard}>
+            <Text style={styles.dialogTitle}>{feedbackDialog?.title}</Text>
+            <Text style={styles.dialogSubtitle}>{feedbackDialog?.message}</Text>
+
+            <Pressable
+              onPress={() => setFeedbackDialog(null)}
+              style={[styles.dialogButton, styles.dialogConfirmButton, styles.dialogSingleActionButton]}
+            >
+              <Text style={styles.dialogConfirmText}>Aceptar</Text>
+            </Pressable>
           </View>
         </View>
       </Modal>
@@ -270,17 +606,18 @@ export function ServiceDetailScreen() {
 
       <View style={styles.detailFooter}>
         <Pressable
-          onPress={() => setOriginDialogOpen(true)}
+          disabled={ctaDisabled}
+          onPress={handleMainAction}
           style={styles.detailStatusButtonPressable}
         >
           <LinearGradient
-            colors={['#ff7b39', '#ff6424', '#f54d14']}
+            colors={ctaColors}
             end={{ x: 1, y: 0.5 }}
             start={{ x: 0, y: 0.5 }}
             style={styles.detailStatusButton}
           >
             <MaterialCommunityIcons color="#ffffff" name="arrow-right-bold" size={18} />
-            <Text style={styles.detailStatusButtonText}>Llegue al origen</Text>
+            <Text style={styles.detailStatusButtonText}>{ctaLabel}</Text>
           </LinearGradient>
         </Pressable>
       </View>
@@ -300,6 +637,11 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.sm,
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.lg,
+  },
+  detailHeaderTitle: {
+    color: '#0f172a',
+    fontSize: 16,
+    fontWeight: '800',
   },
   headerIconButton: {
     minWidth: 28,
@@ -419,6 +761,15 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     width: '100%',
   },
+  dialogCardLarge: {
+    backgroundColor: '#ffffff',
+    borderColor: '#d9e1e8',
+    borderRadius: 18,
+    borderWidth: 1,
+    gap: spacing.sm,
+    padding: spacing.lg,
+    width: '100%',
+  },
   dialogTitle: {
     color: '#0f172a',
     fontSize: 18,
@@ -449,11 +800,20 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     marginTop: spacing.xs,
   },
+  phoneActionsWrap: {
+    gap: spacing.xs,
+  },
   dialogButton: {
     alignItems: 'center',
     borderRadius: 12,
     flex: 1,
+    justifyContent: 'center',
+    minHeight: 46,
     paddingVertical: spacing.sm,
+  },
+  dialogSingleActionButton: {
+    alignSelf: 'stretch',
+    flex: 0,
   },
   dialogCancelButton: {
     backgroundColor: '#eff3f7',
@@ -467,6 +827,102 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   dialogConfirmText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  signatureHeaderRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: spacing.xs,
+  },
+  signatureHeaderActions: {
+    flexDirection: 'row',
+    gap: spacing.xs,
+  },
+  signatureLabel: {
+    color: '#0f172a',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  signatureExpandButton: {
+    backgroundColor: '#dbeafe',
+    borderRadius: 10,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 6,
+  },
+  signatureExpandText: {
+    color: '#1d4ed8',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  signatureClearButton: {
+    backgroundColor: '#eff3f7',
+    borderRadius: 10,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 6,
+  },
+  signatureClearText: {
+    color: '#334155',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  signaturePad: {
+    backgroundColor: '#f8fafc',
+    borderColor: '#c8d6e5',
+    borderRadius: 12,
+    borderWidth: 1,
+    height: 280,
+    overflow: 'hidden',
+  },
+  fullSignatureScreen: {
+    backgroundColor: '#eef2f5',
+    flex: 1,
+  },
+  fullSignatureHeader: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingBottom: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg,
+  },
+  fullSignatureHeaderTitle: {
+    color: '#0f172a',
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  fullSignatureHeaderBtn: {
+    backgroundColor: '#ffffff',
+    borderColor: '#dbe4ec',
+    borderRadius: 10,
+    borderWidth: 1,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 8,
+  },
+  fullSignatureHeaderBtnText: {
+    color: '#334155',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  fullSignatureCanvasWrap: {
+    borderTopColor: '#d2d9df',
+    borderTopWidth: 1,
+    flex: 1,
+    marginTop: spacing.xs,
+  },
+  fullSignatureFooter: {
+    backgroundColor: '#eef2f5',
+    padding: spacing.lg,
+  },
+  fullSignatureUseBtn: {
+    alignItems: 'center',
+    backgroundColor: '#ff6424',
+    borderRadius: 12,
+    paddingVertical: spacing.md,
+  },
+  fullSignatureUseBtnText: {
     color: '#ffffff',
     fontSize: 14,
     fontWeight: '800',

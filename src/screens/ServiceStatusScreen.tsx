@@ -1,10 +1,13 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
 import { useState } from 'react';
+import { useNavigation } from '@react-navigation/native';
+import { DrawerNavigationProp } from '@react-navigation/drawer';
 
 import { RoleGate } from '../components/RoleGate';
 import { useSession } from '../store/session';
 import { colors, spacing } from '../theme';
+import { DrawerParamList } from '../navigation/AppDrawer';
 
 // ── Mock histogram data per filter ──────────────────────────────────────────
 type FilterKey = '7' | '15' | '30';
@@ -65,6 +68,7 @@ const STAT_CONFIGS: StatConfig[] = [
 ];
 
 export function ServiceStatusScreen() {
+  const navigation = useNavigation<DrawerNavigationProp<DrawerParamList>>();
   const { activeService, statusCounts } = useSession();
 
   const { width: screenWidth } = useWindowDimensions();
@@ -96,6 +100,49 @@ export function ServiceStatusScreen() {
   const todayIndex   = new Date().getDay();
   const highlightIdx = filter === '7' ? (todayIndex === 0 ? 6 : todayIndex - 1) : -1;
 
+  const activeStateVisual = activeService?.estado === 'TERMINADO'
+    ? {
+        title: 'Servicio terminado',
+        badgeText: 'TERMINADO',
+        cardBg: '#fff5e6',
+        cardBorder: '#f8d9a8',
+        accent: '#b45309',
+        badgeBg: '#f59e0b',
+        badgeTextColor: '#ffffff',
+        divider: '#f3c988',
+        buttonBg: '#ff6424',
+        buttonLabel: 'Ver Detalles y Entregar  →',
+      }
+    : activeService?.estado === 'EN_TRANSITO'
+      ? {
+          title: 'Servicio en tránsito',
+          badgeText: 'LIVE',
+          cardBg: '#dceeff',
+          cardBorder: '#9fc8ee',
+          accent: '#006493',
+          badgeBg: '#0ea5e9',
+          badgeTextColor: '#ffffff',
+          divider: '#9fc8ee',
+          buttonBg: '#ff6b2c',
+          buttonBorder: '#e25519',
+          buttonShadow: '#b83c0b',
+          buttonLabel: 'Ver Detalles del Viaje  →',
+        }
+      : {
+          title: 'Servicio activo',
+          badgeText: 'ACTIVO',
+          cardBg: '#eef2f5',
+          cardBorder: '#d5dee8',
+          accent: '#1f3b57',
+          badgeBg: '#006493',
+          badgeTextColor: '#ffffff',
+          divider: '#d5dee8',
+          buttonBg: '#006493',
+          buttonBorder: '#005784',
+          buttonShadow: '#004466',
+          buttonLabel: 'Ver Detalles del Servicio  →',
+        };
+
   return (
     <ScrollView contentContainerStyle={styles.content}>
       <RoleGate allowedRoles={['CONDUCTOR', 'PROPIETARIO']}>
@@ -120,11 +167,17 @@ export function ServiceStatusScreen() {
         </View>
 
         {/* ── Card 2: Servicio en tránsito ── */}
-        <View style={[styles.card, styles.transitCard]}>
+        <View
+          style={[
+            styles.card,
+            styles.transitCard,
+            { backgroundColor: activeStateVisual.cardBg, borderColor: activeStateVisual.cardBorder },
+          ]}
+        >
           <View style={styles.transitHeader}>
-            <Text style={styles.transitTitle}>Servicio en tránsito</Text>
-            <View style={styles.liveBadge}>
-              <Text style={styles.liveText}>LIVE</Text>
+            <Text style={styles.transitTitle}>{activeStateVisual.title}</Text>
+            <View style={[styles.badgePill, { backgroundColor: activeStateVisual.badgeBg }]}>
+              <Text style={[styles.badgeText, { color: activeStateVisual.badgeTextColor }]}>{activeStateVisual.badgeText}</Text>
             </View>
           </View>
 
@@ -132,30 +185,43 @@ export function ServiceStatusScreen() {
             <>
               {/* Vehicle row */}
               <View style={styles.vehicleRow}>
-                <MaterialCommunityIcons name="truck-outline" size={22} color="#006493" />
+                <MaterialCommunityIcons name="office-building-outline" size={22} color={activeStateVisual.accent} />
                 <View style={styles.vehicleInfo}>
-                  <Text style={styles.vehicleLabel}>VEHÍCULO</Text>
+                  <Text style={[styles.vehicleLabel, { color: activeStateVisual.accent }]}>CONTRATO</Text>
                   <Text style={styles.vehicleValue}>{activeService.contrato}</Text>
+                  <Text style={[styles.vehicleLabel, { color: activeStateVisual.accent }]}>EMPRESA</Text>
+                  <Text style={styles.companyValue}>{activeService.companiaNombre}</Text>
                 </View>
               </View>
 
-              <View style={styles.divider} />
+              <View style={[styles.divider, { backgroundColor: activeStateVisual.divider }]} />
 
               {/* Origin / destination */}
               <View style={styles.routeRow}>
                 <View style={styles.routeCol}>
-                  <Text style={styles.routeLabel}>ORIGEN</Text>
+                  <Text style={[styles.routeLabel, { color: activeStateVisual.accent }]}>ORIGEN</Text>
                   <Text style={styles.routeValue}>{activeService.origenDireccion}</Text>
                 </View>
                 <View style={styles.routeCol}>
-                  <Text style={styles.routeLabel}>DESTINO</Text>
+                  <Text style={[styles.routeLabel, { color: activeStateVisual.accent }]}>DESTINO</Text>
                   <Text style={styles.routeValue}>{activeService.destinoDireccion}</Text>
                 </View>
               </View>
 
               {/* CTA button */}
-              <TouchableOpacity style={styles.detailBtn} activeOpacity={0.85}>
-                <Text style={styles.detailBtnText}>Ver Detalles del Viaje  →</Text>
+              <TouchableOpacity
+                activeOpacity={0.85}
+                onPress={() => navigation.navigate('ServicioDetalle', { serviceNumber: activeService.numeroServicio })}
+                style={[
+                  styles.detailBtn,
+                  {
+                    backgroundColor: activeStateVisual.buttonBg,
+                    borderColor: activeStateVisual.buttonBorder,
+                    shadowColor: activeStateVisual.buttonShadow,
+                  },
+                ]}
+              >
+                <Text style={styles.detailBtnText}>{activeStateVisual.buttonLabel}</Text>
               </TouchableOpacity>
             </>
           ) : (
@@ -397,14 +463,12 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '800',
   },
-  liveBadge: {
-    backgroundColor: '#22c55e',
+  badgePill: {
     borderRadius: 20,
     paddingHorizontal: 10,
     paddingVertical: 3,
   },
-  liveText: {
-    color: '#fff',
+  badgeText: {
     fontSize: 11,
     fontWeight: '800',
     letterSpacing: 1,
@@ -428,6 +492,11 @@ const styles = StyleSheet.create({
     color: '#121417',
     fontSize: 17,
     fontWeight: '800',
+  },
+  companyValue: {
+    color: '#4a5568',
+    fontSize: 13,
+    fontWeight: '600',
   },
   divider: {
     backgroundColor: '#c3ddf5',
@@ -456,8 +525,13 @@ const styles = StyleSheet.create({
   detailBtn: {
     alignItems: 'center',
     backgroundColor: '#1a6b43',
+    borderWidth: 1,
     borderRadius: 30,
+    elevation: 3,
     marginTop: 4,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
     paddingVertical: 14,
   },
   detailBtnText: {

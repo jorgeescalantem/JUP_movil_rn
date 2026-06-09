@@ -157,10 +157,14 @@ Estados clave:
 
 Acciones:
 1. **Llegué al origen**
-   - Validación por código: el código debe ser igual a `numeroServicio`
+  - Validación por código: el código debe ser igual a `numeroServicio`.
+  - Se realiza en modal custom (no nativo) alineado al diseño de la app.
 2. **Llegué al destino**
+  - Confirmación previa en modal custom (no `Alert` nativo).
 3. **Entregar servicio**
-   - Captura `Guiacontrol` (solo numérico, 1..10 dígitos)
+  - Captura `Guiacontrol` (solo numérico, 1..10 dígitos).
+  - Firma de cliente obligatoria para confirmar entrega.
+  - Modal de firma en tamaño normal + opción de pantalla completa.
 
 Regla: **solo un servicio activo**
 - Se considera activo si estado está en: `EN_TRANSITO` o `TERMINADO`
@@ -212,7 +216,85 @@ En desarrollo inicial podemos usar mocks locales. Cuando exista backend, estos d
 
 ---
 
-## 13) Solución de errores comunes (Git)
+## 13) Estado implementado actualmente (CONDUCTOR)
+
+Este es el estado funcional real ya implementado en código para conductor y su pantalla de estado de servicios.
+
+### 13.1 Servicios (Home de Conductor)
+
+- Tarjetas de servicio ordenadas por `fechaServicio`.
+- Estados visibles en home: `ASIGNADA`, `EN_TRANSITO`, `TERMINADO`.
+- Bloque de **Servicio activo** con navegación directa al detalle del servicio activo.
+- Acciones rápidas por tarjeta: Teléfono, Google Maps, Waze.
+- Bloqueo operativo en servicios `ASIGNADA` cuando existe otro servicio activo.
+
+### 13.2 Detalle del servicio (Conductor)
+
+- Pantalla dedicada (ruta `ServicioDetalle`) con información completa del servicio.
+- CTA inferior dinámico por estado:
+  - `ASIGNADA`: Llegué al origen.
+  - `EN_TRANSITO`: Llegué al destino.
+  - `TERMINADO`: Entregar servicio.
+  - `COMPLETADO/procesado`: estado deshabilitado.
+- Colores del CTA por estado:
+  - Naranja (`ASIGNADA`)
+  - Azul (`EN_TRANSITO`)
+  - Verde (`TERMINADO`)
+  - Gris cuando está deshabilitado.
+
+### 13.3 Diálogos/Modales del flujo (sin componentes nativos)
+
+- Reemplazo de `Alert` nativo por modales custom en:
+  - Confirmación de llegada a destino.
+  - Selector de teléfonos disponibles.
+  - Mensajes de feedback (éxito, error, no disponible).
+- Estilo visual consistente con el sistema de diseño actual:
+  - Superficie clara, bordes suaves, tipografía de alto contraste.
+  - Botones de confirmar/cancelar con colores de marca.
+
+### 13.4 Flujo de entrega implementado
+
+- Validaciones activas:
+  - `Guiacontrol` numérica de 1 a 10 dígitos.
+  - Firma obligatoria para completar entrega.
+- Firma:
+  - Integración con `react-native-signature-canvas`.
+  - Opción de limpiar firma.
+  - Opción de captura en pantalla completa.
+
+### 13.5 Pantalla Estado de servicios (Conductor)
+
+- Rediseño visual de la pantalla con enfoque de tablero.
+- Gráfica de histórico con:
+  - Filtros de tiempo (7/15/30 días según configuración actual).
+  - Barras con borde/etiquetas y línea de tendencia.
+  - Selección de barra para mostrar fecha exacta del día.
+
+### 13.6 Datos mock y persistencia
+
+- Se agregaron servicios de prueba para cubrir escenarios operativos.
+- Hidratación de sesión con merge entre persistencia local y mocks para evitar perder nuevos datos de prueba.
+
+---
+
+## 14) Orden lógico en que se implementó (histórico real)
+
+1. Base de navegación y control por rol (`CONDUCTOR` / `PROPIETARIO`).
+2. Construcción y ajuste visual de Home de Conductor (tarjetas + acciones rápidas).
+3. Creación de ruta y pantalla dedicada de Detalle del servicio.
+4. Implementación de transición operativa por estados (`ASIGNADA -> EN_TRANSITO -> TERMINADO -> COMPLETADO`).
+5. Validación de llegada a origen por código.
+6. Confirmación de llegada a destino.
+7. Implementación de entrega con `Guiacontrol`.
+8. Integración de firma del cliente (normal + pantalla completa).
+9. Reemplazo de diálogos nativos por modales custom consistentes con diseño.
+10. Ajustes de visibilidad de servicios activos y reglas de bloqueo en Home.
+11. Ajustes de persistencia (merge mocks + storage) para reflejar cambios de datos de prueba.
+12. Rediseño y mejoras de la pantalla Estado de servicios para conductor.
+
+---
+
+## 15) Solución de errores comunes (Git)
 
 ### "Can't push refs to remote. Try running Pull first"
 
