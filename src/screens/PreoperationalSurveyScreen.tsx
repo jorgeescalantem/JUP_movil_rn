@@ -1,7 +1,7 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useMemo, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { preoperationalConfig, PreoperationalOption } from '../mocks/preoperational';
 import { useSession } from '../store/session';
@@ -22,11 +22,14 @@ function getTodayDisplay() {
   });
 }
 
+type AlertModal = { title: string; message: string; onClose?: () => void } | null;
+
 export function PreoperationalSurveyScreen() {
   const { preoperationalQuestions, submitPreoperational } = useSession();
   const [answers, setAnswers] = useState<AnswersMap>({});
   const [mileage, setMileage] = useState('');
   const [observations, setObservations] = useState('');
+  const [alertModal, setAlertModal] = useState<AlertModal>(null);
 
   const title = useMemo(
     () => `Preoperacional del ${getTodayDisplay()}, Vehiculo: ${preoperationalConfig.vehicleName}`,
@@ -41,15 +44,38 @@ export function PreoperationalSurveyScreen() {
     const result = submitPreoperational({ answers, mileage, observations });
 
     if (!result.ok) {
-      Alert.alert('Encuesta incompleta', result.message ?? 'Completa la encuesta antes de enviar.');
+      setAlertModal({ title: 'Encuesta incompleta', message: result.message ?? 'Completa la encuesta antes de enviar.' });
       return;
     }
 
-    Alert.alert('Encuesta enviada', 'Inspeccion preoperacional registrada correctamente.');
+    setAlertModal({
+      title: 'Encuesta enviada',
+      message: 'Inspeccion preoperacional registrada correctamente.',
+      onClose: () => { setAnswers({}); setMileage(''); setObservations(''); },
+    });
+  };
+
+  const handleCloseAlert = () => {
+    const cb = alertModal?.onClose;
+    setAlertModal(null);
+    cb?.();
   };
 
   return (
     <ScrollView contentContainerStyle={styles.content}>
+      <Modal animationType="fade" onRequestClose={handleCloseAlert} transparent visible={!!alertModal}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalBox}>
+            <Text style={styles.modalTitle}>{alertModal?.title}</Text>
+            <Text style={styles.modalSubtitle}>{alertModal?.message}</Text>
+            <View style={styles.modalActions}>
+              <Pressable onPress={handleCloseAlert} style={[styles.modalBtn, styles.modalBtnConfirm, styles.modalSingleActionBtn]}>
+                <Text style={[styles.modalBtnText, styles.modalBtnConfirmText]}>OK</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
       <View style={styles.headerRow}>
         <Text style={styles.screenTitle}>Preoperacional</Text>
         <MaterialCommunityIcons color="#1aa8ef" name="send" size={30} />
@@ -239,5 +265,53 @@ const styles = StyleSheet.create({
     color: '#f8fffe',
     fontSize: 18,
     fontWeight: '700',
+  },
+  modalOverlay: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    flex: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+  },
+  modalBox: {
+    backgroundColor: '#ffffff',
+    borderRadius: 20,
+    padding: 24,
+    width: '100%',
+  },
+  modalTitle: {
+    color: '#121417',
+    fontSize: 18,
+    fontWeight: '800',
+    marginBottom: 8,
+  },
+  modalSubtitle: {
+    color: '#4a5568',
+    fontSize: 14,
+    lineHeight: 20,
+    marginBottom: 20,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    gap: 10,
+    justifyContent: 'flex-end',
+  },
+  modalBtn: {
+    borderRadius: 12,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+  },
+  modalBtnConfirm: {
+    backgroundColor: '#0fa0f3',
+  },
+  modalBtnText: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  modalBtnConfirmText: {
+    color: '#ffffff',
+  },
+  modalSingleActionBtn: {
+    alignSelf: 'flex-end',
   },
 });

@@ -366,7 +366,7 @@ export function ServicesScreen() {
 
                     {service.estado === 'TERMINADO' && (
                       <Pressable
-                        onPress={() => { setModalConfig({ type: 'deliver', serviceNumber: service.numeroServicio }); setCodeInput(''); }}
+                          onPress={() => navigation.navigate('ServicioDetalle', { serviceNumber: service.numeroServicio })}
                         style={[styles.opsButton, styles.opsButtonSuccess]}
                       >
                         <Text style={styles.opsButtonText}>Entregar servicio</Text>

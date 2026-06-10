@@ -94,9 +94,9 @@ export function AppDrawer() {
   const { role } = useSession();
 
   return (
-    <NavigationContainer theme={navigationTheme}>
+    <NavigationContainer key={`nav-${role}`} theme={navigationTheme}>
       <Drawer.Navigator
-        initialRouteName="Servicios"
+        key={role}
         drawerContent={(props) => <CustomDrawerContent {...props} />}
         screenOptions={{
           drawerActiveBackgroundColor: colors.accentSoft,

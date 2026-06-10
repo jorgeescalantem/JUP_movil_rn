@@ -1,109 +1,116 @@
 import { useMemo, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 
 import { RoleGate } from '../components/RoleGate';
 import { SectionCard } from '../components/SectionCard';
 import { useSession } from '../store/session';
 import { colors, spacing } from '../theme';
 
-type ClosingsFilter = 'TERMINADO' | 'COMPLETADO';
-
 function toInputDate(isoValue: string) {
   return new Date(isoValue).toISOString().slice(0, 10);
 }
 
-export function ClosingsScreen() {
-  const { services, closeService } = useSession();
-  const [selectedFilter, setSelectedFilter] = useState<ClosingsFilter>('TERMINADO');
-  const [guides, setGuides] = useState<Record<string, string>>({});
+function parseInputDate(value: string) {
+  const [year, month, day] = value.split('-').map(Number);
+  return new Date(year, (month || 1) - 1, day || 1);
+}
 
-  const terminadoServices = useMemo(
-    () => services.filter((service) => service.estado === 'TERMINADO'),
-    [services],
+function getDefaultDateRange() {
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth(), 1);
+  return {
+    from: start.toISOString().slice(0, 10),
+    to: now.toISOString().slice(0, 10),
+  };
+}
+
+export function ClosingsScreen() {
+  const { services } = useSession();
+  const defaultRange = getDefaultDateRange();
+  const [fromDate, setFromDate] = useState(defaultRange.from);
+  const [toDate, setToDate] = useState(defaultRange.to);
+  const [showFromPicker, setShowFromPicker] = useState(false);
+  const [showToPicker, setShowToPicker] = useState(false);
+
+  const handleFromDateChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
+    setShowFromPicker(Platform.OS === 'ios');
+    if (event.type === 'set' && selectedDate) {
+      setFromDate(selectedDate.toISOString().slice(0, 10));
+    }
+  };
+
+  const handleToDateChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
+    setShowToPicker(Platform.OS === 'ios');
+    if (event.type === 'set' && selectedDate) {
+      setToDate(selectedDate.toISOString().slice(0, 10));
+    }
+  };
+
+  const visibleServices = useMemo(
+    () =>
+      services.filter((service) => {
+        if (service.estado !== 'TERMINADO' && service.estado !== 'COMPLETADO') {
+          return false;
+        }
+
+        const serviceDate = toInputDate(service.fechaServicio);
+        return serviceDate >= fromDate && serviceDate <= toDate;
+      }),
+    [fromDate, services, toDate],
   );
-  const completedServices = useMemo(
-    () => services.filter((service) => service.estado === 'COMPLETADO'),
-    [services],
-  );
-  const visibleServices = selectedFilter === 'TERMINADO' ? terminadoServices : completedServices;
-  const totalForChart = Math.max(terminadoServices.length + completedServices.length, 1);
 
   return (
     <ScrollView contentContainerStyle={styles.content}>
       <RoleGate allowedRoles={['PROPIETARIO']}>
-        <SectionCard title="Cierres" subtitle="Drilldown local para terminados y completados de los ultimos movimientos.">
-          <View style={styles.chartRow}>
-            <Pressable
-              onPress={() => setSelectedFilter('TERMINADO')}
-              style={[
-                styles.chartSegment,
-                styles.chartSegmentWarning,
-                { flex: terminadoServices.length / totalForChart || 1 },
-              ]}
-            >
-              <Text style={styles.chartTitle}>Terminados</Text>
-              <Text style={styles.chartValue}>{terminadoServices.length}</Text>
-            </Pressable>
-
-            <Pressable
-              onPress={() => setSelectedFilter('COMPLETADO')}
-              style={[
-                styles.chartSegment,
-                styles.chartSegmentSuccess,
-                { flex: completedServices.length / totalForChart || 1 },
-              ]}
-            >
-              <Text style={styles.chartTitle}>Completados</Text>
-              <Text style={styles.chartValue}>{completedServices.length}</Text>
-            </Pressable>
+        <SectionCard
+          title="Detalle de servicios"
+          subtitle="Filtra por fechas. Este rol solo permite consultar el detalle; no permite cierre por GuíaControl."
+        >
+          <View style={styles.dateFilterRow}>
+            <View style={styles.dateFilterCol}>
+              <Text style={styles.dateFilterLabel}>Desde</Text>
+              <Pressable onPress={() => setShowFromPicker(true)} style={styles.dateInputPressable}>
+                <Text style={styles.dateInputText}>{fromDate}</Text>
+              </Pressable>
+              {showFromPicker ? (
+                <DateTimePicker
+                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                  mode="date"
+                  onChange={handleFromDateChange}
+                  value={parseInputDate(fromDate)}
+                />
+              ) : null}
+            </View>
+            <View style={styles.dateFilterCol}>
+              <Text style={styles.dateFilterLabel}>Hasta</Text>
+              <Pressable onPress={() => setShowToPicker(true)} style={styles.dateInputPressable}>
+                <Text style={styles.dateInputText}>{toDate}</Text>
+              </Pressable>
+              {showToPicker ? (
+                <DateTimePicker
+                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                  mode="date"
+                  onChange={handleToDateChange}
+                  value={parseInputDate(toDate)}
+                />
+              ) : null}
+            </View>
           </View>
 
-          <Text style={styles.helperText}>Toca un segmento para cambiar la lista filtrada.</Text>
-        </SectionCard>
-
-        <SectionCard
-          title={selectedFilter === 'TERMINADO' ? 'Lista de terminados' : 'Lista de completados'}
-          subtitle="En terminados puedes capturar Guiacontrol y cerrar el servicio."
-        >
           {visibleServices.map((service) => (
             <View key={service.numeroServicio} style={styles.serviceCard}>
               <Text style={styles.serviceTitle}>Servicio #{service.numeroServicio}</Text>
+              <Text style={styles.detailText}>Estado: {service.estado}</Text>
               <Text style={styles.detailText}>Fecha: {toInputDate(service.fechaServicio)}</Text>
               <Text style={styles.detailText}>Cliente: {service.clienteNombre}</Text>
               <Text style={styles.detailText}>Compania: {service.companiaNombre}</Text>
               <Text style={styles.detailText}>Origen: {service.origenDireccion}</Text>
               <Text style={styles.detailText}>Destino: {service.destinoDireccion}</Text>
 
-              {selectedFilter === 'TERMINADO' ? (
-                <>
-                  <TextInput
-                    keyboardType="number-pad"
-                    onChangeText={(value) => setGuides((current) => ({ ...current, [service.numeroServicio]: value }))}
-                    placeholder="Guiacontrol"
-                    placeholderTextColor={colors.muted}
-                    style={styles.input}
-                    value={guides[service.numeroServicio] ?? ''}
-                  />
-                  <Pressable
-                    onPress={() => {
-                      const result = closeService(service.numeroServicio, guides[service.numeroServicio] ?? '');
-
-                      if (!result.ok) {
-                        Alert.alert('No fue posible cerrar', result.message ?? 'Intenta nuevamente.');
-                        return;
-                      }
-
-                      setGuides((current) => ({ ...current, [service.numeroServicio]: '' }));
-                      Alert.alert('Servicio cerrado', 'El estado cambio a COMPLETADO.');
-                    }}
-                    style={styles.closeButton}
-                  >
-                    <Text style={styles.closeButtonText}>Cerrar</Text>
-                  </Pressable>
-                </>
-              ) : (
-                <Text style={styles.detailText}>Guia: {service.Guiacontrol ?? 'Sin registrar'}</Text>
-              )}
+              <Text style={styles.detailText}>
+                GuiaControl: {service.Guiacontrol ?? (service.estado === 'TERMINADO' ? 'Pendiente de cierre' : 'Sin registrar')}
+              </Text>
             </View>
           ))}
 
@@ -121,35 +128,33 @@ const styles = StyleSheet.create({
     gap: spacing.lg,
     padding: spacing.lg,
   },
-  chartRow: {
+  dateFilterRow: {
     flexDirection: 'row',
     gap: spacing.sm,
+    marginBottom: spacing.md,
   },
-  chartSegment: {
-    borderRadius: 18,
-    minHeight: 120,
-    padding: spacing.md,
-    justifyContent: 'space-between',
+  dateFilterCol: {
+    flex: 1,
+    gap: spacing.xs,
   },
-  chartSegmentWarning: {
-    backgroundColor: '#78350f',
-  },
-  chartSegmentSuccess: {
-    backgroundColor: colors.accentSoft,
-  },
-  chartTitle: {
-    color: colors.textStrong,
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  chartValue: {
-    color: colors.textStrong,
-    fontSize: 32,
-    fontWeight: '700',
-  },
-  helperText: {
+  dateFilterLabel: {
     color: colors.muted,
+    fontSize: 12,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+  },
+  dateInputPressable: {
+    backgroundColor: colors.backgroundAlt,
+    borderColor: colors.border,
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.sm,
+  },
+  dateInputText: {
+    color: colors.textStrong,
     fontSize: 14,
+    fontWeight: '600',
   },
   serviceCard: {
     backgroundColor: colors.surfaceAlt,
@@ -167,28 +172,6 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 14,
     lineHeight: 20,
-  },
-  input: {
-    backgroundColor: colors.backgroundAlt,
-    borderColor: colors.border,
-    borderRadius: 14,
-    borderWidth: 1,
-    color: colors.textStrong,
-    marginTop: spacing.sm,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-  },
-  closeButton: {
-    alignItems: 'center',
-    backgroundColor: colors.accent,
-    borderRadius: 14,
-    marginTop: spacing.sm,
-    paddingVertical: spacing.sm,
-  },
-  closeButtonText: {
-    color: colors.background,
-    fontSize: 14,
-    fontWeight: '700',
   },
   emptyText: {
     color: colors.muted,

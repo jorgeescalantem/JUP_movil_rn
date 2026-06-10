@@ -242,6 +242,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         setServices(mockServices);
       },
       closeService: (serviceNumber: string, guideControl: string) => {
+        if (role === 'PROPIETARIO') {
+          return { ok: false, message: 'Este rol no tiene permiso para cerrar servicios desde este flujo.' };
+        }
+
         if (!/^\d{1,10}$/.test(guideControl)) {
           return { ok: false, message: 'La guia debe ser numerica y tener entre 1 y 10 digitos.' };
         }
