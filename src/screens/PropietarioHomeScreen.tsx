@@ -155,24 +155,6 @@ export function PropietarioHomeScreen({ navigation }: Props) {
 
           <Text style={styles.closingsHelper}>Toca un segmento para ir al detalle de cierres.</Text>
         </SectionCard>
-
-        {/* Accesos directos */}
-        <SectionCard title="Accesos rapidos" subtitle="Navega directamente a las secciones del propietario.">
-          <View style={styles.shortcutsGrid}>
-            <Pressable onPress={() => navigation.navigate('Cierres')} style={styles.shortcut}>
-              <Text style={styles.shortcutTitle}>Cierres</Text>
-              <Text style={styles.shortcutDesc}>Terminados vs completados + captura Guiacontrol</Text>
-            </Pressable>
-
-            <Pressable
-              onPress={() => navigation.navigate('ServiciosPrestados', {})}
-              style={styles.shortcut}
-            >
-              <Text style={styles.shortcutTitle}>Servicios prestados</Text>
-              <Text style={styles.shortcutDesc}>Historial completo con filtros y totales</Text>
-            </Pressable>
-          </View>
-        </SectionCard>
       </RoleGate>
     </ScrollView>
   );
@@ -327,25 +309,5 @@ const styles = StyleSheet.create({
   closingsHelper: {
     color: colors.muted,
     fontSize: 14,
-  },
-  // Accesos rapidos
-  shortcutsGrid: {
-    gap: spacing.sm,
-  },
-  shortcut: {
-    backgroundColor: colors.surfaceAlt,
-    borderRadius: 18,
-    gap: spacing.xs,
-    padding: spacing.md,
-  },
-  shortcutTitle: {
-    color: colors.textStrong,
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  shortcutDesc: {
-    color: colors.muted,
-    fontSize: 13,
-    lineHeight: 18,
   },
 });

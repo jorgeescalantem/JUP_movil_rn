@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { DrawerScreenProps } from '@react-navigation/drawer';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 
 import { RoleGate } from '../components/RoleGate';
 import { SectionCard } from '../components/SectionCard';
@@ -9,9 +11,10 @@ import { useSession } from '../store/session';
 import { colors, spacing } from '../theme';
 import { SortKey } from '../types/domain';
 
-function currentMonthRange() {
+function last30DaysRange() {
   const now = new Date();
-  const start = new Date(now.getFullYear(), now.getMonth(), 1);
+  const start = new Date(now);
+  start.setDate(now.getDate() - 29);
 
   return {
     from: start.toISOString().slice(0, 10),
@@ -23,6 +26,11 @@ function toInputDate(isoValue: string) {
   return new Date(isoValue).toISOString().slice(0, 10);
 }
 
+function parseInputDate(value: string) {
+  const [year, month, day] = value.split('-').map(Number);
+  return new Date(year, (month || 1) - 1, day || 1);
+}
+
 function currency(value: number) {
   return `$ ${value.toLocaleString('es-CO')}`;
 }
@@ -30,35 +38,75 @@ function currency(value: number) {
 type Props = DrawerScreenProps<DrawerParamList, 'ServiciosPrestados'>;
 
 export function CompletedServicesScreen({ route }: Props) {
-  const defaults = currentMonthRange();
+  const defaults = last30DaysRange();
   const { services } = useSession();
-  const [fromDate, setFromDate] = useState(route.params?.fromDate ?? defaults.from);
-  const [toDate, setToDate] = useState(route.params?.toDate ?? defaults.to);
-  const [sortKey, setSortKey] = useState<SortKey>('numeroServicio');
+  const [fromDateDraft, setFromDateDraft] = useState(route.params?.fromDate ?? defaults.from);
+  const [toDateDraft, setToDateDraft] = useState(route.params?.toDate ?? defaults.to);
+  const [fromDate, setFromDate] = useState<string | null>(route.params?.autoApply ? (route.params.fromDate ?? defaults.from) : null);
+  const [toDate, setToDate] = useState<string | null>(route.params?.autoApply ? (route.params.toDate ?? defaults.to) : null);
+  const [sortKeyDraft, setSortKeyDraft] = useState<SortKey | null>(null);
+  const [sortKey, setSortKey] = useState<SortKey | null>(null);
+  const [showFromPicker, setShowFromPicker] = useState(false);
+  const [showToPicker, setShowToPicker] = useState(false);
+
+  const openFromPicker = () => {
+    setShowToPicker(false);
+    setShowFromPicker(true);
+  };
+
+  const openToPicker = () => {
+    setShowFromPicker(false);
+    setShowToPicker(true);
+  };
+
+  const handleFromDateChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
+    setShowFromPicker(false);
+    if (event.type === 'set' && selectedDate) {
+      setFromDateDraft(selectedDate.toISOString().slice(0, 10));
+    }
+  };
+
+  const handleToDateChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
+    setShowToPicker(false);
+    if (event.type === 'set' && selectedDate) {
+      setToDateDraft(selectedDate.toISOString().slice(0, 10));
+    }
+  };
 
   // Cuando se navega con autoApply aplica el rango recibido
   useEffect(() => {
     if (route.params?.autoApply) {
-      setFromDate(route.params.fromDate ?? defaults.from);
-      setToDate(route.params.toDate ?? defaults.to);
+      const from = route.params.fromDate ?? defaults.from;
+      const to = route.params.toDate ?? defaults.to;
+      setFromDateDraft(from);
+      setToDateDraft(to);
+      setFromDate(from);
+      setToDate(to);
+      setSortKey(null);
+      setSortKeyDraft(null);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [route.params]);
 
   const completedServices = useMemo(() => {
-    return services
-      .filter((service) => service.estado === 'COMPLETADO' || service.estado === 'procesado')
-      .filter((service) => {
-        const serviceDate = toInputDate(service.fechaServicio);
-        return serviceDate >= fromDate && serviceDate <= toDate;
-      })
-      .sort((left, right) => {
-        if (sortKey === 'numeroServicio') {
-          return Number(right.numeroServicio) - Number(left.numeroServicio);
-        }
+    const base = services.filter((service) => service.estado === 'COMPLETADO' || service.estado === 'procesado');
 
-        return left[sortKey].localeCompare(right[sortKey]);
-      });
+    const filtered = fromDate && toDate
+      ? base.filter((service) => {
+          const serviceDate = toInputDate(service.fechaServicio);
+          return serviceDate >= fromDate && serviceDate <= toDate;
+        })
+      : base;
+
+    if (!sortKey) return filtered;
+
+    return [...filtered].sort((left, right) => {
+      if (sortKey === 'numeroServicio') {
+        return Number(right.numeroServicio) - Number(left.numeroServicio);
+      }
+
+      return left[sortKey].localeCompare(right[sortKey]);
+    });
   }, [fromDate, services, sortKey, toDate]);
 
   const totals = completedServices.reduce(
@@ -73,15 +121,89 @@ export function CompletedServicesScreen({ route }: Props) {
   return (
     <ScrollView contentContainerStyle={styles.content}>
       <RoleGate allowedRoles={['PROPIETARIO']}>
+        <SectionCard title="Filtros y orden" subtitle="Selecciona el periodo con calendario y organiza la consulta.">
+          <View style={styles.filterRow}>
+            <View style={styles.filterField}>
+              <Text style={styles.filterLabel}>Desde</Text>
+              <Pressable onPress={openFromPicker} style={styles.dateInputButton}>
+                <View style={styles.dateInputInner}>
+                  <MaterialCommunityIcons color={colors.accent} name="calendar-month-outline" size={18} />
+                  <Text style={styles.dateInputText}>{fromDateDraft}</Text>
+                </View>
+              </Pressable>
+            </View>
+            <View style={styles.filterField}>
+              <Text style={styles.filterLabel}>Hasta</Text>
+              <Pressable onPress={openToPicker} style={styles.dateInputButton}>
+                <View style={styles.dateInputInner}>
+                  <MaterialCommunityIcons color={colors.accent} name="calendar-month-outline" size={18} />
+                  <Text style={styles.dateInputText}>{toDateDraft}</Text>
+                </View>
+              </Pressable>
+            </View>
+          </View>
+
+          {showFromPicker ? (
+            <View style={styles.pickerWrap}>
+              <DateTimePicker
+                accentColor={colors.accent}
+                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                mode="date"
+                onChange={handleFromDateChange}
+                textColor={colors.textStrong}
+                value={parseInputDate(fromDateDraft)}
+              />
+            </View>
+          ) : null}
+
+          {showToPicker ? (
+            <View style={styles.pickerWrap}>
+              <DateTimePicker
+                accentColor={colors.accent}
+                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                mode="date"
+                onChange={handleToDateChange}
+                textColor={colors.textStrong}
+                value={parseInputDate(toDateDraft)}
+              />
+            </View>
+          ) : null}
+
+          <View style={styles.chipsRow}>
+            {[
+              ['numeroServicio', 'No'],
+              ['clienteNombre', 'Cliente'],
+              ['companiaNombre', 'Compania'],
+            ].map(([key, label]) => {
+              const selected = sortKeyDraft === key;
+
+              return (
+                <Pressable
+                  key={key}
+                  onPress={() => setSortKeyDraft((current) => (current === key ? null : (key as SortKey)))}
+                  style={[styles.chip, selected ? styles.chipActive : null]}
+                >
+                  <Text style={[styles.chipText, selected ? styles.chipTextActive : null]}>{label}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+
+          <Pressable
+            onPress={() => {
+              setFromDate(fromDateDraft);
+              setToDate(toDateDraft);
+              setSortKey(sortKeyDraft);
+            }}
+            style={styles.applyFilterButton}
+          >
+            <Text style={styles.applyFilterButtonText}>Filtrar</Text>
+          </Pressable>
+        </SectionCard>
+
         <SectionCard
           title="Resumen del mes"
           subtitle="Filtrado por fecha de servicio y estados completados o procesados."
-          actionLabel="Mes actual"
-          onPress={() => {
-            const range = currentMonthRange();
-            setFromDate(range.from);
-            setToDate(range.to);
-          }}
         >
           <View style={styles.summaryGrid}>
             <View style={styles.summaryItem}>
@@ -96,39 +218,6 @@ export function CompletedServicesScreen({ route }: Props) {
               <Text style={styles.summaryValue}>{currency(totals.totalCopago)}</Text>
               <Text style={styles.summaryLabel}>Copago</Text>
             </View>
-          </View>
-        </SectionCard>
-
-        <SectionCard title="Filtros y orden" subtitle="Base local para simular la consulta del backend.">
-          <View style={styles.filterRow}>
-            <View style={styles.filterField}>
-              <Text style={styles.filterLabel}>Desde</Text>
-              <TextInput onChangeText={setFromDate} style={styles.input} value={fromDate} />
-            </View>
-            <View style={styles.filterField}>
-              <Text style={styles.filterLabel}>Hasta</Text>
-              <TextInput onChangeText={setToDate} style={styles.input} value={toDate} />
-            </View>
-          </View>
-
-          <View style={styles.chipsRow}>
-            {[
-              ['numeroServicio', 'No'],
-              ['clienteNombre', 'Cliente'],
-              ['companiaNombre', 'Compania'],
-            ].map(([key, label]) => {
-              const selected = sortKey === key;
-
-              return (
-                <Pressable
-                  key={key}
-                  onPress={() => setSortKey(key as SortKey)}
-                  style={[styles.chip, selected ? styles.chipActive : null]}
-                >
-                  <Text style={[styles.chipText, selected ? styles.chipTextActive : null]}>{label}</Text>
-                </Pressable>
-              );
-            })}
           </View>
         </SectionCard>
 
@@ -190,14 +279,32 @@ const styles = StyleSheet.create({
     color: colors.muted,
     fontSize: 13,
   },
-  input: {
+  dateInputButton: {
     backgroundColor: colors.surfaceAlt,
     borderColor: colors.border,
     borderRadius: 14,
     borderWidth: 1,
-    color: colors.textStrong,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
+  },
+  dateInputInner: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: spacing.xs,
+  },
+  dateInputText: {
+    color: colors.textStrong,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  pickerWrap: {
+    backgroundColor: colors.accentSoft,
+    borderColor: colors.border,
+    borderRadius: 14,
+    borderWidth: 1,
+    marginTop: spacing.xs,
+    overflow: 'hidden',
+    paddingHorizontal: spacing.sm,
   },
   chipsRow: {
     flexDirection: 'row',
@@ -220,6 +327,18 @@ const styles = StyleSheet.create({
   },
   chipTextActive: {
     color: colors.background,
+  },
+  applyFilterButton: {
+    alignItems: 'center',
+    backgroundColor: colors.accent,
+    borderRadius: 14,
+    marginTop: spacing.xs,
+    paddingVertical: spacing.sm,
+  },
+  applyFilterButtonText: {
+    color: colors.background,
+    fontSize: 14,
+    fontWeight: '700',
   },
   serviceCard: {
     backgroundColor: colors.surfaceAlt,
