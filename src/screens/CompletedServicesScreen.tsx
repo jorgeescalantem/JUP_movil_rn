@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { DrawerScreenProps } from '@react-navigation/drawer';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 
 import { RoleGate } from '../components/RoleGate';
 import { SectionCard } from '../components/SectionCard';
@@ -10,6 +9,13 @@ import { DrawerParamList } from '../navigation/AppDrawer';
 import { useSession } from '../store/session';
 import { colors, spacing } from '../theme';
 import { SortKey } from '../types/domain';
+
+const WEEKDAY_LABELS = ['Do', 'Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sa'];
+const MONTH_LABELS = [
+  'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+  'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
+];
+const MONTH_ABBR = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 
 function last30DaysRange() {
   const now = new Date();
@@ -31,6 +37,51 @@ function parseInputDate(value: string) {
   return new Date(year, (month || 1) - 1, day || 1);
 }
 
+function dateKey(date: Date) {
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, '0');
+  const day = `${date.getDate()}`.padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function formatDisplayDate(value: string) {
+  const date = parseInputDate(value);
+  return `${date.getDate()} ${MONTH_ABBR[date.getMonth()]} ${date.getFullYear()}`;
+}
+
+function addMonths(date: Date, amount: number) {
+  return new Date(date.getFullYear(), date.getMonth() + amount, 1);
+}
+
+function getMonthMatrix(monthDate: Date) {
+  const year = monthDate.getFullYear();
+  const month = monthDate.getMonth();
+  const firstWeekday = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+  const cells: { date: Date; inMonth: boolean }[] = [];
+
+  for (let i = firstWeekday - 1; i >= 0; i -= 1) {
+    cells.push({ date: new Date(year, month, -i), inMonth: false });
+  }
+
+  for (let day = 1; day <= daysInMonth; day += 1) {
+    cells.push({ date: new Date(year, month, day), inMonth: true });
+  }
+
+  while (cells.length % 7 !== 0) {
+    const last = cells[cells.length - 1].date;
+    cells.push({ date: new Date(last.getFullYear(), last.getMonth(), last.getDate() + 1), inMonth: false });
+  }
+
+  const weeks: { date: Date; inMonth: boolean }[][] = [];
+  for (let i = 0; i < cells.length; i += 7) {
+    weeks.push(cells.slice(i, i + 7));
+  }
+
+  return weeks;
+}
+
 function currency(value: number) {
   return `$ ${value.toLocaleString('es-CO')}`;
 }
@@ -46,32 +97,44 @@ export function CompletedServicesScreen({ route }: Props) {
   const [toDate, setToDate] = useState<string | null>(route.params?.autoApply ? (route.params.toDate ?? defaults.to) : null);
   const [sortKeyDraft, setSortKeyDraft] = useState<SortKey | null>(null);
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
-  const [showFromPicker, setShowFromPicker] = useState(false);
-  const [showToPicker, setShowToPicker] = useState(false);
+  const [showRangePicker, setShowRangePicker] = useState(false);
+  const [rangeAnchor, setRangeAnchor] = useState<string | null>(null);
+  const [calendarMonth, setCalendarMonth] = useState(() => parseInputDate(fromDateDraft));
 
-  const openFromPicker = () => {
-    setShowToPicker(false);
-    setShowFromPicker(true);
+  const openRangePicker = () => {
+    setRangeAnchor(null);
+    setCalendarMonth(parseInputDate(fromDateDraft));
+    setShowRangePicker(true);
   };
 
-  const openToPicker = () => {
-    setShowFromPicker(false);
-    setShowToPicker(true);
+  const closeRangePicker = () => {
+    setRangeAnchor(null);
+    setShowRangePicker(false);
   };
 
-  const handleFromDateChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
-    setShowFromPicker(false);
-    if (event.type === 'set' && selectedDate) {
-      setFromDateDraft(selectedDate.toISOString().slice(0, 10));
+  const handleDayPress = (day: Date) => {
+    const key = dateKey(day);
+
+    if (!rangeAnchor) {
+      setRangeAnchor(key);
+      setFromDateDraft(key);
+      setToDateDraft(key);
+      return;
     }
+
+    if (key < rangeAnchor) {
+      setFromDateDraft(key);
+      setToDateDraft(rangeAnchor);
+    } else {
+      setFromDateDraft(rangeAnchor);
+      setToDateDraft(key);
+    }
+
+    setRangeAnchor(null);
+    setShowRangePicker(false);
   };
 
-  const handleToDateChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
-    setShowToPicker(false);
-    if (event.type === 'set' && selectedDate) {
-      setToDateDraft(selectedDate.toISOString().slice(0, 10));
-    }
-  };
+  const calendarWeeks = useMemo(() => getMonthMatrix(calendarMonth), [calendarMonth]);
 
   // Cuando se navega con autoApply aplica el rango recibido
   useEffect(() => {
@@ -121,51 +184,86 @@ export function CompletedServicesScreen({ route }: Props) {
   return (
     <ScrollView contentContainerStyle={styles.content}>
       <RoleGate allowedRoles={['PROPIETARIO']}>
-        <SectionCard title="Filtros y orden" subtitle="Selecciona el periodo con calendario y organiza la consulta.">
+        <SectionCard centerTitle title="Ver servicios Prestados" subtitle="">
           <View style={styles.filterRow}>
-            <View style={styles.filterField}>
-              <Text style={styles.filterLabel}>Desde</Text>
-              <Pressable onPress={openFromPicker} style={styles.dateInputButton}>
-                <View style={styles.dateInputInner}>
-                  <MaterialCommunityIcons color={colors.accent} name="calendar-month-outline" size={18} />
-                  <Text style={styles.dateInputText}>{fromDateDraft}</Text>
-                </View>
-              </Pressable>
-            </View>
-            <View style={styles.filterField}>
-              <Text style={styles.filterLabel}>Hasta</Text>
-              <Pressable onPress={openToPicker} style={styles.dateInputButton}>
-                <View style={styles.dateInputInner}>
-                  <MaterialCommunityIcons color={colors.accent} name="calendar-month-outline" size={18} />
-                  <Text style={styles.dateInputText}>{toDateDraft}</Text>
-                </View>
-              </Pressable>
-            </View>
+            <Pressable onPress={openRangePicker} style={styles.dateInputButton}>
+              <View style={styles.dateInputInner}>
+                <MaterialCommunityIcons color={colors.accent} name="calendar-range-outline" size={18} />
+                <Text style={styles.dateInputText}>
+                  {formatDisplayDate(fromDateDraft)} - {formatDisplayDate(toDateDraft)}
+                </Text>
+              </View>
+            </Pressable>
           </View>
 
-          {showFromPicker ? (
+          {showRangePicker ? (
             <View style={styles.pickerWrap}>
-              <DateTimePicker
-                accentColor={colors.accent}
-                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                mode="date"
-                onChange={handleFromDateChange}
-                textColor={colors.textStrong}
-                value={parseInputDate(fromDateDraft)}
-              />
-            </View>
-          ) : null}
+              <View style={styles.calendarHeader}>
+                <Pressable
+                  hitSlop={8}
+                  onPress={() => setCalendarMonth((current) => addMonths(current, -1))}
+                  style={styles.calendarNavButton}
+                >
+                  <MaterialCommunityIcons color={colors.accent} name="chevron-left" size={22} />
+                </Pressable>
+                <Text style={styles.calendarMonthLabel}>
+                  {MONTH_LABELS[calendarMonth.getMonth()]} {calendarMonth.getFullYear()}
+                </Text>
+                <Pressable
+                  hitSlop={8}
+                  onPress={() => setCalendarMonth((current) => addMonths(current, 1))}
+                  style={styles.calendarNavButton}
+                >
+                  <MaterialCommunityIcons color={colors.accent} name="chevron-right" size={22} />
+                </Pressable>
+              </View>
 
-          {showToPicker ? (
-            <View style={styles.pickerWrap}>
-              <DateTimePicker
-                accentColor={colors.accent}
-                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                mode="date"
-                onChange={handleToDateChange}
-                textColor={colors.textStrong}
-                value={parseInputDate(toDateDraft)}
-              />
+              <View style={styles.weekDaysRow}>
+                {WEEKDAY_LABELS.map((label) => (
+                  <Text key={label} style={styles.weekDayLabel}>{label}</Text>
+                ))}
+              </View>
+
+              {calendarWeeks.map((week, weekIndex) => (
+                <View key={`week-${weekIndex}`} style={styles.calendarWeekRow}>
+                  {week.map(({ date, inMonth }) => {
+                    const key = dateKey(date);
+                    const isStart = key === fromDateDraft;
+                    const isEnd = key === toDateDraft;
+                    const isInRange = key > fromDateDraft && key < toDateDraft;
+
+                    return (
+                      <Pressable
+                        disabled={!inMonth}
+                        key={key}
+                        onPress={() => handleDayPress(date)}
+                        style={[
+                          styles.dayCell,
+                          isInRange ? styles.dayCellInRange : null,
+                          isStart ? styles.dayCellEdgeStart : null,
+                          isEnd ? styles.dayCellEdgeEnd : null,
+                        ]}
+                      >
+                        <View style={[styles.dayCellInner, (isStart || isEnd) ? styles.dayCellSelected : null]}>
+                          <Text
+                            style={[
+                              styles.dayText,
+                              !inMonth ? styles.dayTextDisabled : null,
+                              (isStart || isEnd) ? styles.dayTextSelected : null,
+                            ]}
+                          >
+                            {date.getDate()}
+                          </Text>
+                        </View>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              ))}
+
+              <Pressable onPress={closeRangePicker} style={styles.calendarCloseButton}>
+                <Text style={styles.calendarCloseButtonText}>Cerrar</Text>
+              </Pressable>
             </View>
           ) : null}
 
@@ -202,8 +300,9 @@ export function CompletedServicesScreen({ route }: Props) {
         </SectionCard>
 
         <SectionCard
-          title="Resumen del mes"
-          subtitle="Filtrado por fecha de servicio y estados completados o procesados."
+          centerTitle
+          title="Resumen del Periodo"
+          subtitle="Servicios en estado completado por el vehículo."
         >
           <View style={styles.summaryGrid}>
             <View style={styles.summaryItem}>
@@ -221,7 +320,7 @@ export function CompletedServicesScreen({ route }: Props) {
           </View>
         </SectionCard>
 
-        <SectionCard title="Servicios prestados" subtitle="Vista detallada solo lectura para propietario.">
+        <SectionCard title="Detalle de Servicios prestados" subtitle="Vista detallada de servicios completados en el rango seleccionado">
           {completedServices.map((service) => (
             <View key={service.numeroServicio} style={styles.serviceCard}>
               <Text style={styles.serviceTitle}>Servicio #{service.numeroServicio}</Text>
@@ -271,19 +370,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: spacing.sm,
   },
-  filterField: {
-    flex: 1,
-    gap: spacing.xs,
-  },
-  filterLabel: {
-    color: colors.muted,
-    fontSize: 13,
-  },
   dateInputButton: {
     backgroundColor: colors.surfaceAlt,
     borderColor: colors.border,
     borderRadius: 14,
     borderWidth: 1,
+    flex: 1,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
   },
@@ -291,6 +383,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexDirection: 'row',
     gap: spacing.xs,
+    justifyContent: 'center',
+    paddingLeft: spacing.lg,
   },
   dateInputText: {
     color: colors.textStrong,
@@ -304,7 +398,93 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     marginTop: spacing.xs,
     overflow: 'hidden',
-    paddingHorizontal: spacing.sm,
+    padding: spacing.sm,
+  },
+  calendarHeader: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.xs,
+    paddingVertical: spacing.xs,
+  },
+  calendarNavButton: {
+    alignItems: 'center',
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: 999,
+    height: 32,
+    justifyContent: 'center',
+    width: 32,
+  },
+  calendarMonthLabel: {
+    color: colors.textStrong,
+    fontSize: 15,
+    fontWeight: '700',
+    textTransform: 'capitalize',
+  },
+  weekDaysRow: {
+    flexDirection: 'row',
+    marginTop: spacing.xs,
+  },
+  weekDayLabel: {
+    color: colors.muted,
+    flex: 1,
+    fontSize: 15,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  calendarWeekRow: {
+    flexDirection: 'row',
+  },
+  dayCell: {
+    alignItems: 'center',
+    flex: 1,
+    justifyContent: 'center',
+    paddingVertical: 2,
+  },
+  dayCellInRange: {
+    backgroundColor: colors.accentSoft,
+  },
+  dayCellEdgeStart: {
+    backgroundColor: colors.accentSoft,
+    borderBottomLeftRadius: 999,
+    borderTopLeftRadius: 999,
+  },
+  dayCellEdgeEnd: {
+    backgroundColor: colors.accentSoft,
+    borderBottomRightRadius: 999,
+    borderTopRightRadius: 999,
+  },
+  dayCellInner: {
+    alignItems: 'center',
+    borderRadius: 999,
+    height: 32,
+    justifyContent: 'center',
+    width: 32,
+  },
+  dayCellSelected: {
+    backgroundColor: colors.accent,
+  },
+  dayText: {
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  dayTextDisabled: {
+    color: colors.muted,
+    opacity: 0.4,
+  },
+  dayTextSelected: {
+    color: colors.background,
+  },
+  calendarCloseButton: {
+    alignItems: 'center',
+    marginTop: spacing.sm,
+    paddingVertical: spacing.xs,
+  },
+  calendarCloseButtonText: {
+    color: colors.accent,
+    fontSize: 13,
+    fontWeight: '700',
   },
   chipsRow: {
     flexDirection: 'row',

@@ -76,7 +76,12 @@ function mergeServicesWithMocks(persistedServices: Service[], baseMocks: Service
   const persistedByNumber = new Map(persistedServices.map((service) => [service.numeroServicio, service]));
 
   // Keep mock catalog updated while preserving any runtime changes for existing service IDs.
-  const merged = baseMocks.map((mockService) => persistedByNumber.get(mockService.numeroServicio) ?? mockService);
+  // Merge field-by-field so newly added mock fields (e.g. HoraRecogida/HoraCita) aren't lost
+  // when older persisted data (saved before those fields existed) is restored.
+  const merged = baseMocks.map((mockService) => {
+    const persisted = persistedByNumber.get(mockService.numeroServicio);
+    return persisted ? { ...mockService, ...persisted } : mockService;
+  });
 
   // Preserve old persisted services that are not in current mocks.
   persistedServices.forEach((service) => {

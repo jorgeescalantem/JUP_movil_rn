@@ -12,6 +12,8 @@ export type Service = {
   contrato: string;
   estado: ServiceState;
   fechaServicio: string;
+  HoraRecogida: string;
+  HoraCita: string;
   origenDireccion: string;
   origenLat: number;
   origenLng: number;

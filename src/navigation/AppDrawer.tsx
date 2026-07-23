@@ -9,7 +9,6 @@ import {
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { ClosingsScreen } from '../screens/ClosingsScreen';
 import { CompletedServicesScreen } from '../screens/CompletedServicesScreen';
 import { PropietarioHomeScreen } from '../screens/PropietarioHomeScreen';
 import { ServiceDetailScreen } from '../screens/ServiceDetailScreen';
@@ -24,7 +23,6 @@ export type DrawerParamList = {
   Servicios: undefined;
   ServicioDetalle: { serviceNumber: string };
   PropietarioHome: undefined;
-  Cierres: undefined;
   ServiciosPrestados: { fromDate?: string; toDate?: string; autoApply?: boolean } | undefined;
 };
 
@@ -51,7 +49,7 @@ function CustomDrawerContent(props: DrawerContentComponentProps) {
         <Image source={require('../../assets/logo1.png')} style={styles.logo} />
         <Text style={styles.drawerEyebrow}>JUP movil</Text>
         <Text style={styles.drawerTitle}>Acciones</Text>
-        <Text style={styles.drawerText}>Intercambiar entre roles para navegar.</Text>
+        <Text style={styles.drawerText}>Roles Asignados</Text>
       </View>
 
       <View style={styles.roleSwitch}>
@@ -118,7 +116,7 @@ export function AppDrawer() {
             <Drawer.Screen
               component={ServiceStatusScreen}
               name="EstadoDeServicios"
-              options={{ title: 'Estado de servicios', drawerLabel: 'Estado de servicios' }}
+              options={{ title: 'Resumen Diario', drawerLabel: 'Resumen Diario' }}
             />
             <Drawer.Screen
               component={ServiceDetailScreen}
@@ -137,14 +135,14 @@ export function AppDrawer() {
               options={{ title: 'Inicio', drawerLabel: 'Inicio' }}
             />
             <Drawer.Screen
-              component={ClosingsScreen}
-              name="Cierres"
-              options={{ title: 'Cierres', drawerLabel: 'Cierres' }}
+              component={ServiceStatusScreen}
+              name="EstadoDeServicios"
+              options={{ title: 'Resumen Diario', drawerLabel: 'Resumen Diario' }}
             />
             <Drawer.Screen
               component={CompletedServicesScreen}
               name="ServiciosPrestados"
-              options={{ title: 'Servicios prestados', drawerLabel: 'Servicios prestados' }}
+              options={{ title: 'Servicios prestados', drawerLabel: 'Servicios Prestados' }}
             />
           </>
         )}

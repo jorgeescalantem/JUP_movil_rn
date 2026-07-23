@@ -120,10 +120,10 @@ export function PropietarioHomeScreen({ navigation }: Props) {
           </LinearGradient>
         </Pressable>
 
-        <SectionCard title="Cierre de servicios" subtitle="Drilldown local para terminados y completados de los ultimos movimientos.">
+        <SectionCard title="Cierre de servicios" subtitle="Servicios terminados y completados en el periodo actual">
           <View style={styles.closingsChartRow}>
             <Pressable
-              onPress={() => navigation.navigate('Cierres')}
+              onPress={() => navigation.navigate('EstadoDeServicios')}
               style={styles.closingsSegmentPressable}
             >
               <LinearGradient
@@ -138,7 +138,7 @@ export function PropietarioHomeScreen({ navigation }: Props) {
             </Pressable>
 
             <Pressable
-              onPress={() => navigation.navigate('Cierres')}
+              onPress={() => navigation.navigate('EstadoDeServicios')}
               style={styles.closingsSegmentPressable}
             >
               <LinearGradient
@@ -153,7 +153,7 @@ export function PropietarioHomeScreen({ navigation }: Props) {
             </Pressable>
           </View>
 
-          <Text style={styles.closingsHelper}>Toca un segmento para ir al detalle de cierres.</Text>
+          <Text style={styles.closingsHelper}>Revisa el estado de los servicios</Text>
         </SectionCard>
       </RoleGate>
     </ScrollView>

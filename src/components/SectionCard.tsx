@@ -8,15 +8,16 @@ type SectionCardProps = {
   subtitle?: string;
   actionLabel?: string;
   onPress?: () => void;
+  centerTitle?: boolean;
   children: ReactNode;
 };
 
-export function SectionCard({ title, subtitle, actionLabel, onPress, children }: SectionCardProps) {
+export function SectionCard({ title, subtitle, actionLabel, onPress, centerTitle, children }: SectionCardProps) {
   return (
     <View style={styles.card}>
       <View style={styles.header}>
-        <View style={styles.headerCopy}>
-          <Text style={styles.title}>{title}</Text>
+        <View style={[styles.headerCopy, centerTitle ? styles.headerCopyCentered : null]}>
+          <Text style={[styles.title, centerTitle ? styles.titleCentered : null]}>{title}</Text>
           {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
         </View>
         {actionLabel && onPress ? (
@@ -49,10 +50,16 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: spacing.xs,
   },
+  headerCopyCentered: {
+    alignItems: 'center',
+  },
   title: {
     color: colors.textStrong,
     fontSize: 18,
     fontWeight: '700',
+  },
+  titleCentered: {
+    textAlign: 'center',
   },
   subtitle: {
     color: colors.muted,

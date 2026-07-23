@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
+import DateTimePicker, { DateTimePickerChangeEvent } from '@react-native-community/datetimepicker';
 
 import { RoleGate } from '../components/RoleGate';
 import { SectionCard } from '../components/SectionCard';
@@ -33,18 +33,14 @@ export function ClosingsScreen() {
   const [showFromPicker, setShowFromPicker] = useState(false);
   const [showToPicker, setShowToPicker] = useState(false);
 
-  const handleFromDateChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
+  const handleFromDateChange = (_event: DateTimePickerChangeEvent, selectedDate: Date) => {
     setShowFromPicker(Platform.OS === 'ios');
-    if (event.type === 'set' && selectedDate) {
-      setFromDate(selectedDate.toISOString().slice(0, 10));
-    }
+    setFromDate(selectedDate.toISOString().slice(0, 10));
   };
 
-  const handleToDateChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
+  const handleToDateChange = (_event: DateTimePickerChangeEvent, selectedDate: Date) => {
     setShowToPicker(Platform.OS === 'ios');
-    if (event.type === 'set' && selectedDate) {
-      setToDate(selectedDate.toISOString().slice(0, 10));
-    }
+    setToDate(selectedDate.toISOString().slice(0, 10));
   };
 
   const visibleServices = useMemo(
@@ -77,7 +73,8 @@ export function ClosingsScreen() {
                 <DateTimePicker
                   display={Platform.OS === 'ios' ? 'spinner' : 'default'}
                   mode="date"
-                  onChange={handleFromDateChange}
+                  onDismiss={() => setShowFromPicker(false)}
+                  onValueChange={handleFromDateChange}
                   value={parseInputDate(fromDate)}
                 />
               ) : null}
@@ -91,7 +88,8 @@ export function ClosingsScreen() {
                 <DateTimePicker
                   display={Platform.OS === 'ios' ? 'spinner' : 'default'}
                   mode="date"
-                  onChange={handleToDateChange}
+                  onDismiss={() => setShowToPicker(false)}
+                  onValueChange={handleToDateChange}
                   value={parseInputDate(toDate)}
                 />
               ) : null}
