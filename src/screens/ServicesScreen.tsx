@@ -249,7 +249,7 @@ export function ServicesScreen() {
 
         <SectionCard
           title="Servicios"
-          subtitle="Asignados del mas proximo al mas lejano con accesos rapidos hacia paciente y origen."
+          subtitle="Asignados del dia."
         >
           {activeService ? (
             <Pressable
@@ -278,28 +278,34 @@ export function ServicesScreen() {
                   isFinished ? styles.serviceCardFinished : null,
                 ]}
               >
-                <View style={styles.rowBetween}>
-                  <View style={styles.contractWrap}>
-                    <MaterialCommunityIcons color="#0fa0f3" name="file-document-outline" size={18} />
-                    <Text style={styles.contractText}>{service.contrato}</Text>
+                <View style={styles.infoRow}>
+                  <View style={styles.infoCol}>
+                    <Text style={styles.infoLabel}>Contrato</Text>
+                    <View style={styles.contractWrap}>
+                      <MaterialCommunityIcons color="#260ff3" name="file-document-outline" size={19} />
+                      <Text style={styles.contractText}>{service.contrato}</Text>
+                    </View>
                   </View>
-                  <View
-                    style={[
-                      styles.statePill,
-                      isInTransit ? styles.statePillTransit : { backgroundColor: STATE_COLORS[service.estado] + '22' },
-                    ]}
-                  >
-                    <Text style={[styles.stateText, isInTransit ? styles.stateTextTransit : { color: STATE_COLORS[service.estado] }]}>
-                      {formatStatusLabel(service.estado)}
-                    </Text>
+                  <View style={styles.infoCol}>
+                    <Text style={styles.infoLabel}>Estado</Text>
+                    <View
+                      style={[
+                        styles.statePill,
+                        isInTransit ? styles.statePillTransit : { backgroundColor: STATE_COLORS[service.estado] + '22' },
+                      ]}
+                    >
+                      <Text style={[styles.stateText, isInTransit ? styles.stateTextTransit : { color: STATE_COLORS[service.estado] }]}>
+                        {formatStatusLabel(service.estado).replace(' ', '\n')}
+                      </Text>
+                    </View>
                   </View>
                 </View>
 
-                <Text style={styles.companyText}>{service.companiaNombre}</Text>
                 {service.estado === 'EN_TRANSITO' ? (
                   <Text style={styles.inTransitServiceNumber}>Servicio #{service.numeroServicio}</Text>
                 ) : null}
-                <Text style={styles.dateText}>{formatDateTime(service.fechaServicio)}</Text>
+                <Text style={styles.routeLabel}>Fecha: 
+                <Text style={styles.dateText}>{formatDateTime(service.fechaServicio)}</Text></Text>
                 <Text style={styles.routeLabel}>Origen</Text>
                 <Text style={styles.routeValue}>{service.origenDireccion}</Text>
                 <Text style={styles.routeLabel}>Destino</Text>
@@ -434,37 +440,43 @@ const styles = StyleSheet.create({
     borderColor: '#c8d6e2',
     borderWidth: 1,
   },
-  rowBetween: {
-    alignItems: 'center',
+  infoRow: {
+    alignItems: 'flex-start',
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    gap: spacing.xs,
+    justifyContent: 'center',
+  },
+  infoCol: {
+    alignItems: 'center',
+    gap: 1,
+  },
+  infoLabel: {
+    color: '#7c8f99',
+    fontSize: 12,
+    fontWeight: '700',
+    
   },
   contractWrap: {
     alignItems: 'center',
     flexDirection: 'row',
-    gap: spacing.xs,
+    
   },
   contractText: {
     color: colors.textStrong,
-    fontSize: 15,
-    fontWeight: '800',
-  },
-  companyText: {
-    color: '#006493',
-    fontSize: 17,
+    fontSize: 13,
     fontWeight: '800',
   },
   inTransitServiceNumber: {
     color: '#0b4f7e',
     fontSize: 13,
     fontWeight: '800',
-    marginTop: 2,
+    marginTop: 11,
   },
   dateText: {
     color: '#41535c',
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
-    marginTop: 4,
+    marginTop: 2,
   },
   statePill: {
     borderRadius: 999,
@@ -482,15 +494,17 @@ const styles = StyleSheet.create({
   stateText: {
     fontSize: 12,
     fontWeight: '700',
+    textAlign: 'center',
   },
   stateTextTransit: {
     color: '#004c7c',
     fontSize: 12,
     fontWeight: '800',
+    textAlign: 'center',
   },
   routeLabel: {
     color: '#7c8f99',
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '700',
     marginTop: spacing.sm,
   },

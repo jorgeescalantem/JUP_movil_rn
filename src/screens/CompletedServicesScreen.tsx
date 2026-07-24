@@ -184,7 +184,7 @@ export function CompletedServicesScreen({ route }: Props) {
   return (
     <ScrollView contentContainerStyle={styles.content}>
       <RoleGate allowedRoles={['PROPIETARIO']}>
-        <SectionCard centerTitle title="Ver servicios Prestados" subtitle="">
+        <SectionCard centerTitle title="Ver servicios Prestados" subtitle="Filtra un rango de fechas para comenzar">
           <View style={styles.filterRow}>
             <Pressable onPress={openRangePicker} style={styles.dateInputButton}>
               <View style={styles.dateInputInner}>

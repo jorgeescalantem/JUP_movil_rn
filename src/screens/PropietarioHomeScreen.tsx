@@ -123,7 +123,7 @@ export function PropietarioHomeScreen({ navigation }: Props) {
         <SectionCard title="Cierre de servicios" subtitle="Servicios terminados y completados en el periodo actual">
           <View style={styles.closingsChartRow}>
             <Pressable
-              onPress={() => navigation.navigate('EstadoDeServicios')}
+              onPress={() => navigation.navigate('ServiciosPrestados')}
               style={styles.closingsSegmentPressable}
             >
               <LinearGradient
@@ -138,7 +138,7 @@ export function PropietarioHomeScreen({ navigation }: Props) {
             </Pressable>
 
             <Pressable
-              onPress={() => navigation.navigate('EstadoDeServicios')}
+              onPress={() => navigation.navigate('ServiciosPrestados')}
               style={styles.closingsSegmentPressable}
             >
               <LinearGradient
