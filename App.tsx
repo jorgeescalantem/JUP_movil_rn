@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { StyleSheet } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
+import { ConnectivityGate } from './src/components/ConnectivityGate';
 import { AppDrawer } from './src/navigation/AppDrawer';
 import { LoginScreen } from './src/screens/LoginScreen';
 import { PreoperationalSurveyScreen } from './src/screens/PreoperationalSurveyScreen';
@@ -16,9 +17,11 @@ export default function App() {
   return (
     <GestureHandlerRootView style={styles.root}>
       <StatusBar style="dark" />
-      <SessionProvider>
-        <RootNavigator />
-      </SessionProvider>
+      <ConnectivityGate>
+        <SessionProvider>
+          <RootNavigator />
+        </SessionProvider>
+      </ConnectivityGate>
     </GestureHandlerRootView>
   );
 }
