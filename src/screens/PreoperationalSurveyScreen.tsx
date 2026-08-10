@@ -1,10 +1,11 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useMemo, useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { preoperationalConfig, PreoperationalOption } from '../mocks/preoperational';
+import { PreoperationalOption } from '../mocks/preoperational';
 import { useSession } from '../store/session';
+import { colors } from '../theme';
 
 type AnswersMap = Record<string, PreoperationalOption>;
 
@@ -25,15 +26,16 @@ function getTodayDisplay() {
 type AlertModal = { title: string; message: string; onClose?: () => void } | null;
 
 export function PreoperationalSurveyScreen() {
-  const { preoperationalQuestions, submitPreoperational } = useSession();
+  const { mobilUser, preoperationalLoadError, preoperationalQuestions, reloadPreoperationalChecklist, submitPreoperational } =
+    useSession();
   const [answers, setAnswers] = useState<AnswersMap>({});
   const [mileage, setMileage] = useState('');
   const [observations, setObservations] = useState('');
   const [alertModal, setAlertModal] = useState<AlertModal>(null);
 
   const title = useMemo(
-    () => `Preoperacional del ${getTodayDisplay()}, Vehiculo: ${preoperationalConfig.vehicleName}`,
-    [],
+    () => `Preoperacional del ${getTodayDisplay()}, Vehiculo: ${mobilUser?.Placa ?? '-'}`,
+    [mobilUser],
   );
 
   const setAnswer = (questionId: string, option: PreoperationalOption) => {
@@ -83,75 +85,91 @@ export function PreoperationalSurveyScreen() {
 
       <Text style={styles.headerText}>{title}</Text>
 
-      {preoperationalQuestions.map((question) => (
-        <View key={question.id} style={styles.questionCard}>
-          <Text style={styles.questionText}>{question.text}</Text>
+      {preoperationalLoadError ? (
+        <View style={styles.questionCard}>
+          <Text style={styles.errorText}>{preoperationalLoadError}</Text>
+          <Pressable onPress={reloadPreoperationalChecklist} style={styles.retryButton}>
+            <Text style={styles.retryButtonText}>Reintentar</Text>
+          </Pressable>
+        </View>
+      ) : preoperationalQuestions.length === 0 ? (
+        <View style={styles.loadingBox}>
+          <ActivityIndicator color={colors.accent} size="large" />
+          <Text style={styles.loadingText}>Cargando encuesta preoperacional...</Text>
+        </View>
+      ) : (
+        <>
+          {preoperationalQuestions.map((question) => (
+            <View key={question.id} style={styles.questionCard}>
+              <Text style={styles.questionText}>{question.text}</Text>
 
-          <View style={styles.optionsRow}>
-            {optionLabels.map((option) => {
-              const isSelected = answers[question.id] === option.value;
+              <View style={styles.optionsRow}>
+                {optionLabels.map((option) => {
+                  const isSelected = answers[question.id] === option.value;
 
-              return (
-                <Pressable
-                  key={option.value}
-                  onPress={() => setAnswer(question.id, option.value)}
-                  style={styles.optionButton}
-                >
-                  <View style={[styles.radioOuter, isSelected ? styles.radioOuterSelected : null]}>
-                    {isSelected ? <View style={styles.radioInner} /> : null}
-                  </View>
-                  <Text style={styles.optionLabel}>{option.label}</Text>
-                </Pressable>
-              );
-            })}
+                  return (
+                    <Pressable
+                      key={option.value}
+                      onPress={() => setAnswer(question.id, option.value)}
+                      style={styles.optionButton}
+                    >
+                      <View style={[styles.radioOuter, isSelected ? styles.radioOuterSelected : null]}>
+                        {isSelected ? <View style={styles.radioInner} /> : null}
+                      </View>
+                      <Text style={styles.optionLabel}>{option.label}</Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
+          ))}
+
+          <View style={styles.questionCard}>
+            <Text style={styles.questionText}>KILOMETRAJE</Text>
+            <TextInput
+              keyboardType="number-pad"
+              maxLength={69}
+              onChangeText={setMileage}
+              placeholder="Ingresa kilometraje"
+              placeholderTextColor="#8c989b"
+              style={styles.freeInput}
+              value={mileage}
+            />
+            <View style={styles.bottomLine}>
+              <Text style={styles.counter}>{`${mileage.length}/69`}</Text>
+            </View>
           </View>
-        </View>
-      ))}
 
-      <View style={styles.questionCard}>
-        <Text style={styles.questionText}>KILOMETRAJE</Text>
-        <TextInput
-          keyboardType="number-pad"
-          maxLength={69}
-          onChangeText={setMileage}
-          placeholder="Ingresa kilometraje"
-          placeholderTextColor="#8c989b"
-          style={styles.freeInput}
-          value={mileage}
-        />
-        <View style={styles.bottomLine}>
-          <Text style={styles.counter}>{`${mileage.length}/69`}</Text>
-        </View>
-      </View>
+          <View style={styles.questionCard}>
+            <Text style={styles.questionText}>OBSERVACIONES</Text>
+            <TextInput
+              maxLength={69}
+              multiline
+              numberOfLines={3}
+              onChangeText={setObservations}
+              placeholder="Describe observaciones"
+              placeholderTextColor="#8c989b"
+              style={[styles.freeInput, styles.observationsInput]}
+              value={observations}
+            />
+            <View style={styles.bottomLine}>
+              <Text style={styles.counter}>{`${observations.length}/69`}</Text>
+            </View>
+          </View>
 
-      <View style={styles.questionCard}>
-        <Text style={styles.questionText}>OBSERVACIONES</Text>
-        <TextInput
-          maxLength={69}
-          multiline
-          numberOfLines={3}
-          onChangeText={setObservations}
-          placeholder="Describe observaciones"
-          placeholderTextColor="#8c989b"
-          style={[styles.freeInput, styles.observationsInput]}
-          value={observations}
-        />
-        <View style={styles.bottomLine}>
-          <Text style={styles.counter}>{`${observations.length}/69`}</Text>
-        </View>
-      </View>
-
-      <Pressable onPress={onSubmit} style={styles.submitButton}>
-        <LinearGradient
-          colors={['#2fdeb0', '#1bbbe8', '#0fa0f3']}
-          end={{ x: 1, y: 0.5 }}
-          start={{ x: 0, y: 0.5 }}
-          style={styles.submitGradient}
-        >
-          <MaterialCommunityIcons color="#f8fffe" name="send" size={24} />
-          <Text style={styles.submitText}>Enviar</Text>
-        </LinearGradient>
-      </Pressable>
+          <Pressable onPress={onSubmit} style={styles.submitButton}>
+            <LinearGradient
+              colors={['#2fdeb0', '#1bbbe8', '#0fa0f3']}
+              end={{ x: 1, y: 0.5 }}
+              start={{ x: 0, y: 0.5 }}
+              style={styles.submitGradient}
+            >
+              <MaterialCommunityIcons color="#f8fffe" name="send" size={24} />
+              <Text style={styles.submitText}>Enviar</Text>
+            </LinearGradient>
+          </Pressable>
+        </>
+      )}
     </ScrollView>
   );
 }
@@ -179,6 +197,34 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
     lineHeight: 28,
+  },
+  loadingBox: {
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 40,
+  },
+  loadingText: {
+    color: '#5f6b70',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  errorText: {
+    color: '#ba1a1a',
+    fontSize: 14,
+    fontWeight: '700',
+    marginBottom: 12,
+  },
+  retryButton: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#00affe',
+    borderRadius: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  retryButtonText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '700',
   },
   questionCard: {
     backgroundColor: '#ffffff',

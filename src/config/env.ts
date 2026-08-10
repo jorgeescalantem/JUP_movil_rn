@@ -8,6 +8,9 @@
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL ?? '';
 const API_AUTH_USER = process.env.EXPO_PUBLIC_API_AUTH_USER ?? '';
 const API_AUTH_PWD = process.env.EXPO_PUBLIC_API_AUTH_PWD ?? '';
+const API_ODATA_URL = process.env.EXPO_PUBLIC_API_ODATA_URL ?? '';
+// Tppreoperacion lives on a separate host; tokens issued for API_BASE_URL are not accepted there.
+const API_PREOP_BASE_URL = process.env.EXPO_PUBLIC_API_PREOP_BASE_URL ?? '';
 
 if (__DEV__ && (!API_BASE_URL || !API_AUTH_USER || !API_AUTH_PWD)) {
   // eslint-disable-next-line no-console
@@ -16,8 +19,17 @@ if (__DEV__ && (!API_BASE_URL || !API_AUTH_USER || !API_AUTH_PWD)) {
   );
 }
 
+if (__DEV__ && !API_ODATA_URL) {
+  // eslint-disable-next-line no-console
+  console.warn(
+    '[env] Falta la variable de entorno EXPO_PUBLIC_API_ODATA_URL. Revisa el archivo .env (usa .env.example como referencia).',
+  );
+}
+
 export const env = {
   apiBaseUrl: API_BASE_URL,
   apiAuthUser: API_AUTH_USER,
   apiAuthPwd: API_AUTH_PWD,
+  apiODataUrl: API_ODATA_URL,
+  preopBaseUrl: API_PREOP_BASE_URL,
 };

@@ -2,10 +2,13 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ReactNode, createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
-import { preoperationalConfig, PreoperationalOption } from '../mocks/preoperational';
+import { PreoperationalOption, PreoperationalQuestion } from '../mocks/preoperational';
 import { mockServices } from '../mocks/services';
+import { fetchPreoperationalQuestions } from '../services/preoperationalApi';
+import { loginMobilUser, releaseMobilKey } from '../services/userAuth';
 import { colors } from '../theme';
 import { Role, Service, ServiceState } from '../types/domain';
+import { SanitizedMobilUser } from '../types/api';
 
 const STORAGE_KEY = 'jup-mobile-session';
 
@@ -15,6 +18,7 @@ type PersistedSession = {
   role: Role;
   services: Service[];
   preoperationalByUser: Record<string, string>;
+  mobilUser: SanitizedMobilUser | null;
 };
 
 type ActionResult = { ok: boolean; message?: string };
@@ -23,13 +27,16 @@ type SessionContextValue = {
   isReady: boolean;
   isAuthenticated: boolean;
   username: string | null;
+  mobilUser: SanitizedMobilUser | null;
   needsPreoperational: boolean;
   preoperationalQuestions: { id: string; text: string }[];
+  preoperationalLoadError: string | null;
+  reloadPreoperationalChecklist: () => void;
   role: Role;
   services: Service[];
   activeService: Service | null;
   statusCounts: Record<ServiceState, number>;
-  login: (username: string, password: string) => ActionResult;
+  login: (username: string, password: string) => Promise<ActionResult>;
   submitPreoperational: (payload: {
     answers: Record<string, PreoperationalOption>;
     mileage: string;
@@ -97,9 +104,28 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [isReady, setIsReady] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [username, setUsername] = useState<string | null>(DEFAULT_USERNAME);
+  const [mobilUser, setMobilUser] = useState<SanitizedMobilUser | null>(null);
   const [role, setRole] = useState<Role>(DEFAULT_ROLE);
   const [services, setServices] = useState<Service[]>(mockServices);
   const [preoperationalByUser, setPreoperationalByUser] = useState<Record<string, string>>({});
+  const [preoperationalQuestions, setPreoperationalQuestions] = useState<PreoperationalQuestion[]>([]);
+  const [preoperationalLoadError, setPreoperationalLoadError] = useState<string | null>(null);
+
+  const loadPreoperationalChecklist = () => {
+    setPreoperationalLoadError(null);
+
+    fetchPreoperationalQuestions().then((result) => {
+      if (result.ok) {
+        setPreoperationalQuestions(result.questions);
+      } else {
+        setPreoperationalLoadError(result.message);
+      }
+    });
+  };
+
+  useEffect(() => {
+    loadPreoperationalChecklist();
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -119,6 +145,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
         if (typeof parsed.username === 'string') {
           setUsername(parsed.username);
+        }
+
+        if (parsed.mobilUser && typeof parsed.mobilUser === 'object') {
+          setMobilUser(parsed.mobilUser as SanitizedMobilUser);
         }
 
         if (parsed.role === 'CONDUCTOR' || parsed.role === 'PROPIETARIO') {
@@ -157,10 +187,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       role,
       services,
       preoperationalByUser,
+      mobilUser,
     };
 
     AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(payload)).catch(() => undefined);
-  }, [isAuthenticated, isReady, preoperationalByUser, role, services, username]);
+  }, [isAuthenticated, isReady, mobilUser, preoperationalByUser, role, services, username]);
 
   const activeService = useMemo(
     () => services.find((service) => service.estado === 'EN_TRANSITO' || service.estado === 'TERMINADO') ?? null,
@@ -183,30 +214,31 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       isReady,
       isAuthenticated,
       username,
+      mobilUser,
       needsPreoperational,
-      preoperationalQuestions: preoperationalConfig.questions,
+      preoperationalQuestions,
+      preoperationalLoadError,
+      reloadPreoperationalChecklist: loadPreoperationalChecklist,
       role,
       services,
       activeService,
       statusCounts,
-      login: (rawUsername: string, rawPassword: string) => {
-        const nextUsername = rawUsername.trim();
-        const nextPassword = rawPassword.trim();
+      login: async (rawUsername: string, rawPassword: string) => {
+        const result = await loginMobilUser(rawUsername, rawPassword);
 
-        if (!nextUsername || !nextPassword) {
-          return { ok: false, message: 'Debes ingresar usuario y contrasena.' };
+        if (!result.ok) {
+          return { ok: false, message: result.message };
         }
 
-        if (nextUsername !== 'pruebas1' || nextPassword !== 'pruebas1') {
-          return { ok: false, message: 'Usuario o contrasena invalido. Usa pruebas1 / pruebas1.' };
-        }
-
-        const normalized = nextUsername.toLowerCase();
+        const normalized = result.user.Username.toLowerCase();
+        // NOTE: TusuarioMobil does not expose an explicit role field yet.
+        // Keeping the existing heuristic until the backend provides one.
         const nextRole: Role = normalized.includes('prop') || normalized.includes('owner')
           ? 'PROPIETARIO'
           : 'CONDUCTOR';
 
-        setUsername(nextUsername);
+        setUsername(result.user.Username);
+        setMobilUser(result.user);
         setRole(nextRole);
         setIsAuthenticated(true);
 
@@ -217,7 +249,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
           return { ok: false, message: 'No hay usuario activo.' };
         }
 
-        const expectedIds = preoperationalConfig.questions.map((question) => question.id);
+        const expectedIds = preoperationalQuestions.map((question) => question.id);
         const missing = expectedIds.find((id) => !answers[id]);
 
         if (missing) {
@@ -241,8 +273,16 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       },
       setRole,
       resetSession: () => {
+        if (mobilUser) {
+          // Release the device lock so this account can log in from another
+          // device afterwards. Best-effort/fire-and-forget: logout must not
+          // be blocked by a network failure.
+          releaseMobilKey(mobilUser.Id).catch(() => undefined);
+        }
+
         setIsAuthenticated(false);
         setUsername(DEFAULT_USERNAME);
+        setMobilUser(null);
         setRole(DEFAULT_ROLE);
         setServices(mockServices);
       },
@@ -337,7 +377,20 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       },
     }),
 
-    [activeService, isAuthenticated, isReady, needsPreoperational, preoperationalByUser, role, services, statusCounts, username],
+    [
+      activeService,
+      isAuthenticated,
+      isReady,
+      mobilUser,
+      needsPreoperational,
+      preoperationalByUser,
+      preoperationalLoadError,
+      preoperationalQuestions,
+      role,
+      services,
+      statusCounts,
+      username,
+    ],
   );
 
   if (!isReady) {

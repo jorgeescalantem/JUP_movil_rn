@@ -27,13 +27,27 @@ export function LoginScreen({ onOpenRegister, onOpenRecover }: LoginScreenProps)
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const isCompact = height < 760;
 
-  const onSubmit = () => {
-    const result = login(username, password);
+  const onSubmit = async () => {
+    if (isSubmitting) {
+      return;
+    }
 
-    if (!result.ok) {
-      Alert.alert('No fue posible ingresar', result.message ?? 'Verifica los datos e intenta nuevamente.');
+    setIsSubmitting(true);
+    setErrorMessage(null);
+
+    try {
+      const result = await login(username, password);
+
+      if (!result.ok) {
+        // Alert.alert is a no-op on react-native-web, so errors must be shown inline.
+        setErrorMessage(result.message ?? 'Verifica los datos e intenta nuevamente.');
+      }
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -92,19 +106,27 @@ export function LoginScreen({ onOpenRegister, onOpenRecover }: LoginScreenProps)
             </View>
           </View>
 
-          <Pressable onPress={onSubmit} style={[styles.submitButton, isCompact ? styles.submitButtonCompact : null]}>
+          {errorMessage ? <Text style={styles.errorText}>{errorMessage}</Text> : null}
+
+          <Pressable
+            disabled={isSubmitting}
+            onPress={onSubmit}
+            style={[
+              styles.submitButton,
+              isCompact ? styles.submitButtonCompact : null,
+              isSubmitting ? styles.submitButtonDisabled : null,
+            ]}
+          >
             <LinearGradient
               colors={['#2fdeb0', '#1bbbe8', '#0fa0f3']}
               end={{ x: 1, y: 0.5 }}
               start={{ x: 0, y: 0.5 }}
               style={styles.submitGradient}
             >
-              <Text style={styles.submitText}>INGRESAR</Text>
-              <Text style={styles.arrowIcon}>{'>'}</Text>
+              <Text style={styles.submitText}>{isSubmitting ? 'INGRESANDO...' : 'INGRESAR'}</Text>
+              {!isSubmitting ? <Text style={styles.arrowIcon}>{'>'}</Text> : null}
             </LinearGradient>
           </Pressable>
-
-          <Text style={styles.testHint}>Usuario prueba: pruebas1  |  Clave: pruebas1</Text>
 
           <View style={styles.dividerRow}>
             <View style={styles.divider} />
@@ -211,6 +233,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
+  errorText: {
+    color: '#ba1a1a',
+    fontSize: 13,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
   inputWrap: {
     alignItems: 'center',
     borderColor: '#bacac0',
@@ -243,6 +271,9 @@ const styles = StyleSheet.create({
   },
   submitButtonCompact: {
     marginTop: 2,
+  },
+  submitButtonDisabled: {
+    opacity: 0.6,
   },
   submitGradient: {
     alignItems: 'center',
