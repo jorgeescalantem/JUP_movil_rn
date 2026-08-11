@@ -9,6 +9,7 @@ export type ServiceState =
 
 export type Service = {
   numeroServicio: string;
+  orden: number;
   contrato: string;
   estado: ServiceState;
   fechaServicio: string;

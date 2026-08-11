@@ -167,3 +167,20 @@ export type TpempresaRecord = {
   Id: number;
   Nombre: string;
 };
+
+// Payload for POST /oData/TbFirmas. Noorden/Cordenadasfirma are NOT NULL in the
+// real database despite the OData metadata marking them nullable, so send ''
+// instead of null when there's no value.
+export type TbFirmaPayload = {
+  Codservicio: number;
+  Codorden: number;
+  Noorden: string;
+  Fechaserviciofirma: string;
+  Horaserviciofirma: string;
+  Placa: string;
+  Conductor: number;
+  Firma: string;
+  Firmaguia: number | null;
+  Cordenadasfirma: string;
+  Favorito: boolean;
+};

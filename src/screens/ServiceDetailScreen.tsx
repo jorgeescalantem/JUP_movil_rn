@@ -7,6 +7,7 @@ import { Linking, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, Vie
 import SignatureScreen from 'react-native-signature-canvas';
 
 import { DrawerParamList } from '../navigation/AppDrawer';
+import { saveFirma, nowInColombiaIso, toRawBase64 } from '../services/firmasApi';
 import { useSession } from '../store/session';
 import { spacing } from '../theme';
 
@@ -59,7 +60,7 @@ const signatureWebStyle = `
 export function ServiceDetailScreen() {
   const route = useRoute<DetailRoute>();
   const navigation = useNavigation<DrawerNavigationProp<DrawerParamList>>();
-  const { services, arrivedAtOrigin, arrivedAtDestination, deliverService } = useSession();
+  const { services, arrivedAtOrigin, arrivedAtDestination, deliverService, mobilUser } = useSession();
 
   const [originDialogOpen, setOriginDialogOpen] = useState(false);
   const [originCode, setOriginCode] = useState('');
@@ -175,6 +176,23 @@ export function ServiceDetailScreen() {
       setDeliveryError(result.message ?? 'No fue posible entregar el servicio.');
       return;
     }
+
+    // Best-effort: the local delivery flow is already confirmed, so a network
+    // failure saving the signature must not block the driver from continuing.
+    const timestamp = nowInColombiaIso();
+    saveFirma({
+      Codservicio: Number(service.numeroServicio),
+      Codorden: service.orden,
+      Noorden: '',
+      Fechaserviciofirma: timestamp,
+      Horaserviciofirma: timestamp,
+      Placa: mobilUser?.Placa ?? '',
+      Conductor: mobilUser?.Conductor ?? 0,
+      Firma: toRawBase64(signatureData),
+      Firmaguia: null,
+      Cordenadasfirma: '',
+      Favorito: false,
+    }).catch(() => undefined);
 
     resetDeliveryDialog();
     setFeedbackDialog({ title: 'Servicio entregado', message: 'Entrega confirmada con GuíaControl y firma del cliente.' });

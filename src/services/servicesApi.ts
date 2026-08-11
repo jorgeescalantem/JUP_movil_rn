@@ -82,6 +82,7 @@ function mapToService(
 
   return {
     numeroServicio: String(record.Codservicio),
+    orden: record.Orden,
     contrato: (cliente?.Contrato ?? '').trim(),
     estado: 'ASIGNADA',
     // Fecha/Hrecogida are Colombia local time (UTC-05:00, no DST); the explicit
