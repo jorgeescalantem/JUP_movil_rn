@@ -1,44 +1,11 @@
 import { env } from '../config/env';
 import { PreoperationalQuestion } from '../mocks/preoperational';
 import { ODataListResponse, TppreoperacionRecord } from '../types/api';
-
-const REQUEST_TIMEOUT_MS = 10000;
+import { fetchWithTimeout, getJupwebCoToken } from './jupwebCoAuth';
 
 export type PreoperationalFetchResult =
   | { ok: true; questions: PreoperationalQuestion[] }
   | { ok: false; message: string };
-
-async function fetchWithTimeout(url: string, init: RequestInit): Promise<Response> {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-
-  try {
-    return await fetch(url, { ...init, signal: controller.signal });
-  } finally {
-    clearTimeout(timeoutId);
-  }
-}
-
-// Tppreoperacion lives on its own host; tokens issued by the main API host
-// are rejected here, so a dedicated login against this host is required.
-async function getPreopToken(): Promise<string | null> {
-  try {
-    const response = await fetchWithTimeout(`${env.preopBaseUrl}/api/auth/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      body: JSON.stringify({ user: env.apiAuthUser, pwd: env.apiAuthPwd }),
-    });
-
-    if (!response.ok) {
-      return null;
-    }
-
-    const data = (await response.json()) as { token?: string };
-    return data.token ?? null;
-  } catch {
-    return null;
-  }
-}
 
 /**
  * Fetches the active checklist items from Tppreoperacion, sorted by `Orden`.
@@ -47,7 +14,7 @@ async function getPreopToken(): Promise<string | null> {
  * (`Editar: false`) are returned here.
  */
 export async function fetchPreoperationalQuestions(): Promise<PreoperationalFetchResult> {
-  const token = await getPreopToken();
+  const token = await getJupwebCoToken();
 
   if (!token) {
     return { ok: false, message: 'No se pudo establecer conexion con el servidor de preoperacionales.' };

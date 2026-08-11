@@ -45,10 +45,18 @@ type ModalConfig =
 
 export function ServicesScreen() {
   const navigation = useNavigation<DrawerNavigationProp<DrawerParamList>>();
-  const { services, activeService, arrivedAtOrigin, arrivedAtDestination, deliverService } = useSession();
+  const {
+    services,
+    activeService,
+    arrivedAtOrigin,
+    arrivedAtDestination,
+    deliverService,
+    isLoadingServices,
+    servicesLoadError,
+    reloadAssignedServices,
+  } = useSession();
   const [modalConfig, setModalConfig] = useState<ModalConfig>(null);
   const [codeInput, setCodeInput] = useState('');
-  const [refreshing, setRefreshing] = useState(false);
   const [phonesDialogService, setPhonesDialogService] = useState<Service | null>(null);
   const [destinationConfirmService, setDestinationConfirmService] = useState<Service | null>(null);
   const [feedbackDialog, setFeedbackDialog] = useState<{ title: string; message: string } | null>(null);
@@ -85,11 +93,7 @@ export function ServicesScreen() {
   };
 
   const handleRefresh = () => {
-    setRefreshing(true);
-
-    setTimeout(() => {
-      setRefreshing(false);
-    }, 450);
+    reloadAssignedServices();
   };
 
   const handleModalConfirm = () => {
@@ -126,7 +130,7 @@ export function ServicesScreen() {
   return (
     <ScrollView
       contentContainerStyle={styles.content}
-      refreshControl={<RefreshControl onRefresh={handleRefresh} refreshing={refreshing} />}
+      refreshControl={<RefreshControl onRefresh={handleRefresh} refreshing={isLoadingServices} />}
     >
       <RoleGate allowedRoles={['CONDUCTOR', 'PROPIETARIO']}>
         {/* Modal para validaciones con input */}
@@ -251,6 +255,12 @@ export function ServicesScreen() {
           title="Servicios"
           subtitle="Asignados del dia."
         >
+          {servicesLoadError ? (
+            <Pressable onPress={reloadAssignedServices} style={styles.errorBanner}>
+              <Text style={styles.errorBannerText}>{servicesLoadError} Toca para reintentar.</Text>
+            </Pressable>
+          ) : null}
+
           {activeService ? (
             <Pressable
               onPress={() => navigation.navigate('ServicioDetalle', { serviceNumber: activeService.numeroServicio })}
@@ -406,6 +416,18 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     gap: spacing.xs,
     padding: spacing.md,
+  },
+  errorBanner: {
+    backgroundColor: '#fdecec',
+    borderColor: '#f3b9b9',
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: spacing.md,
+  },
+  errorBannerText: {
+    color: colors.danger,
+    fontSize: 13,
+    fontWeight: '700',
   },
   activeLabel: {
     color: '#12805c',

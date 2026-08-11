@@ -3,8 +3,8 @@ import { ReactNode, createContext, useContext, useEffect, useMemo, useState } fr
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import { PreoperationalOption, PreoperationalQuestion } from '../mocks/preoperational';
-import { mockServices } from '../mocks/services';
 import { fetchPreoperationalQuestions } from '../services/preoperationalApi';
+import { fetchAssignedServices } from '../services/servicesApi';
 import { loginMobilUser, releaseMobilKey } from '../services/userAuth';
 import { colors } from '../theme';
 import { Role, Service, ServiceState } from '../types/domain';
@@ -34,6 +34,9 @@ type SessionContextValue = {
   reloadPreoperationalChecklist: () => void;
   role: Role;
   services: Service[];
+  servicesLoadError: string | null;
+  isLoadingServices: boolean;
+  reloadAssignedServices: () => void;
   activeService: Service | null;
   statusCounts: Record<ServiceState, number>;
   login: (username: string, password: string) => Promise<ActionResult>;
@@ -106,7 +109,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [username, setUsername] = useState<string | null>(DEFAULT_USERNAME);
   const [mobilUser, setMobilUser] = useState<SanitizedMobilUser | null>(null);
   const [role, setRole] = useState<Role>(DEFAULT_ROLE);
-  const [services, setServices] = useState<Service[]>(mockServices);
+  const [services, setServices] = useState<Service[]>([]);
+  const [servicesLoadError, setServicesLoadError] = useState<string | null>(null);
+  const [isLoadingServices, setIsLoadingServices] = useState(false);
   const [preoperationalByUser, setPreoperationalByUser] = useState<Record<string, string>>({});
   const [preoperationalQuestions, setPreoperationalQuestions] = useState<PreoperationalQuestion[]>([]);
   const [preoperationalLoadError, setPreoperationalLoadError] = useState<string | null>(null);
@@ -122,6 +127,33 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       }
     });
   };
+
+  const loadAssignedServices = (user: SanitizedMobilUser) => {
+    setIsLoadingServices(true);
+    setServicesLoadError(null);
+
+    fetchAssignedServices(user.Vehiculo)
+      .then((result) => {
+        if (result.ok) {
+          // Only the ASIGNADA slice comes from the real API for now; other
+          // states stay untouched to avoid affecting screens out of scope here.
+          setServices((current) => [
+            ...current.filter((service) => service.estado !== 'ASIGNADA'),
+            ...result.services,
+          ]);
+        } else {
+          setServicesLoadError(result.message);
+        }
+      })
+      .finally(() => setIsLoadingServices(false));
+  };
+
+  useEffect(() => {
+    if (mobilUser) {
+      loadAssignedServices(mobilUser);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mobilUser]);
 
   useEffect(() => {
     loadPreoperationalChecklist();
@@ -156,7 +188,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         }
 
         if (Array.isArray(parsed.services) && parsed.services.length > 0) {
-          setServices(mergeServicesWithMocks(parsed.services as Service[], mockServices));
+          setServices(parsed.services as Service[]);
         }
 
         if (parsed.preoperationalByUser && typeof parsed.preoperationalByUser === 'object') {
@@ -221,6 +253,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       reloadPreoperationalChecklist: loadPreoperationalChecklist,
       role,
       services,
+      servicesLoadError,
+      isLoadingServices,
+      reloadAssignedServices: () => {
+        if (mobilUser) {
+          loadAssignedServices(mobilUser);
+        }
+      },
       activeService,
       statusCounts,
       login: async (rawUsername: string, rawPassword: string) => {
@@ -284,7 +323,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         setUsername(DEFAULT_USERNAME);
         setMobilUser(null);
         setRole(DEFAULT_ROLE);
-        setServices(mockServices);
+        setServices([]);
       },
       closeService: (serviceNumber: string, guideControl: string) => {
         if (role === 'PROPIETARIO') {
@@ -380,6 +419,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     [
       activeService,
       isAuthenticated,
+      isLoadingServices,
       isReady,
       mobilUser,
       needsPreoperational,
@@ -388,6 +428,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       preoperationalQuestions,
       role,
       services,
+      servicesLoadError,
       statusCounts,
       username,
     ],
