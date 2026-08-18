@@ -161,7 +161,10 @@ export function ServiceDetailScreen() {
   };
 
   const handleConfirmDelivery = () => {
-    if (!/^\d{1,10}$/.test(guideControl.trim())) {
+    const trimmedGuideControl = guideControl.trim();
+    const effectiveGuideControl = trimmedGuideControl.length > 0 ? trimmedGuideControl : service.numeroServicio;
+
+    if (!/^\d{1,10}$/.test(effectiveGuideControl)) {
       setDeliveryError('Ingresa una GuíaControl numerica entre 1 y 10 digitos.');
       return;
     }
@@ -171,7 +174,7 @@ export function ServiceDetailScreen() {
       return;
     }
 
-    const result = deliverService(service.numeroServicio, guideControl.trim());
+    const result = deliverService(service.numeroServicio, effectiveGuideControl);
     if (!result.ok) {
       setDeliveryError(result.message ?? 'No fue posible entregar el servicio.');
       return;
@@ -195,7 +198,10 @@ export function ServiceDetailScreen() {
     }).catch(() => undefined);
 
     resetDeliveryDialog();
-    setFeedbackDialog({ title: 'Servicio entregado', message: 'Entrega confirmada con GuíaControl y firma del cliente.' });
+    setFeedbackDialog({
+      title: 'Servicio entregado',
+      message: `Servicio #${service.numeroServicio} completado — ${formatDateOnly(service.fechaServicio)}\nEntrega confirmada con GuíaControl y firma del cliente.`,
+    });
   };
 
   const handleSignatureOk = (signature: string) => {
@@ -310,7 +316,8 @@ export function ServiceDetailScreen() {
           <View style={styles.dialogCardLarge}>
             <Text style={styles.dialogTitle}>Entregar servicio</Text>
             <Text style={styles.dialogSubtitle}>
-              Captura la GuíaControl y solicita la firma del cliente para completar la entrega.
+              La GuíaControl es opcional: si la dejas vacía se usara el numero de servicio. Solicita la firma del
+              cliente para completar la entrega.
             </Text>
 
             <TextInput
@@ -319,7 +326,7 @@ export function ServiceDetailScreen() {
                 setGuideControl(value);
                 if (deliveryError) setDeliveryError(null);
               }}
-              placeholder="GuíaControl (1-10 digitos)"
+              placeholder={`GuíaControl (opcional, por defecto ${service.numeroServicio})`}
               placeholderTextColor="#7b8791"
               style={styles.dialogInput}
               value={guideControl}
@@ -426,7 +433,10 @@ export function ServiceDetailScreen() {
               <Pressable onPress={resetDeliveryDialog} style={[styles.dialogButton, styles.dialogCancelButton]}>
                 <Text style={styles.dialogCancelText}>Cancelar</Text>
               </Pressable>
-              <Pressable onPress={handleConfirmDelivery} style={[styles.dialogButton, styles.dialogConfirmButton]}>
+              <Pressable
+                onPress={handleConfirmDelivery}
+                style={[styles.dialogButton, styles.dialogConfirmButton, styles.dialogConfirmButtonWide]}
+              >
                 <Text style={styles.dialogConfirmText}>Confirmar entrega</Text>
               </Pressable>
             </View>
@@ -827,7 +837,11 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     minHeight: 46,
+    paddingHorizontal: spacing.xs,
     paddingVertical: spacing.sm,
+  },
+  dialogConfirmButtonWide: {
+    flex: 1.6,
   },
   dialogSingleActionButton: {
     alignSelf: 'stretch',
@@ -852,8 +866,10 @@ const styles = StyleSheet.create({
   signatureHeaderRow: {
     alignItems: 'center',
     flexDirection: 'row',
+    flexWrap: 'wrap',
     justifyContent: 'space-between',
     marginTop: spacing.xs,
+    rowGap: spacing.xs,
   },
   signatureHeaderActions: {
     flexDirection: 'row',
@@ -861,6 +877,7 @@ const styles = StyleSheet.create({
   },
   signatureLabel: {
     color: '#0f172a',
+    flexShrink: 1,
     fontSize: 13,
     fontWeight: '700',
   },

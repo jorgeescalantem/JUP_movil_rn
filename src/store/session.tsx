@@ -137,10 +137,29 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         if (result.ok) {
           // Only the ASIGNADA slice comes from the real API for now; other
           // states stay untouched to avoid affecting screens out of scope here.
-          setServices((current) => [
-            ...current.filter((service) => service.estado !== 'ASIGNADA'),
-            ...result.services,
-          ]);
+          // Local status changes (arrivedAtOrigin/deliverService/...) aren't
+          // persisted to the API yet, so a service already progressed locally
+          // would otherwise be "resurrected" as ASIGNADA on refetch, producing
+          // a duplicate numeroServicio (and a React duplicate-key warning).
+          setServices((current) => {
+            // Defensive de-dupe: AsyncStorage may already hold duplicate
+            // numeroServicio entries persisted by an earlier run (last one wins).
+            const dedupedCurrent = Array.from(
+              new Map(current.map((service) => [service.numeroServicio, service])).values(),
+            );
+
+            const progressedLocally = new Set(
+              dedupedCurrent
+                .filter((service) => service.estado !== 'ASIGNADA')
+                .map((service) => service.numeroServicio),
+            );
+
+            const freshAssigned = result.services.filter(
+              (service) => !progressedLocally.has(service.numeroServicio),
+            );
+
+            return [...dedupedCurrent.filter((service) => service.estado !== 'ASIGNADA'), ...freshAssigned];
+          });
         } else {
           setServicesLoadError(result.message);
         }

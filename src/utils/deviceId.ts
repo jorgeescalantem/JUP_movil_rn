@@ -38,3 +38,14 @@ export async function getDeviceId(): Promise<string> {
 
   return generated;
 }
+
+/**
+ * Short form of the device id (last UUID segment, e.g. "ddbe3467b9ad") used
+ * for MobilKey: easier for support to read/type than the full UUID, and
+ * matches the length already used by existing MobilKey values in the DB.
+ */
+export async function getShortDeviceId(): Promise<string> {
+  const fullId = await getDeviceId();
+  const segments = fullId.split('-');
+  return segments[segments.length - 1];
+}

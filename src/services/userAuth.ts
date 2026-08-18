@@ -1,6 +1,6 @@
 import { env } from '../config/env';
 import { ODataListResponse, SanitizedMobilUser, TusuarioMobilRecord } from '../types/api';
-import { getDeviceId } from '../utils/deviceId';
+import { getShortDeviceId } from '../utils/deviceId';
 import { getSystemToken } from './apiSessionStore';
 
 const REQUEST_TIMEOUT_MS = 10000;
@@ -130,7 +130,7 @@ export async function loginMobilUser(rawUsername: string, rawPassword: string): 
     return { ok: false, message: 'El usuario no esta activo. Contacta al administrador.' };
   }
 
-  const deviceId = await getDeviceId();
+  const deviceId = await getShortDeviceId();
   const boundKey = record.MobilKey?.trim() || null;
 
   if (boundKey && boundKey !== deviceId) {

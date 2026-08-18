@@ -1,6 +1,6 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Alert,
   Image,
@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 
 import { useSession } from '../store/session';
+import { getShortDeviceId } from '../utils/deviceId';
 
 type LoginScreenProps = {
   onOpenRegister?: () => void;
@@ -29,7 +30,12 @@ export function LoginScreen({ onOpenRegister, onOpenRecover }: LoginScreenProps)
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [deviceId, setDeviceId] = useState<string | null>(null);
   const isCompact = height < 760;
+
+  useEffect(() => {
+    getShortDeviceId().then(setDeviceId);
+  }, []);
 
   const onSubmit = async () => {
     if (isSubmitting) {
@@ -63,6 +69,11 @@ export function LoginScreen({ onOpenRegister, onOpenRecover }: LoginScreenProps)
           <View style={styles.logoWrap}>
             <Image source={require('../../assets/logo1.png')} style={styles.logo} />
             <Text style={styles.portalLabel}>JUP-movil Version</Text>
+            {deviceId ? (
+              <Text selectable style={styles.deviceIdText}>
+                ID de dispositivo (soporte): {deviceId}
+              </Text>
+            ) : null}
           </View>
 
           <View style={[styles.fieldGroup, isCompact ? styles.fieldGroupCompact : null]}>
@@ -211,6 +222,12 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     letterSpacing: 1,
+  },
+  deviceIdText: {
+    color: '#8c989b',
+    fontSize: 10,
+    marginTop: 2,
+    textAlign: 'center',
   },
   fieldGroup: {
     gap: 6,

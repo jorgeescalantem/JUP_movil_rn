@@ -61,11 +61,19 @@ export function ServicesScreen() {
   const [destinationConfirmService, setDestinationConfirmService] = useState<Service | null>(null);
   const [feedbackDialog, setFeedbackDialog] = useState<{ title: string; message: string } | null>(null);
 
-  const visibleServices = services.filter(
-    (service) =>
-      service.estado === 'ASIGNADA' ||
-      service.estado === 'EN_TRANSITO' ||
-      service.estado === 'TERMINADO',
+  const visibleServices = Array.from(
+    new Map(
+      services
+        .filter(
+          (service) =>
+            service.estado === 'ASIGNADA' ||
+            service.estado === 'EN_TRANSITO' ||
+            service.estado === 'TERMINADO',
+        )
+        // Defensive de-dupe by numeroServicio: guarantees unique list keys
+        // even if upstream state ever contains a duplicate entry.
+        .map((service) => [service.numeroServicio, service]),
+    ).values(),
   );
 
   const orderedServices = [...visibleServices].sort(
@@ -280,7 +288,7 @@ export function ServicesScreen() {
 
             return (
               <Pressable
-                key={service.numeroServicio}
+                key={`${service.orden}-${service.numeroServicio}`}
                 onPress={() => navigation.navigate('ServicioDetalle', { serviceNumber: service.numeroServicio })}
                 style={[
                   styles.serviceCard,
