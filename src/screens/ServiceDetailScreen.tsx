@@ -70,9 +70,15 @@ export function ServiceDetailScreen() {
   const [guideControl, setGuideControl] = useState('');
   const [deliveryError, setDeliveryError] = useState<string | null>(null);
   const [signatureData, setSignatureData] = useState<string | null>(null);
+  const [deliverySignatureMountKey, setDeliverySignatureMountKey] = useState(0);
+  const [fullScreenSignatureMountKey, setFullScreenSignatureMountKey] = useState(0);
+  const [isDeliveryModalReady, setIsDeliveryModalReady] = useState(false);
+  const [isFullScreenModalReady, setIsFullScreenModalReady] = useState(false);
   const [phonesDialogOpen, setPhonesDialogOpen] = useState(false);
   const [destinationDialogOpen, setDestinationDialogOpen] = useState(false);
-  const [feedbackDialog, setFeedbackDialog] = useState<{ title: string; message: string } | null>(null);
+  const [feedbackDialog, setFeedbackDialog] = useState<{ title: string; message: string; onClose?: () => void } | null>(
+    null,
+  );
   const signatureRef = useRef<any>(null);
   const signatureFullScreenRef = useRef<any>(null);
 
@@ -120,7 +126,9 @@ export function ServiceDetailScreen() {
 
   const resetDeliveryDialog = () => {
     setDeliveryDialogOpen(false);
+    setIsDeliveryModalReady(false);
     setSignatureFullScreenOpen(false);
+    setIsFullScreenModalReady(false);
     setGuideControl('');
     setDeliveryError(null);
     setSignatureData(null);
@@ -199,8 +207,9 @@ export function ServiceDetailScreen() {
 
     resetDeliveryDialog();
     setFeedbackDialog({
-      title: 'Servicio entregado',
-      message: `Servicio #${service.numeroServicio} completado — ${formatDateOnly(service.fechaServicio)}\nEntrega confirmada con GuíaControl y firma del cliente.`,
+      title: 'Servicio Completado',
+      message: `Servicio # ${service.numeroServicio} completado — ${formatDateOnly(service.fechaServicio)}\n Servicio Completado y firmado por el cliente. Fecha/Hora Firma: ${formatDateOnly(timestamp)} ${formatTimeOnly(timestamp)}`,
+      onClose: () => navigation.navigate('Servicios'),
     });
   };
 
@@ -217,6 +226,11 @@ export function ServiceDetailScreen() {
 
   const requestSignatureSnapshot = (ref: React.MutableRefObject<any>) => {
     ref.current?.readSignature();
+  };
+
+  const closeFullScreenSignature = () => {
+    setSignatureFullScreenOpen(false);
+    setIsFullScreenModalReady(false);
   };
 
   const ctaLabel =
@@ -249,6 +263,7 @@ export function ServiceDetailScreen() {
     }
 
     if (service.estado === 'TERMINADO') {
+      setDeliverySignatureMountKey((key) => key + 1);
       setDeliveryDialogOpen(true);
     }
   };
@@ -309,15 +324,16 @@ export function ServiceDetailScreen() {
       <Modal
         animationType="slide"
         onRequestClose={resetDeliveryDialog}
+        onShow={() => setIsDeliveryModalReady(true)}
         transparent
-        visible={deliveryDialogOpen}
+        visible={deliveryDialogOpen && !signatureFullScreenOpen}
       >
         <View style={styles.dialogOverlay}>
           <View style={styles.dialogCardLarge}>
-            <Text style={styles.dialogTitle}>Entregar servicio</Text>
+            <Text style={styles.dialogTitle}>Completar servicio</Text>
             <Text style={styles.dialogSubtitle}>
-              La GuíaControl es opcional: si la dejas vacía se usara el numero de servicio. Solicita la firma del
-              cliente para completar la entrega.
+              GuíaControl Cierre: Solicita la firma del
+              Paciente para completar el traslado.
             </Text>
 
             <TextInput
@@ -336,7 +352,10 @@ export function ServiceDetailScreen() {
               <Text style={styles.signatureLabel}>Firma del cliente</Text>
               <View style={styles.signatureHeaderActions}>
                 <Pressable
-                  onPress={() => setSignatureFullScreenOpen(true)}
+                  onPress={() => {
+                    setFullScreenSignatureMountKey((key) => key + 1);
+                    setSignatureFullScreenOpen(true);
+                  }}
                   style={styles.signatureExpandButton}
                 >
                   <Text style={styles.signatureExpandText}>Pantalla completa</Text>
@@ -355,77 +374,26 @@ export function ServiceDetailScreen() {
             </View>
 
             <View style={styles.signaturePad}>
-              <SignatureScreen
-                autoClear={false}
-                bgHeight={220}
-                bgWidth={300}
-                clearText=""
-                confirmText=""
-                dataURL={signatureData ?? undefined}
-                descriptionText=""
-                imageType="image/png"
-                onEnd={() => requestSignatureSnapshot(signatureRef)}
-                onEmpty={handleSignatureEmpty}
-                onOK={handleSignatureOk}
-                penColor="#0f172a"
-                ref={signatureRef}
-                webStyle={signatureWebStyle}
-              />
+              {isDeliveryModalReady ? (
+                <SignatureScreen
+                  autoClear={false}
+                  bgHeight={220}
+                  bgWidth={300}
+                  clearText=""
+                  confirmText=""
+                  dataURL={signatureData ?? undefined}
+                  descriptionText=""
+                  imageType="image/png"
+                  key={`sig-${deliverySignatureMountKey}`}
+                  onEnd={() => requestSignatureSnapshot(signatureRef)}
+                  onEmpty={handleSignatureEmpty}
+                  onOK={handleSignatureOk}
+                  penColor="#0f172a"
+                  ref={signatureRef}
+                  webStyle={signatureWebStyle}
+                />
+              ) : null}
             </View>
-
-            <Modal
-              animationType="slide"
-              onRequestClose={() => setSignatureFullScreenOpen(false)}
-              visible={signatureFullScreenOpen}
-            >
-              <View style={styles.fullSignatureScreen}>
-                <View style={styles.fullSignatureHeader}>
-                  <Pressable onPress={() => setSignatureFullScreenOpen(false)} style={styles.fullSignatureHeaderBtn}>
-                    <Text style={styles.fullSignatureHeaderBtnText}>Cerrar</Text>
-                  </Pressable>
-                  <Text style={styles.fullSignatureHeaderTitle}>Firma del cliente</Text>
-                  <Pressable
-                    onPress={() => {
-                      signatureFullScreenRef.current?.clearSignature();
-                      signatureRef.current?.clearSignature();
-                      setSignatureData(null);
-                    }}
-                    style={styles.fullSignatureHeaderBtn}
-                  >
-                    <Text style={styles.fullSignatureHeaderBtnText}>Limpiar</Text>
-                  </Pressable>
-                </View>
-
-                <View style={styles.fullSignatureCanvasWrap}>
-                  <SignatureScreen
-                    autoClear={false}
-                    clearText=""
-                    confirmText=""
-                    dataURL={signatureData ?? undefined}
-                    descriptionText=""
-                    imageType="image/png"
-                    onEnd={() => requestSignatureSnapshot(signatureFullScreenRef)}
-                    onEmpty={handleSignatureEmpty}
-                    onOK={handleSignatureOk}
-                    penColor="#0f172a"
-                    ref={signatureFullScreenRef}
-                    webStyle={signatureWebStyle}
-                  />
-                </View>
-
-                <View style={styles.fullSignatureFooter}>
-                  <Pressable
-                    onPress={() => {
-                      requestSignatureSnapshot(signatureFullScreenRef);
-                      setSignatureFullScreenOpen(false);
-                    }}
-                    style={styles.fullSignatureUseBtn}
-                  >
-                    <Text style={styles.fullSignatureUseBtnText}>Usar firma</Text>
-                  </Pressable>
-                </View>
-              </View>
-            </Modal>
 
             {deliveryError ? <Text style={styles.dialogError}>{deliveryError}</Text> : null}
 
@@ -440,6 +408,64 @@ export function ServiceDetailScreen() {
                 <Text style={styles.dialogConfirmText}>Confirmar entrega</Text>
               </Pressable>
             </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        animationType="slide"
+        onRequestClose={closeFullScreenSignature}
+        onShow={() => setIsFullScreenModalReady(true)}
+        visible={signatureFullScreenOpen}
+      >
+        <View style={styles.fullSignatureScreen}>
+          <View style={styles.fullSignatureHeader}>
+            <Pressable onPress={closeFullScreenSignature} style={styles.fullSignatureHeaderBtn}>
+              <Text style={styles.fullSignatureHeaderBtnText}>Cerrar</Text>
+            </Pressable>
+            <Text style={styles.fullSignatureHeaderTitle}>Firma del cliente</Text>
+            <Pressable
+              onPress={() => {
+                signatureFullScreenRef.current?.clearSignature();
+                signatureRef.current?.clearSignature();
+                setSignatureData(null);
+              }}
+              style={styles.fullSignatureHeaderBtn}
+            >
+              <Text style={styles.fullSignatureHeaderBtnText}>Limpiar</Text>
+            </Pressable>
+          </View>
+
+          <View style={styles.fullSignatureCanvasWrap}>
+            {isFullScreenModalReady ? (
+              <SignatureScreen
+                autoClear={false}
+                clearText=""
+                confirmText=""
+                dataURL={signatureData ?? undefined}
+                descriptionText=""
+                imageType="image/png"
+                key={`sig-full-${fullScreenSignatureMountKey}`}
+                onEnd={() => requestSignatureSnapshot(signatureFullScreenRef)}
+                onEmpty={handleSignatureEmpty}
+                onOK={handleSignatureOk}
+                penColor="#0f172a"
+                ref={signatureFullScreenRef}
+                webStyle={signatureWebStyle}
+              />
+            ) : null}
+          </View>
+
+          <View style={styles.fullSignatureFooter}>
+            <Pressable
+              onPress={() => {
+                requestSignatureSnapshot(signatureFullScreenRef);
+                closeFullScreenSignature();
+              }}
+              style={styles.fullSignatureUseBtn}
+            >
+              <Text style={styles.fullSignatureUseBtnText}>Usar firma</Text>
+            </Pressable>
           </View>
         </View>
       </Modal>
@@ -521,7 +547,11 @@ export function ServiceDetailScreen() {
             <Text style={styles.dialogSubtitle}>{feedbackDialog?.message}</Text>
 
             <Pressable
-              onPress={() => setFeedbackDialog(null)}
+              onPress={() => {
+                const onClose = feedbackDialog?.onClose;
+                setFeedbackDialog(null);
+                onClose?.();
+              }}
               style={[styles.dialogButton, styles.dialogConfirmButton, styles.dialogSingleActionButton]}
             >
               <Text style={styles.dialogConfirmText}>Aceptar</Text>
