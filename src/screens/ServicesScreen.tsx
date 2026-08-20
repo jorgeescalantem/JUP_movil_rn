@@ -81,14 +81,11 @@ export function ServicesScreen() {
   );
 
   const openExternalUrl = async (url: string) => {
-    const supported = await Linking.canOpenURL(url);
-
-    if (!supported) {
+    try {
+      await Linking.openURL(url);
+    } catch {
       setFeedbackDialog({ title: 'No disponible', message: 'No se pudo abrir la accion solicitada.' });
-      return;
     }
-
-    await Linking.openURL(url);
   };
 
   const openPhones = (service: Service) => {
@@ -450,10 +447,9 @@ const styles = StyleSheet.create({
   },
   serviceCard: {
     backgroundColor: '#f7fafb',
-    borderColor: '#d8e5ea',
-    borderRadius: 22,
-    borderWidth: 1,
+    borderRadius: 18,
     gap: spacing.xs,
+    marginHorizontal: -spacing.md,
     padding: spacing.lg,
     shadowColor: '#0b2239',
     shadowOffset: { width: 0, height: 8 },
@@ -462,13 +458,9 @@ const styles = StyleSheet.create({
   },
   serviceCardInTransit: {
     backgroundColor: '#cfe9ff',
-    borderColor: '#5aaeea',
-    borderWidth: 1,
   },
   serviceCardFinished: {
     backgroundColor: '#e9eff4',
-    borderColor: '#c8d6e2',
-    borderWidth: 1,
   },
   infoRow: {
     alignItems: 'flex-start',

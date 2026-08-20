@@ -5,6 +5,7 @@ import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { PreoperationalOption, PreoperationalQuestion } from '../mocks/preoperational';
 import { fetchPreoperationalQuestions } from '../services/preoperationalApi';
 import { fetchAssignedServices } from '../services/servicesApi';
+import { clearBiometricCredentials } from '../services/biometricAuth';
 import { loginMobilUser, releaseMobilKey } from '../services/userAuth';
 import { colors } from '../theme';
 import { Role, Service, ServiceState } from '../types/domain';
@@ -80,27 +81,6 @@ function buildStatusCounts(services: Service[]): Record<ServiceState, number> {
       procesado: 0,
     },
   );
-}
-
-function mergeServicesWithMocks(persistedServices: Service[], baseMocks: Service[]): Service[] {
-  const persistedByNumber = new Map(persistedServices.map((service) => [service.numeroServicio, service]));
-
-  // Keep mock catalog updated while preserving any runtime changes for existing service IDs.
-  // Merge field-by-field so newly added mock fields (e.g. HoraRecogida/HoraCita) aren't lost
-  // when older persisted data (saved before those fields existed) is restored.
-  const merged = baseMocks.map((mockService) => {
-    const persisted = persistedByNumber.get(mockService.numeroServicio);
-    return persisted ? { ...mockService, ...persisted } : mockService;
-  });
-
-  // Preserve old persisted services that are not in current mocks.
-  persistedServices.forEach((service) => {
-    if (!baseMocks.some((mockService) => mockService.numeroServicio === service.numeroServicio)) {
-      merged.push(service);
-    }
-  });
-
-  return merged;
 }
 
 export function SessionProvider({ children }: { children: ReactNode }) {
@@ -337,6 +317,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
           // be blocked by a network failure.
           releaseMobilKey(mobilUser.Id).catch(() => undefined);
         }
+
+        // Security: don't leave replayable credentials on the device after logout.
+        clearBiometricCredentials().catch(() => undefined);
 
         setIsAuthenticated(false);
         setUsername(DEFAULT_USERNAME);

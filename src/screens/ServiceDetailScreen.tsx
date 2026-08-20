@@ -105,14 +105,11 @@ export function ServiceDetailScreen() {
   }
 
   const openExternalUrl = async (url: string) => {
-    const supported = await Linking.canOpenURL(url);
-
-    if (!supported) {
+    try {
+      await Linking.openURL(url);
+    } catch {
       setFeedbackDialog({ title: 'No disponible', message: 'No se pudo abrir la accion solicitada.' });
-      return;
     }
-
-    await Linking.openURL(url);
   };
 
   const openPhones = () => {

@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 
 import { useSession } from '../store/session';
+import { authenticateWithBiometrics, saveBiometricCredentials } from '../services/biometricAuth';
 import { getShortDeviceId } from '../utils/deviceId';
 
 type LoginScreenProps = {
@@ -50,6 +51,34 @@ export function LoginScreen({ onOpenRegister, onOpenRecover }: LoginScreenProps)
 
       if (!result.ok) {
         // Alert.alert is a no-op on react-native-web, so errors must be shown inline.
+        setErrorMessage(result.message ?? 'Verifica los datos e intenta nuevamente.');
+      } else {
+        saveBiometricCredentials(username, password).catch(() => undefined);
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const onBiometricLogin = async (label: 'FaceID' | 'Huella') => {
+    if (isSubmitting) {
+      return;
+    }
+
+    setIsSubmitting(true);
+    setErrorMessage(null);
+
+    try {
+      const biometricResult = await authenticateWithBiometrics(`Inicia sesion con ${label}`);
+
+      if (!biometricResult.ok) {
+        Alert.alert(label, biometricResult.message);
+        return;
+      }
+
+      const result = await login(biometricResult.username, biometricResult.password);
+
+      if (!result.ok) {
         setErrorMessage(result.message ?? 'Verifica los datos e intenta nuevamente.');
       }
     } finally {
@@ -147,7 +176,7 @@ export function LoginScreen({ onOpenRegister, onOpenRecover }: LoginScreenProps)
 
           <View style={styles.biometricRow}>
             <Pressable
-              onPress={() => Alert.alert('FaceID', 'Autenticacion biometrica no disponible en modo mock.')}
+              onPress={() => onBiometricLogin('FaceID')}
               style={styles.biometricButton}
             >
               <MaterialCommunityIcons color="#006493" name="face-recognition" size={30} />
@@ -155,7 +184,7 @@ export function LoginScreen({ onOpenRegister, onOpenRecover }: LoginScreenProps)
             </Pressable>
 
             <Pressable
-              onPress={() => Alert.alert('Huella', 'Autenticacion biometrica no disponible en modo mock.')}
+              onPress={() => onBiometricLogin('Huella')}
               style={styles.biometricButton}
             >
               <MaterialCommunityIcons color="#006493" name="fingerprint" size={30} />
