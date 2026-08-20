@@ -1,5 +1,5 @@
 import { ReactNode } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
 
 import { colors, spacing } from '../theme';
 
@@ -9,12 +9,13 @@ type SectionCardProps = {
   actionLabel?: string;
   onPress?: () => void;
   centerTitle?: boolean;
+  style?: StyleProp<ViewStyle>;
   children: ReactNode;
 };
 
-export function SectionCard({ title, subtitle, actionLabel, onPress, centerTitle, children }: SectionCardProps) {
+export function SectionCard({ title, subtitle, actionLabel, onPress, centerTitle, style, children }: SectionCardProps) {
   return (
-    <View style={styles.card}>
+    <View style={[styles.card, style]}>
       <View style={styles.header}>
         <View style={[styles.headerCopy, centerTitle ? styles.headerCopyCentered : null]}>
           <Text style={[styles.title, centerTitle ? styles.titleCentered : null]}>{title}</Text>

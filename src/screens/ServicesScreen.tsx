@@ -257,8 +257,9 @@ export function ServicesScreen() {
         </Modal>
 
         <SectionCard
-          title="Servicios"
-          subtitle="Asignados del dia."
+          title=""
+          subtitle=""
+          style={styles.sectionCardFull}
         >
           {servicesLoadError ? (
             <Pressable onPress={reloadAssignedServices} style={styles.errorBanner}>
@@ -411,8 +412,14 @@ export function ServicesScreen() {
 const styles = StyleSheet.create({
   content: {
     backgroundColor: colors.background,
+    flexGrow: 1,
     gap: spacing.lg,
-    padding: spacing.lg,
+    padding: 0,
+  },
+  sectionCardFull: {
+    borderRadius: 0,
+    borderWidth: 0,
+    flex: 1,
   },
   activeBanner: {
     backgroundColor: '#dff6ea',
@@ -449,7 +456,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#f7fafb',
     borderRadius: 18,
     gap: spacing.xs,
-    marginHorizontal: -spacing.md,
+    marginHorizontal: -spacing.lg,
     padding: spacing.lg,
     shadowColor: '#0b2239',
     shadowOffset: { width: 0, height: 8 },
