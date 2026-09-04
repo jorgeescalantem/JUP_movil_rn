@@ -1,9 +1,10 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
-  Alert,
+  ActivityIndicator,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   Pressable,
   StyleSheet,
@@ -12,28 +13,86 @@ import {
   View,
 } from 'react-native';
 
+import { findConductorByDocument, registerMobilUser } from '../services/registerApi';
+import { getShortDeviceId } from '../utils/deviceId';
+
 type RegisterScreenProps = {
   onBack: () => void;
 };
+
+type FeedbackModal = { title: string; message: string; onClose?: () => void } | null;
 
 export function RegisterScreen({ onBack }: RegisterScreenProps) {
   const [documentNumber, setDocumentNumber] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [mobileToken, setMobileToken] = useState<string | null>(null);
+  const [feedbackModal, setFeedbackModal] = useState<FeedbackModal>(null);
 
-  const mobileToken = useMemo(() => '8f4399365f3044a0', []);
+  useEffect(() => {
+    getShortDeviceId().then(setMobileToken);
+  }, []);
 
-  const onRequestAccess = () => {
+  const closeFeedbackModal = () => {
+    const onClose = feedbackModal?.onClose;
+    setFeedbackModal(null);
+    onClose?.();
+  };
+
+  const onRequestAccess = async () => {
     if (!documentNumber.trim() || !username.trim() || !password.trim()) {
-      Alert.alert('Campos incompletos', 'Completa numero documento, usuario y contrasena.');
+      setFeedbackModal({ title: 'Campos incompletos', message: 'Completa numero documento, usuario y contrasena.' });
       return;
     }
 
-    Alert.alert('Solicitud enviada', 'Tu solicitud de acceso fue registrada.');
+    setIsSubmitting(true);
+
+    try {
+      const conductorResult = await findConductorByDocument(documentNumber);
+
+      if (!conductorResult.ok) {
+        setFeedbackModal({ title: 'No fue posible continuar', message: conductorResult.message });
+        return;
+      }
+
+      const registerResult = await registerMobilUser({
+        conductor: conductorResult.conductor,
+        username,
+        password,
+      });
+
+      if (!registerResult.ok) {
+        setFeedbackModal({ title: 'No fue posible continuar', message: registerResult.message });
+        return;
+      }
+
+      setFeedbackModal({
+        title: 'Cuenta creada',
+        message: 'Tu cuenta fue creada correctamente. Ya puedes iniciar sesion.',
+        onClose: onBack,
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.screen}>
+      <Modal animationType="fade" onRequestClose={closeFeedbackModal} transparent visible={!!feedbackModal}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalBox}>
+            <Text style={styles.modalTitle}>{feedbackModal?.title}</Text>
+            <Text style={styles.modalSubtitle}>{feedbackModal?.message}</Text>
+            <View style={styles.modalActions}>
+              <Pressable onPress={closeFeedbackModal} style={[styles.modalBtn, styles.modalBtnConfirm]}>
+                <Text style={styles.modalBtnConfirmText}>OK</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       <View style={styles.topBar}>
         <Pressable onPress={onBack} style={styles.backButton}>
           <MaterialCommunityIcons color="#121417" name="arrow-left" size={30} />
@@ -86,20 +145,24 @@ export function RegisterScreen({ onBack }: RegisterScreenProps) {
           <MaterialCommunityIcons color="#3b4a42" name="cellphone-key" size={30} />
           <View style={styles.tokenWrap}>
             <Text style={styles.tokenLabel}>Mobil Token</Text>
-            <Text style={styles.tokenValue}>{mobileToken}</Text>
+            <Text style={styles.tokenValue}>{mobileToken ?? '...'}</Text>
           </View>
         </View>
         <View style={styles.separator} />
 
-        <Pressable onPress={onRequestAccess} style={styles.submitButton}>
+        <Pressable disabled={isSubmitting} onPress={onRequestAccess} style={styles.submitButton}>
           <LinearGradient
             colors={['#2fdeb0', '#1bbbe8', '#0fa0f3']}
             end={{ x: 1, y: 0.5 }}
             start={{ x: 0, y: 0.5 }}
             style={styles.submitGradient}
           >
-            <MaterialCommunityIcons color="#f8fffe" name="check" size={24} />
-            <Text style={styles.submitText}>Solicitar</Text>
+            {isSubmitting ? (
+              <ActivityIndicator color="#f8fffe" />
+            ) : (
+              <MaterialCommunityIcons color="#f8fffe" name="check" size={24} />
+            )}
+            <Text style={styles.submitText}>{isSubmitting ? 'Creando cuenta...' : 'Solicitar'}</Text>
           </LinearGradient>
         </Pressable>
 
@@ -108,7 +171,9 @@ export function RegisterScreen({ onBack }: RegisterScreenProps) {
         </Pressable>
 
         <Pressable
-          onPress={() => Alert.alert('Politica de privacidad', 'Disponible en nuestra pagina web.')}
+          onPress={() =>
+            setFeedbackModal({ title: 'Politica de privacidad', message: 'Disponible en nuestra pagina web.' })
+          }
           style={styles.privacyWrap}
         >
           <Text style={styles.privacyText}>
@@ -126,6 +191,49 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 16,
     paddingTop: 18,
+  },
+  modalOverlay: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    flex: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+  },
+  modalBox: {
+    backgroundColor: '#ffffff',
+    borderRadius: 20,
+    padding: 24,
+    width: '100%',
+  },
+  modalTitle: {
+    color: '#121417',
+    fontSize: 18,
+    fontWeight: '800',
+    marginBottom: 8,
+  },
+  modalSubtitle: {
+    color: '#4a5568',
+    fontSize: 14,
+    lineHeight: 20,
+    marginBottom: 20,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    gap: 10,
+    justifyContent: 'flex-end',
+  },
+  modalBtn: {
+    borderRadius: 12,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+  },
+  modalBtnConfirm: {
+    backgroundColor: '#0fa0f3',
+  },
+  modalBtnConfirmText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '700',
   },
   topBar: {
     alignItems: 'center',

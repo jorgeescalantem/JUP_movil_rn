@@ -2,9 +2,9 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useState } from 'react';
 import {
-  Alert,
   Image,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   Pressable,
   StyleSheet,
@@ -23,6 +23,8 @@ type LoginScreenProps = {
   onOpenRecover?: () => void;
 };
 
+type FeedbackModal = { title: string; message: string } | null;
+
 export function LoginScreen({ onOpenRegister, onOpenRecover }: LoginScreenProps) {
   const { login } = useSession();
   const { height } = useWindowDimensions();
@@ -32,6 +34,7 @@ export function LoginScreen({ onOpenRegister, onOpenRecover }: LoginScreenProps)
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [deviceId, setDeviceId] = useState<string | null>(null);
+  const [feedbackModal, setFeedbackModal] = useState<FeedbackModal>(null);
   const isCompact = height < 760;
 
   useEffect(() => {
@@ -72,7 +75,7 @@ export function LoginScreen({ onOpenRegister, onOpenRecover }: LoginScreenProps)
       const biometricResult = await authenticateWithBiometrics(`Inicia sesion con ${label}`);
 
       if (!biometricResult.ok) {
-        Alert.alert(label, biometricResult.message);
+        setFeedbackModal({ title: label, message: biometricResult.message });
         return;
       }
 
@@ -91,6 +94,20 @@ export function LoginScreen({ onOpenRegister, onOpenRecover }: LoginScreenProps)
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       style={styles.screen}
     >
+      <Modal animationType="fade" onRequestClose={() => setFeedbackModal(null)} transparent visible={!!feedbackModal}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalBox}>
+            <Text style={styles.modalTitle}>{feedbackModal?.title}</Text>
+            <Text style={styles.modalSubtitle}>{feedbackModal?.message}</Text>
+            <View style={styles.modalActions}>
+              <Pressable onPress={() => setFeedbackModal(null)} style={[styles.modalBtn, styles.modalBtnConfirm]}>
+                <Text style={styles.modalBtnConfirmText}>OK</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       <View style={styles.container}>
         <View style={[styles.card, isCompact ? styles.cardCompact : null]}>
           <Text style={styles.title}>Iniciar Sesion</Text>
@@ -208,6 +225,49 @@ const styles = StyleSheet.create({
   screen: {
     backgroundColor: '#f8f9fa',
     flex: 1,
+  },
+  modalOverlay: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    flex: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+  },
+  modalBox: {
+    backgroundColor: '#ffffff',
+    borderRadius: 20,
+    padding: 24,
+    width: '100%',
+  },
+  modalTitle: {
+    color: '#121417',
+    fontSize: 18,
+    fontWeight: '800',
+    marginBottom: 8,
+  },
+  modalSubtitle: {
+    color: '#4a5568',
+    fontSize: 14,
+    lineHeight: 20,
+    marginBottom: 20,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    gap: 10,
+    justifyContent: 'flex-end',
+  },
+  modalBtn: {
+    borderRadius: 12,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+  },
+  modalBtnConfirm: {
+    backgroundColor: '#0fa0f3',
+  },
+  modalBtnConfirmText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '700',
   },
   container: {
     flex: 1,
