@@ -12,7 +12,7 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/iconjup-adaptive.png",
-        "backgroundColor": "#00affe"
+        "backgroundColor": "#edeeef"
       },
       "predictiveBackGestureEnabled": false,
       "package": "com.jaem.JUP_movil_rn"

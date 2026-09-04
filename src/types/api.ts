@@ -44,6 +44,20 @@ export type ODataListResponse<T> = {
   value: T[];
 };
 
+// Shape returned by GET /oData/Tcconductores (only the fields this app needs).
+// `Tipo` defines the real role (CONDUCTOR/PROPIETARIO/AMBOS); `Id` is the
+// target of TusuarioMobil.Conductor and Tbvehiculos.Locatario/Propietario/Conductor.
+export type TcconductorRecord = {
+  Id: number;
+  Tipo: string;
+};
+
+// Shape returned by GET /oData/Tbvehiculos (only the fields this app needs).
+export type TbvehiculoRecord = {
+  Codvehiculo: number;
+  Placa: string;
+};
+
 // Shape returned by GET /oData/Tppreoperacion (checklist catalog).
 export type TppreoperacionRecord = {
   Id: number;

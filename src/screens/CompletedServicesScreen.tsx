@@ -4,6 +4,7 @@ import { DrawerScreenProps } from '@react-navigation/drawer';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { RoleGate } from '../components/RoleGate';
+import { OwnerBottomBar } from '../components/OwnerBottomBar';
 import { SectionCard } from '../components/SectionCard';
 import { DrawerParamList } from '../navigation/AppDrawer';
 import { useSession } from '../store/session';
@@ -182,8 +183,9 @@ export function CompletedServicesScreen({ route }: Props) {
   );
 
   return (
-    <ScrollView contentContainerStyle={styles.content}>
+    <View style={styles.screen}>
       <RoleGate allowedRoles={['PROPIETARIO']}>
+        <ScrollView contentContainerStyle={styles.content}>
         <SectionCard centerTitle title="Ver servicios Prestados" subtitle="Filtra un rango de fechas para comenzar">
           <View style={styles.filterRow}>
             <Pressable onPress={openRangePicker} style={styles.dateInputButton}>
@@ -338,12 +340,19 @@ export function CompletedServicesScreen({ route }: Props) {
 
           {completedServices.length === 0 ? <Text style={styles.emptyText}>No hay servicios en el rango seleccionado.</Text> : null}
         </SectionCard>
+        </ScrollView>
+
+        <OwnerBottomBar />
       </RoleGate>
-    </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  screen: {
+    backgroundColor: colors.background,
+    flex: 1,
+  },
   content: {
     gap: spacing.lg,
     padding: spacing.lg,

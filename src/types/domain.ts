@@ -1,5 +1,14 @@
 export type Role = 'CONDUCTOR' | 'PROPIETARIO';
 
+// Real capability resolved from Tcconductores.Tipo after login (source of truth),
+// as opposed to `Role` which is just the currently active drawer view.
+export type RoleCapability = 'CONDUCTOR' | 'PROPIETARIO' | 'AMBOS';
+
+export type OwnedVehicle = {
+  codvehiculo: number;
+  placa: string;
+};
+
 export type ServiceState =
   | 'ASIGNADA'
   | 'EN_TRANSITO'

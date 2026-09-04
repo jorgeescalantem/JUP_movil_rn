@@ -6,9 +6,10 @@ import { PreoperationalOption, PreoperationalQuestion } from '../mocks/preoperat
 import { fetchPreoperationalQuestions } from '../services/preoperationalApi';
 import { fetchAssignedServices } from '../services/servicesApi';
 import { clearBiometricCredentials } from '../services/biometricAuth';
+import { fetchConductorRole, fetchOwnedVehicles } from '../services/roleApi';
 import { loginMobilUser, releaseMobilKey } from '../services/userAuth';
 import { colors } from '../theme';
-import { Role, Service, ServiceState } from '../types/domain';
+import { OwnedVehicle, Role, RoleCapability, Service, ServiceState } from '../types/domain';
 import { SanitizedMobilUser } from '../types/api';
 
 const STORAGE_KEY = 'jup-mobile-session';
@@ -34,6 +35,11 @@ type SessionContextValue = {
   preoperationalLoadError: string | null;
   reloadPreoperationalChecklist: () => void;
   role: Role;
+  roleCapability: RoleCapability;
+  ownedVehicles: OwnedVehicle[];
+  selectedVehiculo: OwnedVehicle | null;
+  needsVehicleSelection: boolean;
+  selectVehiculo: (codvehiculo: number) => void;
   services: Service[];
   servicesLoadError: string | null;
   isLoadingServices: boolean;
@@ -57,6 +63,7 @@ type SessionContextValue = {
 const SessionContext = createContext<SessionContextValue | null>(null);
 
 const DEFAULT_ROLE: Role = 'CONDUCTOR';
+const DEFAULT_ROLE_CAPABILITY: RoleCapability = 'CONDUCTOR';
 const DEFAULT_USERNAME: string | null = null;
 
 function getTodayKey() {
@@ -89,6 +96,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [username, setUsername] = useState<string | null>(DEFAULT_USERNAME);
   const [mobilUser, setMobilUser] = useState<SanitizedMobilUser | null>(null);
   const [role, setRole] = useState<Role>(DEFAULT_ROLE);
+  const [roleCapability, setRoleCapability] = useState<RoleCapability>(DEFAULT_ROLE_CAPABILITY);
+  const [ownedVehicles, setOwnedVehicles] = useState<OwnedVehicle[]>([]);
+  const [selectedVehiculo, setSelectedVehiculo] = useState<OwnedVehicle | null>(null);
   const [services, setServices] = useState<Service[]>([]);
   const [servicesLoadError, setServicesLoadError] = useState<string | null>(null);
   const [isLoadingServices, setIsLoadingServices] = useState(false);
@@ -170,18 +180,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
         const parsed = JSON.parse(raw) as Partial<PersistedSession>;
 
-        if (typeof parsed.isAuthenticated === 'boolean') {
-          setIsAuthenticated(parsed.isAuthenticated);
-        }
-
-        if (typeof parsed.username === 'string') {
-          setUsername(parsed.username);
-        }
-
-        if (parsed.mobilUser && typeof parsed.mobilUser === 'object') {
-          setMobilUser(parsed.mobilUser as SanitizedMobilUser);
-        }
-
+        // Intentionally not restoring isAuthenticated/username/mobilUser: every
+        // cold start must show the Login screen (biometrics remain available
+        // there for quick re-entry) instead of silently resuming a session.
         if (parsed.role === 'CONDUCTOR' || parsed.role === 'PROPIETARIO') {
           setRole(parsed.role);
         }
@@ -236,9 +237,26 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       return false;
     }
 
+    // A pure PROPIETARIO (no CONDUCTOR capability) has no vehicle to inspect daily.
+    if (roleCapability === 'PROPIETARIO') {
+      return false;
+    }
+
     const lastDate = preoperationalByUser[username];
     return lastDate !== getTodayKey();
-  }, [isAuthenticated, preoperationalByUser, username]);
+  }, [isAuthenticated, preoperationalByUser, roleCapability, username]);
+
+  const needsVehicleSelection = useMemo(() => {
+    if (!isAuthenticated) {
+      return false;
+    }
+
+    if (roleCapability !== 'PROPIETARIO' && roleCapability !== 'AMBOS') {
+      return false;
+    }
+
+    return ownedVehicles.length > 1 && !selectedVehiculo;
+  }, [isAuthenticated, ownedVehicles, roleCapability, selectedVehiculo]);
 
   const value = useMemo<SessionContextValue>(
     () => ({
@@ -268,16 +286,35 @@ export function SessionProvider({ children }: { children: ReactNode }) {
           return { ok: false, message: result.message };
         }
 
-        const normalized = result.user.Username.toLowerCase();
-        // NOTE: TusuarioMobil does not expose an explicit role field yet.
-        // Keeping the existing heuristic until the backend provides one.
-        const nextRole: Role = normalized.includes('prop') || normalized.includes('owner')
-          ? 'PROPIETARIO'
-          : 'CONDUCTOR';
+        // Resolve the real role via Tcconductores (TusuarioMobil.Conductor is
+        // the FK). Best-effort: falls back to CONDUCTOR if the lookup fails,
+        // matching the previous default so login is never blocked by this.
+        let nextRoleCapability: RoleCapability = DEFAULT_ROLE_CAPABILITY;
+        let nextOwnedVehicles: OwnedVehicle[] = [];
+
+        const roleResult = await fetchConductorRole(result.user.Conductor);
+
+        if (roleResult.ok) {
+          nextRoleCapability = roleResult.roleCapability;
+
+          if (nextRoleCapability === 'PROPIETARIO' || nextRoleCapability === 'AMBOS') {
+            const vehiclesResult = await fetchOwnedVehicles(result.user.Conductor);
+
+            if (vehiclesResult.ok) {
+              nextOwnedVehicles = vehiclesResult.vehicles;
+            }
+          }
+        }
+
+        const nextRole: Role = nextRoleCapability === 'PROPIETARIO' ? 'PROPIETARIO' : 'CONDUCTOR';
+        const autoSelectedVehiculo = nextOwnedVehicles.length === 1 ? nextOwnedVehicles[0] : null;
 
         setUsername(result.user.Username);
         setMobilUser(result.user);
         setRole(nextRole);
+        setRoleCapability(nextRoleCapability);
+        setOwnedVehicles(nextOwnedVehicles);
+        setSelectedVehiculo(autoSelectedVehiculo);
         setIsAuthenticated(true);
 
         return { ok: true };
@@ -325,7 +362,21 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         setUsername(DEFAULT_USERNAME);
         setMobilUser(null);
         setRole(DEFAULT_ROLE);
+        setRoleCapability(DEFAULT_ROLE_CAPABILITY);
+        setOwnedVehicles([]);
+        setSelectedVehiculo(null);
         setServices([]);
+      },
+      roleCapability,
+      ownedVehicles,
+      selectedVehiculo,
+      needsVehicleSelection,
+      selectVehiculo: (codvehiculo: number) => {
+        const target = ownedVehicles.find((vehicle) => vehicle.codvehiculo === codvehiculo);
+
+        if (target) {
+          setSelectedVehiculo(target);
+        }
       },
       closeService: (serviceNumber: string, guideControl: string) => {
         if (role === 'PROPIETARIO') {
@@ -425,10 +476,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       isReady,
       mobilUser,
       needsPreoperational,
+      needsVehicleSelection,
+      ownedVehicles,
       preoperationalByUser,
       preoperationalLoadError,
       preoperationalQuestions,
       role,
+      roleCapability,
+      selectedVehiculo,
       services,
       servicesLoadError,
       statusCounts,

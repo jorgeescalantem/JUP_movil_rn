@@ -21,6 +21,7 @@ import {
 } from 'lucide-react-native';
 
 import { RoleGate } from '../components/RoleGate';
+import { OwnerBottomBar } from '../components/OwnerBottomBar';
 import { useSession } from '../store/session';
 import { spacing } from '../theme';
 
@@ -172,7 +173,7 @@ const STATE_VISUALS: Record<StateVisualKey, StateVisual> = {
 };
 
 export function ServiceStatusScreen() {
-  const { activeService, statusCounts } = useSession();
+  const { activeService, statusCounts, role } = useSession();
 
   const { width: screenWidth } = useWindowDimensions();
   const [themeMode, setThemeMode] = useState<ThemeMode>('light');
@@ -216,8 +217,9 @@ export function ServiceStatusScreen() {
   const ThemeIcon = themeMode === 'light' ? MoonStar : SunMedium;
 
   return (
-    <ScrollView style={{ backgroundColor: palette.background }} contentContainerStyle={styles.content}>
+    <View style={{ flex: 1, backgroundColor: palette.background }}>
       <RoleGate allowedRoles={['CONDUCTOR', 'PROPIETARIO']}>
+        <ScrollView style={{ backgroundColor: palette.background }} contentContainerStyle={styles.content}>
 
         {/* ── Header ── */}
         <Animated.View entering={FadeInDown.duration(400)} style={styles.header}>
@@ -479,8 +481,11 @@ export function ServiceStatusScreen() {
           ) : null}
         </Animated.View>
 
+        </ScrollView>
+
+        {role === 'PROPIETARIO' ? <OwnerBottomBar /> : null}
       </RoleGate>
-    </ScrollView>
+    </View>
   );
 }
 

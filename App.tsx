@@ -9,6 +9,7 @@ import { LoginScreen } from './src/screens/LoginScreen';
 import { PreoperationalSurveyScreen } from './src/screens/PreoperationalSurveyScreen';
 import { RecoverPasswordScreen } from './src/screens/RecoverPasswordScreen';
 import { RegisterScreen } from './src/screens/RegisterScreen';
+import { SelectVehicleScreen } from './src/screens/SelectVehicleScreen';
 import { SessionProvider } from './src/store/session';
 import { useSession } from './src/store/session';
 import { colors } from './src/theme';
@@ -27,7 +28,7 @@ export default function App() {
 }
 
 function RootNavigator() {
-  const { isAuthenticated, needsPreoperational } = useSession();
+  const { isAuthenticated, needsPreoperational, needsVehicleSelection } = useSession();
   const [authScreen, setAuthScreen] = useState<'login' | 'register' | 'recover'>('login');
 
   if (!isAuthenticated) {
@@ -49,6 +50,10 @@ function RootNavigator() {
 
   if (needsPreoperational) {
     return <PreoperationalSurveyScreen />;
+  }
+
+  if (needsVehicleSelection) {
+    return <SelectVehicleScreen />;
   }
 
   return <AppDrawer />;
