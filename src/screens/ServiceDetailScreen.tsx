@@ -330,7 +330,7 @@ export function ServiceDetailScreen() {
             <Text style={styles.dialogTitle}>Completar servicio</Text>
             <Text style={styles.dialogSubtitle}>
               GuíaControl Cierre: Solicita la firma del
-              Paciente para completar el traslado.
+              Paciente.
             </Text>
 
             <TextInput
@@ -339,7 +339,7 @@ export function ServiceDetailScreen() {
                 setGuideControl(value);
                 if (deliveryError) setDeliveryError(null);
               }}
-              placeholder={`GuíaControl (opcional, por defecto ${service.numeroServicio})`}
+              placeholder={`GuíaControl (Opcional,  ${service.numeroServicio})`}
               placeholderTextColor="#7b8791"
               style={styles.dialogInput}
               value={guideControl}
@@ -437,6 +437,8 @@ export function ServiceDetailScreen() {
             {isFullScreenModalReady ? (
               <SignatureScreen
                 autoClear={false}
+                bgHeight={220}
+                bgWidth={300}
                 clearText=""
                 confirmText=""
                 dataURL={signatureData ?? undefined}
