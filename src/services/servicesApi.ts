@@ -17,7 +17,6 @@ async function fetchByIds<T>(entity: string, ids: (number | null | undefined)[],
   const uniqueIds = Array.from(new Set(ids.filter((id): id is number => typeof id === 'number' && Number.isFinite(id))));
 
   if (uniqueIds.length === 0) {
-    console.log(`[fetchByIds] ${entity}`, { uniqueIds: [] });
     return [];
   }
 
@@ -30,15 +29,12 @@ async function fetchByIds<T>(entity: string, ids: (number | null | undefined)[],
     });
 
     if (!response.ok) {
-      console.log(`[fetchByIds] ${entity} failed`, { status: response.status, uniqueIds });
       return [];
     }
 
     const payload = (await response.json()) as ODataListResponse<T>;
-    console.log(`[fetchByIds] ${entity} ok`, { uniqueIds, count: payload.value.length });
     return payload.value;
-  } catch (error) {
-    console.log(`[fetchByIds] ${entity} error`, error);
+  } catch {
     return [];
   }
 }
@@ -119,9 +115,7 @@ function mapToService(
  * provide via Tbclientes -> Tpconvenios -> Tpempresas joins.
  */
 export async function fetchAssignedServices(vehiculoCodigo: number): Promise<ServicesFetchResult> {
-  console.log('[fetchAssignedServices] start', { vehiculoCodigo });
   const token = await getJupwebCoToken();
-  console.log('[fetchAssignedServices] token', { hasToken: !!token });
 
   if (!token) {
     return { ok: false, message: 'No se pudo establecer conexion con el servidor de servicios.' };
@@ -132,7 +126,6 @@ export async function fetchAssignedServices(vehiculoCodigo: number): Promise<Ser
     $count: 'true',
     $filter: `UnidadAsignada eq ${vehiculoCodigo} and Estservicio eq 1`,
   });
-  console.log('[fetchAssignedServices] query', query.toString());
 
   let records: TbservicioRawRecord[];
 
@@ -142,20 +135,13 @@ export async function fetchAssignedServices(vehiculoCodigo: number): Promise<Ser
       headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
     });
 
-    console.log('[fetchAssignedServices] response status', response.status);
-
     if (!response.ok) {
       return { ok: false, message: 'No se pudo cargar la lista de servicios.' };
     }
 
     const payload = (await response.json()) as ODataListResponse<TbservicioRawRecord>;
     records = payload.value;
-    console.log('[fetchAssignedServices] records', {
-      count: records.length,
-      codservicios: records.map((r) => r.Codservicio),
-    });
   } catch (error) {
-    console.log('[fetchAssignedServices] error', error);
     if (error instanceof Error && error.name === 'AbortError') {
       return { ok: false, message: 'Tiempo de espera agotado al cargar los servicios.' };
     }
@@ -176,17 +162,7 @@ export async function fetchAssignedServices(vehiculoCodigo: number): Promise<Ser
   const empresas = await fetchByIds<TpempresaRecord>('Tpempresas', convenios.map((c) => c.Empresa), token);
   const empresasById = new Map(empresas.map((e) => [e.Id, e]));
 
-  console.log('[fetchAssignedServices] joins', {
-    clientes: clientes.length,
-    convenios: convenios.length,
-    empresas: empresas.length,
-  });
-
   const services = records.map((record) => mapToService(record, clientesById, conveniosById, empresasById));
-  console.log('[fetchAssignedServices] mapped services', {
-    count: services.length,
-    numerosServicio: services.map((s) => s.numeroServicio),
-  });
 
   return {
     ok: true,
@@ -208,11 +184,9 @@ export async function fetchVehicleServiceHistory(
   fromDate: string,
   toDate: string,
 ): Promise<ServicesFetchResult> {
-  console.log('[fetchVehicleServiceHistory] start', { vehiculoCodigo, fromDate, toDate });
   const token = await getJupwebCoToken();
 
   if (!token) {
-    console.log('[fetchVehicleServiceHistory] no token');
     return { ok: false, message: 'No se pudo establecer conexion con el servidor de servicios.' };
   }
 
@@ -235,28 +209,15 @@ export async function fetchVehicleServiceHistory(
       headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
     });
 
-    console.log('[fetchVehicleServiceHistory] response status', response.status);
-
     if (!response.ok) {
       return { ok: false, message: 'No se pudo cargar el historico de servicios.' };
     }
 
     const payload = (await response.json()) as ODataListResponse<TbservicioRawRecord>;
-    console.log('[fetchVehicleServiceHistory] raw records', {
-      total: payload.value.length,
-      fechas: payload.value.map((r) => r.Fecha),
-    });
-    if (payload.value.length >= 100) {
-      // Hitting the $top cap means older rows within [fromDate, toDate] may
-      // have been cut off - the vehicle has more history than one page covers.
-      console.log('[fetchVehicleServiceHistory] WARNING: hit $top cap, range may be truncated');
-    }
     records = payload.value
       .filter((r) => r.Fecha >= fromDate && r.Fecha <= toDate)
       .sort((a, b) => (a.Fecha < b.Fecha ? 1 : a.Fecha > b.Fecha ? -1 : 0));
-    console.log('[fetchVehicleServiceHistory] after date filter', { count: records.length });
   } catch (error) {
-    console.log('[fetchVehicleServiceHistory] error', error);
     if (error instanceof Error && error.name === 'AbortError') {
       return { ok: false, message: 'Tiempo de espera agotado al cargar el historico.' };
     }
@@ -278,10 +239,6 @@ export async function fetchVehicleServiceHistory(
   const empresasById = new Map(empresas.map((e) => [e.Id, e]));
 
   const services = records.map((record) => mapToService(record, clientesById, conveniosById, empresasById, 'COMPLETADO'));
-  console.log('[fetchVehicleServiceHistory] mapped services', {
-    count: services.length,
-    numerosServicio: services.map((s) => s.numeroServicio),
-  });
 
   return {
     ok: true,
