@@ -2,7 +2,7 @@ import { FontAwesome5, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { DrawerNavigationProp } from '@react-navigation/drawer';
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Linking, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import SignatureScreen from 'react-native-signature-canvas';
 
@@ -82,6 +82,17 @@ export function ServiceDetailScreen() {
   const signatureRef = useRef<any>(null);
   const signatureFullScreenRef = useRef<any>(null);
   const pendingFullScreenCloseRef = useRef(false);
+
+  // Android's <Modal> fully unmounts its children while hidden (returns null
+  // instead of just hiding), so the compact canvas's WebView is destroyed and
+  // recreated each time we leave full-screen - relying only on the `dataURL`
+  // prop for that fresh instance is timing-sensitive. Push the signature
+  // imperatively once the compact modal is back and its ref is attached.
+  useEffect(() => {
+    if (!signatureFullScreenOpen && deliveryDialogOpen && signatureData) {
+      signatureRef.current?.setDataURL(signatureData);
+    }
+  }, [deliveryDialogOpen, signatureData, signatureFullScreenOpen]);
 
   const service = useMemo(
     () => services.find((item) => item.numeroServicio === route.params.serviceNumber) ?? null,
