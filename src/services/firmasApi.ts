@@ -84,7 +84,6 @@ export async function saveFirma(payload: TbFirmaPayload, documentoConductor: str
     const token = await getFreshMobilToken();
 
     if (!token) {
-      console.warn('[saveFirma] No se pudo obtener token, firma no enviada.');
       return { ok: false, message: 'No se pudo establecer conexion con el servidor.' };
     }
 
@@ -108,17 +107,12 @@ export async function saveFirma(payload: TbFirmaPayload, documentoConductor: str
       body: JSON.stringify(sanitizedPayload),
     });
 
-    const responseText = await response.text();
-    console.log(`[saveFirma] Respuesta ${response.status}:`, responseText);
-
     if (!response.ok) {
       return { ok: false, message: 'No se pudo guardar la firma.' };
     }
 
     return { ok: true };
   } catch (error) {
-    console.warn('[saveFirma] Error al guardar la firma:', error);
-
     if (error instanceof Error && error.name === 'AbortError') {
       return { ok: false, message: 'Tiempo de espera agotado al guardar la firma.' };
     }
