@@ -4,10 +4,12 @@ import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { DrawerNavigationProp } from '@react-navigation/drawer';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Linking, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import SignatureScreen from 'react-native-signature-canvas';
 
 import { DrawerParamList } from '../navigation/AppDrawer';
 import { saveFirma, nowInColombiaIso, toRawBase64 } from '../services/firmasApi';
+import { DeliverySignatureModal } from './serviceDetail/DeliverySignatureModal';
+import { FullScreenSignatureModal } from './serviceDetail/FullScreenSignatureModal';
+import { SatisfactionModal } from './serviceDetail/SatisfactionModal';
 import { useSession } from '../store/session';
 import { spacing } from '../theme';
 
@@ -34,36 +36,6 @@ function buildMapUrl(lat: number, lng: number, app: 'google' | 'waze') {
 
   return `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
 }
-
-const SATISFACTION_LEVELS = [
-  { value: 5, label: 'EXCELENTE', color: '#16a34a', emoji: '😄' },
-  { value: 4, label: 'BUENO', color: '#84cc16', emoji: '🙂' },
-  { value: 3, label: 'REGULAR', color: '#eab308', emoji: '😐' },
-  { value: 2, label: 'MALO', color: '#f97316', emoji: '🙁' },
-  { value: 1, label: 'PESIMO', color: '#ba1a1a', emoji: '😞' },
-] as const;
-
-const signatureWebStyle = `
-  .m-signature-pad {
-    box-shadow: none;
-    border: none;
-    height: 100%;
-    margin: 0;
-  }
-  .m-signature-pad--body {
-    border: none;
-  }
-  .m-signature-pad--footer {
-    display: none;
-    margin: 0;
-  }
-  body, html {
-    height: 100%;
-    margin: 0;
-    padding: 0;
-    overflow: hidden;
-  }
-`;
 
 export function ServiceDetailScreen() {
   const route = useRoute<DetailRoute>();
@@ -181,6 +153,35 @@ export function ServiceDetailScreen() {
     setSatisfactionLevel(null);
     setSatisfactionComment('');
     setSatisfactionError(null);
+  };
+
+  const handleSelectSatisfactionLevel = (value: number) => {
+    setSatisfactionLevel(value);
+    if (satisfactionError) setSatisfactionError(null);
+  };
+
+  const handleChangeGuideControl = (value: string) => {
+    setGuideControl(value);
+    if (deliveryError) setDeliveryError(null);
+  };
+
+  const handleClearSignature = () => {
+    signatureRef.current?.clearSignature();
+    signatureFullScreenRef.current?.clearSignature();
+    setSignatureData(null);
+  };
+
+  const handleExpandFullScreen = () => {
+    setFullScreenSignatureMountKey((key) => key + 1);
+    setSignatureFullScreenOpen(true);
+  };
+
+  const handleSignatureLoadEnd = () => {
+    // Belt-and-suspenders: push once the WebView confirms it's actually
+    // ready, instead of racing its initial page load.
+    if (signatureData) {
+      signatureRef.current?.setDataURL(signatureData);
+    }
   };
 
   const handleConfirmSatisfaction = () => {
@@ -411,233 +412,51 @@ export function ServiceDetailScreen() {
         </View>
       </Modal>
 
-      <Modal
-        animationType="fade"
-        onRequestClose={closeSatisfactionDialog}
-        transparent
+      <SatisfactionModal
+        onClose={closeSatisfactionDialog}
+        onConfirm={handleConfirmSatisfaction}
+        onSelectLevel={handleSelectSatisfactionLevel}
+        onChangeComment={setSatisfactionComment}
+        satisfactionComment={satisfactionComment}
+        satisfactionError={satisfactionError}
+        satisfactionLevel={satisfactionLevel}
         visible={satisfactionDialogOpen}
-      >
-        <View style={styles.dialogOverlay}>
-          <View style={styles.dialogCardLarge}>
-            <Text style={styles.dialogTitle}>Calificá Nuestro Servicio</Text>
-            <Text style={styles.dialogSubtitle}>
-              Antes de firmar, indica el nivel de satisfaccion con el servicio prestado.
-            </Text>
+      />
 
-            <View style={styles.satisfactionRow}>
-              <View style={styles.satisfactionGauge}>
-                {SATISFACTION_LEVELS.map((level) => (
-                  <Pressable
-                    key={level.value}
-                    onPress={() => {
-                      setSatisfactionLevel(level.value);
-                      if (satisfactionError) setSatisfactionError(null);
-                    }}
-                    style={[
-                      styles.satisfactionSegment,
-                      { backgroundColor: level.color },
-                      satisfactionLevel === level.value ? styles.satisfactionSegmentActive : null,
-                    ]}
-                  >
-                    {satisfactionLevel === level.value ? (
-                      <MaterialCommunityIcons color="#ffffff" name="check-bold" size={18} />
-                    ) : null}
-                  </Pressable>
-                ))}
-              </View>
-
-              <View style={styles.satisfactionLabelWrap}>
-                {satisfactionLevel ? (
-                  <>
-                    <Text style={styles.satisfactionEmoji}>
-                      {SATISFACTION_LEVELS.find((l) => l.value === satisfactionLevel)?.emoji}
-                    </Text>
-                    <Text
-                      style={[
-                        styles.satisfactionLabel,
-                        { color: SATISFACTION_LEVELS.find((l) => l.value === satisfactionLevel)?.color },
-                      ]}
-                    >
-                      {SATISFACTION_LEVELS.find((l) => l.value === satisfactionLevel)?.label}
-                    </Text>
-                  </>
-                ) : (
-                  <Text style={styles.satisfactionPlaceholder}>Toca un nivel</Text>
-                )}
-              </View>
-            </View>
-
-            {satisfactionError ? <Text style={styles.dialogError}>{satisfactionError}</Text> : null}
-
-            <Text style={styles.dialogInputLabelHint}>Observaciones, comentarios o felicitaciones (opcional)</Text>
-            <TextInput
-              maxLength={350}
-              multiline
-              numberOfLines={4}
-              onChangeText={setSatisfactionComment}
-              placeholder="Escribe aqui..."
-              placeholderTextColor="#7b8791"
-              style={[styles.dialogInput, styles.satisfactionCommentInput]}
-              value={satisfactionComment}
-            />
-            <Text style={styles.satisfactionCounter}>{`${satisfactionComment.length}/350`}</Text>
-
-            <View style={styles.dialogActions}>
-              <Pressable onPress={closeSatisfactionDialog} style={[styles.dialogButton, styles.dialogCancelButton]}>
-                <Text style={styles.dialogCancelText}>Cancelar</Text>
-              </Pressable>
-              <Pressable onPress={handleConfirmSatisfaction} style={[styles.dialogButton, styles.dialogConfirmButton]}>
-                <Text style={styles.dialogConfirmText}>Continuar</Text>
-              </Pressable>
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      <Modal
-        animationType="slide"
+      <DeliverySignatureModal
+        deliveryError={deliveryError}
+        deliverySignatureMountKey={deliverySignatureMountKey}
+        guideControl={guideControl}
+        isDeliveryModalReady={isDeliveryModalReady}
+        onCancel={resetDeliveryDialog}
+        onChangeGuideControl={handleChangeGuideControl}
+        onClearSignature={handleClearSignature}
+        onConfirm={handleConfirmDelivery}
+        onExpandFullScreen={handleExpandFullScreen}
         onRequestClose={resetDeliveryDialog}
-        transparent
+        onSignatureEmpty={handleSignatureEmpty}
+        onSignatureEnd={() => requestSignatureSnapshot(signatureRef)}
+        onSignatureLoadEnd={handleSignatureLoadEnd}
+        onSignatureOk={handleSignatureOk}
+        serviceNumber={service.numeroServicio}
+        signatureData={signatureData}
+        signatureRef={signatureRef}
         visible={deliveryDialogOpen && !signatureFullScreenOpen}
-      >
-        <View style={styles.dialogOverlay}>
-          <View style={styles.dialogCardLarge}>
-            <Text style={styles.dialogTitle}>Completar servicio</Text>
-            <Text style={styles.deliveryNoticeText}>
-              Con la firma el cliente certifica que recibió el servicio a Conformidad. 
-            </Text>
+      />
 
-            <TextInput
-              keyboardType="number-pad"
-              onChangeText={(value) => {
-                setGuideControl(value);
-                if (deliveryError) setDeliveryError(null);
-              }}
-              placeholder={`GuíaControl  ${service.numeroServicio}`}
-              placeholderTextColor="#7b8791"
-              style={styles.dialogInput}
-              value={guideControl}
-            />
-
-            <View style={styles.signatureHeaderRow}>
-              <Text style={styles.signatureLabel}>Firma del cliente</Text>
-              <View style={styles.signatureHeaderActions}>
-                <Pressable
-                  onPress={() => {
-                    setFullScreenSignatureMountKey((key) => key + 1);
-                    setSignatureFullScreenOpen(true);
-                  }}
-                  style={styles.signatureExpandButton}
-                >
-                  <Text style={styles.signatureExpandText}>Pantalla completa</Text>
-                </Pressable>
-                <Pressable
-                  onPress={() => {
-                    signatureRef.current?.clearSignature();
-                    signatureFullScreenRef.current?.clearSignature();
-                    setSignatureData(null);
-                  }}
-                  style={styles.signatureClearButton}
-                >
-                  <Text style={styles.signatureClearText}>Limpiar</Text>
-                </Pressable>
-              </View>
-            </View>
-
-            <View style={styles.signaturePad}>
-              {isDeliveryModalReady ? (
-                <SignatureScreen
-                  autoClear={false}
-                  bgHeight={220}
-                  bgWidth={300}
-                  clearText=""
-                  confirmText=""
-                  dataURL={signatureData ?? undefined}
-                  descriptionText=""
-                  imageType="image/png"
-                  key={`sig-${deliverySignatureMountKey}`}
-                  onEnd={() => requestSignatureSnapshot(signatureRef)}
-                  onEmpty={handleSignatureEmpty}
-                  onLoadEnd={() => {
-                    // Belt-and-suspenders: push once the WebView confirms it's
-                    // actually ready, instead of racing its initial page load.
-                    if (signatureData) {
-                      signatureRef.current?.setDataURL(signatureData);
-                    }
-                  }}
-                  onOK={handleSignatureOk}
-                  penColor="#0f172a"
-                  ref={signatureRef}
-                  webStyle={signatureWebStyle}
-                />
-              ) : null}
-            </View>
-
-            {deliveryError ? <Text style={styles.dialogError}>{deliveryError}</Text> : null}
-
-            <View style={styles.dialogActions}>
-              <Pressable onPress={resetDeliveryDialog} style={[styles.dialogButton, styles.dialogCancelButton]}>
-                <Text style={styles.dialogCancelText}>Cancelar</Text>
-              </Pressable>
-              <Pressable
-                onPress={handleConfirmDelivery}
-                style={[styles.dialogButton, styles.dialogConfirmButton, styles.dialogConfirmButtonWide]}
-              >
-                <Text style={styles.dialogConfirmText}>Confirmar entrega</Text>
-              </Pressable>
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      <Modal animationType="slide" onRequestClose={closeFullScreenSignature} visible={signatureFullScreenOpen}>
-        <View style={styles.fullSignatureScreen}>
-          <View style={styles.fullSignatureHeader}>
-            <Pressable onPress={closeFullScreenSignature} style={styles.fullSignatureHeaderBtn}>
-              <Text style={styles.fullSignatureHeaderBtnText}>Cerrar</Text>
-            </Pressable>
-            <Text style={styles.fullSignatureHeaderTitle}>Firma del cliente</Text>
-            <Pressable
-              onPress={() => {
-                signatureFullScreenRef.current?.clearSignature();
-                signatureRef.current?.clearSignature();
-                setSignatureData(null);
-              }}
-              style={styles.fullSignatureHeaderBtn}
-            >
-              <Text style={styles.fullSignatureHeaderBtnText}>Limpiar</Text>
-            </Pressable>
-          </View>
-
-          <View style={styles.fullSignatureCanvasWrap}>
-            {isFullScreenModalReady ? (
-              <SignatureScreen
-                autoClear={false}
-                bgHeight={220}
-                bgWidth={300}
-                clearText=""
-                confirmText=""
-                dataURL={signatureData ?? undefined}
-                descriptionText=""
-                imageType="image/png"
-                key={`sig-full-${fullScreenSignatureMountKey}`}
-                onEnd={() => requestSignatureSnapshot(signatureFullScreenRef)}
-                onEmpty={handleSignatureEmpty}
-                onOK={handleSignatureOk}
-                penColor="#0f172a"
-                ref={signatureFullScreenRef}
-                webStyle={signatureWebStyle}
-              />
-            ) : null}
-          </View>
-
-          <View style={styles.fullSignatureFooter}>
-            <Pressable onPress={useFullScreenSignature} style={styles.fullSignatureUseBtn}>
-              <Text style={styles.fullSignatureUseBtnText}>Usar firma</Text>
-            </Pressable>
-          </View>
-        </View>
-      </Modal>
+      <FullScreenSignatureModal
+        fullScreenSignatureMountKey={fullScreenSignatureMountKey}
+        isFullScreenModalReady={isFullScreenModalReady}
+        onClearSignature={handleClearSignature}
+        onClose={closeFullScreenSignature}
+        onSignatureEmpty={handleSignatureEmpty}
+        onSignatureEnd={() => requestSignatureSnapshot(signatureFullScreenRef)}
+        onSignatureOk={handleSignatureOk}
+        onUseSignature={useFullScreenSignature}
+        signatureData={signatureData}
+        signatureFullScreenRef={signatureFullScreenRef}
+        visible={signatureFullScreenOpen}
+      />
 
       <Modal
         animationType="fade"
@@ -998,15 +817,6 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     width: '100%',
   },
-  dialogCardLarge: {
-    backgroundColor: '#ffffff',
-    borderColor: '#d9e1e8',
-    borderRadius: 18,
-    borderWidth: 1,
-    gap: spacing.sm,
-    padding: spacing.lg,
-    width: '100%',
-  },
   dialogTitle: {
     color: '#0f172a',
     fontSize: 18,
@@ -1016,14 +826,6 @@ const styles = StyleSheet.create({
     color: '#4b5563',
     fontSize: 13,
     lineHeight: 20,
-  },
-  deliveryNoticeText: {
-    color: '#1d4ed8',
-    fontSize: 13,
-    fontWeight: '700',
-    lineHeight: 20,
-    textDecorationColor: '#93c5fd',
-    textDecorationLine: 'underline',
   },
   dialogInput: {
     backgroundColor: '#f7fafc',
@@ -1039,55 +841,6 @@ const styles = StyleSheet.create({
     color: '#ba1a1a',
     fontSize: 12,
     fontWeight: '700',
-  },
-  dialogInputLabelHint: {
-    color: '#4b5563',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  satisfactionRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: spacing.md,
-  },
-  satisfactionGauge: {
-    borderRadius: 22,
-    overflow: 'hidden',
-    width: 44,
-  },
-  satisfactionSegment: {
-    alignItems: 'center',
-    height: 40,
-    justifyContent: 'center',
-  },
-  satisfactionSegmentActive: {
-    borderColor: '#0f172a',
-    borderWidth: 2,
-  },
-  satisfactionLabelWrap: {
-    alignItems: 'center',
-    flex: 1,
-    gap: 4,
-  },
-  satisfactionEmoji: {
-    fontSize: 40,
-  },
-  satisfactionLabel: {
-    fontSize: 16,
-    fontWeight: '800',
-  },
-  satisfactionPlaceholder: {
-    color: '#7b8791',
-    fontSize: 13,
-  },
-  satisfactionCommentInput: {
-    minHeight: 90,
-    textAlignVertical: 'top',
-  },
-  satisfactionCounter: {
-    color: '#7b8791',
-    fontSize: 11,
-    textAlign: 'right',
   },
   dialogActions: {
     flexDirection: 'row',
@@ -1106,9 +859,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xs,
     paddingVertical: spacing.sm,
   },
-  dialogConfirmButtonWide: {
-    flex: 1.6,
-  },
   dialogSingleActionButton: {
     alignSelf: 'stretch',
     flex: 0,
@@ -1125,105 +875,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   dialogConfirmText: {
-    color: '#ffffff',
-    fontSize: 14,
-    fontWeight: '800',
-  },
-  signatureHeaderRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    marginTop: spacing.xs,
-    rowGap: spacing.xs,
-  },
-  signatureHeaderActions: {
-    flexDirection: 'row',
-    gap: spacing.xs,
-  },
-  signatureLabel: {
-    color: '#0f172a',
-    flexShrink: 1,
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  signatureExpandButton: {
-    backgroundColor: '#dbeafe',
-    borderRadius: 10,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 6,
-  },
-  signatureExpandText: {
-    color: '#1d4ed8',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  signatureClearButton: {
-    backgroundColor: '#eff3f7',
-    borderRadius: 10,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 6,
-  },
-  signatureClearText: {
-    color: '#334155',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  signaturePad: {
-    backgroundColor: '#f8fafc',
-    borderColor: '#c8d6e5',
-    borderRadius: 12,
-    borderWidth: 1,
-    height: 280,
-    overflow: 'hidden',
-  },
-  fullSignatureScreen: {
-    backgroundColor: '#eef2f5',
-    flex: 1,
-  },
-  fullSignatureHeader: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingBottom: spacing.sm,
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.lg,
-  },
-  fullSignatureHeaderTitle: {
-    color: '#0f172a',
-    fontSize: 16,
-    fontWeight: '800',
-  },
-  fullSignatureHeaderBtn: {
-    backgroundColor: '#ffffff',
-    borderColor: '#dbe4ec',
-    borderRadius: 10,
-    borderWidth: 1,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 8,
-  },
-  fullSignatureHeaderBtnText: {
-    color: '#334155',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  fullSignatureCanvasWrap: {
-    borderTopColor: '#d2d9df',
-    borderTopWidth: 1,
-    flex: 1,
-    marginTop: spacing.xs,
-  },
-  fullSignatureFooter: {
-    backgroundColor: '#eef2f5',
-    padding: spacing.lg,
-  },
-  fullSignatureUseBtn: {
-    alignItems: 'center',
-    backgroundColor: '#ff6424',
-    borderRadius: 12,
-    paddingVertical: spacing.md,
-  },
-  fullSignatureUseBtnText: {
     color: '#ffffff',
     fontSize: 14,
     fontWeight: '800',
