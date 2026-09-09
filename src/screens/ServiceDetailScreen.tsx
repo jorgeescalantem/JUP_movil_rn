@@ -35,6 +35,14 @@ function buildMapUrl(lat: number, lng: number, app: 'google' | 'waze') {
   return `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
 }
 
+const SATISFACTION_LEVELS = [
+  { value: 5, label: 'EXCELENTE', color: '#16a34a', emoji: '😄' },
+  { value: 4, label: 'BUENO', color: '#84cc16', emoji: '🙂' },
+  { value: 3, label: 'REGULAR', color: '#eab308', emoji: '😐' },
+  { value: 2, label: 'MALO', color: '#f97316', emoji: '🙁' },
+  { value: 1, label: 'PESIMO', color: '#ba1a1a', emoji: '😞' },
+] as const;
+
 const signatureWebStyle = `
   .m-signature-pad {
     box-shadow: none;
@@ -60,7 +68,7 @@ const signatureWebStyle = `
 export function ServiceDetailScreen() {
   const route = useRoute<DetailRoute>();
   const navigation = useNavigation<DrawerNavigationProp<DrawerParamList>>();
-  const { services, arrivedAtOrigin, arrivedAtDestination, deliverService, mobilUser } = useSession();
+  const { services, activeService, arrivedAtOrigin, arrivedAtDestination, deliverService, mobilUser } = useSession();
 
   const [originDialogOpen, setOriginDialogOpen] = useState(false);
   const [originCode, setOriginCode] = useState('');
@@ -69,6 +77,10 @@ export function ServiceDetailScreen() {
   const [signatureFullScreenOpen, setSignatureFullScreenOpen] = useState(false);
   const [guideControl, setGuideControl] = useState('');
   const [deliveryError, setDeliveryError] = useState<string | null>(null);
+  const [satisfactionDialogOpen, setSatisfactionDialogOpen] = useState(false);
+  const [satisfactionLevel, setSatisfactionLevel] = useState<number | null>(null);
+  const [satisfactionComment, setSatisfactionComment] = useState('');
+  const [satisfactionError, setSatisfactionError] = useState<string | null>(null);
   const [signatureData, setSignatureData] = useState<string | null>(null);
   const [deliverySignatureMountKey, setDeliverySignatureMountKey] = useState(0);
   const [fullScreenSignatureMountKey, setFullScreenSignatureMountKey] = useState(0);
@@ -93,6 +105,26 @@ export function ServiceDetailScreen() {
       signatureRef.current?.setDataURL(signatureData);
     }
   }, [deliveryDialogOpen, signatureData, signatureFullScreenOpen]);
+
+  // Mounting the WebView while its parent Modal is still sliding in can leave
+  // its canvas measured at 0x0 forever (no later resize listener fixes it).
+  // Modal's onShow is unreliable on Android for quick back-to-back modal
+  // transitions, so gate readiness off React state instead, which always fires.
+  useEffect(() => {
+    if (deliveryDialogOpen && !signatureFullScreenOpen) {
+      const timeout = setTimeout(() => setIsDeliveryModalReady(true), 350);
+      return () => clearTimeout(timeout);
+    }
+    setIsDeliveryModalReady(false);
+  }, [deliveryDialogOpen, signatureFullScreenOpen]);
+
+  useEffect(() => {
+    if (signatureFullScreenOpen) {
+      const timeout = setTimeout(() => setIsFullScreenModalReady(true), 350);
+      return () => clearTimeout(timeout);
+    }
+    setIsFullScreenModalReady(false);
+  }, [signatureFullScreenOpen]);
 
   const service = useMemo(
     () => services.find((item) => item.numeroServicio === route.params.serviceNumber) ?? null,
@@ -135,12 +167,32 @@ export function ServiceDetailScreen() {
 
   const resetDeliveryDialog = () => {
     setDeliveryDialogOpen(false);
-    setIsDeliveryModalReady(false);
     setSignatureFullScreenOpen(false);
-    setIsFullScreenModalReady(false);
     setGuideControl('');
     setDeliveryError(null);
     setSignatureData(null);
+    setSatisfactionLevel(null);
+    setSatisfactionComment('');
+    setSatisfactionError(null);
+  };
+
+  const closeSatisfactionDialog = () => {
+    setSatisfactionDialogOpen(false);
+    setSatisfactionLevel(null);
+    setSatisfactionComment('');
+    setSatisfactionError(null);
+  };
+
+  const handleConfirmSatisfaction = () => {
+    if (!satisfactionLevel) {
+      setSatisfactionError('Selecciona un nivel de satisfaccion.');
+      return;
+    }
+
+    setSatisfactionDialogOpen(false);
+    setSatisfactionError(null);
+    setDeliverySignatureMountKey((key) => key + 1);
+    setDeliveryDialogOpen(true);
   };
 
   const handleConfirmOriginCode = () => {
@@ -186,7 +238,7 @@ export function ServiceDetailScreen() {
       return;
     }
 
-    if (!signatureData) {
+    if (!signatureData || toRawBase64(signatureData).length === 0) {
       setDeliveryError('La firma del cliente es obligatoria para entregar el servicio.');
       return;
     }
@@ -250,7 +302,9 @@ export function ServiceDetailScreen() {
 
   const closeFullScreenSignature = () => {
     setSignatureFullScreenOpen(false);
-    setIsFullScreenModalReady(false);
+    // Force a clean remount of the compact canvas's WebView on return, instead
+    // of trusting Android to reuse/refresh the previous instance correctly.
+    setDeliverySignatureMountKey((key) => key + 1);
   };
 
   const useFullScreenSignature = () => {
@@ -270,7 +324,10 @@ export function ServiceDetailScreen() {
           ? 'Entregar servicio'
           : 'Completado';
 
-  const ctaDisabled = service.estado === 'COMPLETADO' || service.estado === 'procesado';
+  const ctaDisabled =
+    service.estado === 'COMPLETADO' ||
+    service.estado === 'procesado' ||
+    (!!activeService && activeService.numeroServicio !== service.numeroServicio);
   const ctaColors: readonly [string, string, ...string[]] = ctaDisabled
     ? ['#8ea1b4', '#7b8fa3']
     : service.estado === 'EN_TRANSITO'
@@ -279,7 +336,13 @@ export function ServiceDetailScreen() {
         ? ['#39b86b', '#2fa45d', '#218a4b']
         : ['#ff7b39', '#ff6424', '#f54d14'];
 
+  const blockedByOtherService = !!activeService && activeService.numeroServicio !== service.numeroServicio;
+
   const handleMainAction = () => {
+    if (blockedByOtherService) {
+      return;
+    }
+
     if (service.estado === 'ASIGNADA') {
       setOriginDialogOpen(true);
       return;
@@ -291,8 +354,7 @@ export function ServiceDetailScreen() {
     }
 
     if (service.estado === 'TERMINADO') {
-      setDeliverySignatureMountKey((key) => key + 1);
-      setDeliveryDialogOpen(true);
+      setSatisfactionDialogOpen(true);
     }
   };
 
@@ -350,9 +412,91 @@ export function ServiceDetailScreen() {
       </Modal>
 
       <Modal
+        animationType="fade"
+        onRequestClose={closeSatisfactionDialog}
+        transparent
+        visible={satisfactionDialogOpen}
+      >
+        <View style={styles.dialogOverlay}>
+          <View style={styles.dialogCardLarge}>
+            <Text style={styles.dialogTitle}>Calificá Nuestro Servicio</Text>
+            <Text style={styles.dialogSubtitle}>
+              Antes de firmar, indica el nivel de satisfaccion con el servicio prestado.
+            </Text>
+
+            <View style={styles.satisfactionRow}>
+              <View style={styles.satisfactionGauge}>
+                {SATISFACTION_LEVELS.map((level) => (
+                  <Pressable
+                    key={level.value}
+                    onPress={() => {
+                      setSatisfactionLevel(level.value);
+                      if (satisfactionError) setSatisfactionError(null);
+                    }}
+                    style={[
+                      styles.satisfactionSegment,
+                      { backgroundColor: level.color },
+                      satisfactionLevel === level.value ? styles.satisfactionSegmentActive : null,
+                    ]}
+                  >
+                    {satisfactionLevel === level.value ? (
+                      <MaterialCommunityIcons color="#ffffff" name="check-bold" size={18} />
+                    ) : null}
+                  </Pressable>
+                ))}
+              </View>
+
+              <View style={styles.satisfactionLabelWrap}>
+                {satisfactionLevel ? (
+                  <>
+                    <Text style={styles.satisfactionEmoji}>
+                      {SATISFACTION_LEVELS.find((l) => l.value === satisfactionLevel)?.emoji}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.satisfactionLabel,
+                        { color: SATISFACTION_LEVELS.find((l) => l.value === satisfactionLevel)?.color },
+                      ]}
+                    >
+                      {SATISFACTION_LEVELS.find((l) => l.value === satisfactionLevel)?.label}
+                    </Text>
+                  </>
+                ) : (
+                  <Text style={styles.satisfactionPlaceholder}>Toca un nivel</Text>
+                )}
+              </View>
+            </View>
+
+            {satisfactionError ? <Text style={styles.dialogError}>{satisfactionError}</Text> : null}
+
+            <Text style={styles.dialogInputLabelHint}>Observaciones, comentarios o felicitaciones (opcional)</Text>
+            <TextInput
+              maxLength={350}
+              multiline
+              numberOfLines={4}
+              onChangeText={setSatisfactionComment}
+              placeholder="Escribe aqui..."
+              placeholderTextColor="#7b8791"
+              style={[styles.dialogInput, styles.satisfactionCommentInput]}
+              value={satisfactionComment}
+            />
+            <Text style={styles.satisfactionCounter}>{`${satisfactionComment.length}/350`}</Text>
+
+            <View style={styles.dialogActions}>
+              <Pressable onPress={closeSatisfactionDialog} style={[styles.dialogButton, styles.dialogCancelButton]}>
+                <Text style={styles.dialogCancelText}>Cancelar</Text>
+              </Pressable>
+              <Pressable onPress={handleConfirmSatisfaction} style={[styles.dialogButton, styles.dialogConfirmButton]}>
+                <Text style={styles.dialogConfirmText}>Continuar</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
         animationType="slide"
         onRequestClose={resetDeliveryDialog}
-        onShow={() => setIsDeliveryModalReady(true)}
         transparent
         visible={deliveryDialogOpen && !signatureFullScreenOpen}
       >
@@ -414,6 +558,13 @@ export function ServiceDetailScreen() {
                   key={`sig-${deliverySignatureMountKey}`}
                   onEnd={() => requestSignatureSnapshot(signatureRef)}
                   onEmpty={handleSignatureEmpty}
+                  onLoadEnd={() => {
+                    // Belt-and-suspenders: push once the WebView confirms it's
+                    // actually ready, instead of racing its initial page load.
+                    if (signatureData) {
+                      signatureRef.current?.setDataURL(signatureData);
+                    }
+                  }}
                   onOK={handleSignatureOk}
                   penColor="#0f172a"
                   ref={signatureRef}
@@ -439,12 +590,7 @@ export function ServiceDetailScreen() {
         </View>
       </Modal>
 
-      <Modal
-        animationType="slide"
-        onRequestClose={closeFullScreenSignature}
-        onShow={() => setIsFullScreenModalReady(true)}
-        visible={signatureFullScreenOpen}
-      >
+      <Modal animationType="slide" onRequestClose={closeFullScreenSignature} visible={signatureFullScreenOpen}>
         <View style={styles.fullSignatureScreen}>
           <View style={styles.fullSignatureHeader}>
             <Pressable onPress={closeFullScreenSignature} style={styles.fullSignatureHeaderBtn}>
@@ -686,6 +832,9 @@ export function ServiceDetailScreen() {
       </ScrollView>
 
       <View style={styles.detailFooter}>
+        {blockedByOtherService ? (
+          <Text style={styles.blockedText}>Hay un servicio activo. Finaliza ese primero.</Text>
+        ) : null}
         <Pressable
           disabled={ctaDisabled}
           onPress={handleMainAction}
@@ -808,6 +957,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.xs,
   },
+  blockedText: {
+    color: '#4b5563',
+    fontSize: 13,
+    fontStyle: 'italic',
+    marginBottom: spacing.sm,
+    textAlign: 'center',
+  },
   detailStatusButtonPressable: {
     borderRadius: 999,
     overflow: 'hidden',
@@ -883,6 +1039,55 @@ const styles = StyleSheet.create({
     color: '#ba1a1a',
     fontSize: 12,
     fontWeight: '700',
+  },
+  dialogInputLabelHint: {
+    color: '#4b5563',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  satisfactionRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: spacing.md,
+  },
+  satisfactionGauge: {
+    borderRadius: 22,
+    overflow: 'hidden',
+    width: 44,
+  },
+  satisfactionSegment: {
+    alignItems: 'center',
+    height: 40,
+    justifyContent: 'center',
+  },
+  satisfactionSegmentActive: {
+    borderColor: '#0f172a',
+    borderWidth: 2,
+  },
+  satisfactionLabelWrap: {
+    alignItems: 'center',
+    flex: 1,
+    gap: 4,
+  },
+  satisfactionEmoji: {
+    fontSize: 40,
+  },
+  satisfactionLabel: {
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  satisfactionPlaceholder: {
+    color: '#7b8791',
+    fontSize: 13,
+  },
+  satisfactionCommentInput: {
+    minHeight: 90,
+    textAlignVertical: 'top',
+  },
+  satisfactionCounter: {
+    color: '#7b8791',
+    fontSize: 11,
+    textAlign: 'right',
   },
   dialogActions: {
     flexDirection: 'row',
