@@ -137,7 +137,7 @@ export function ServicesScreen() {
       contentContainerStyle={styles.content}
       refreshControl={<RefreshControl onRefresh={handleRefresh} refreshing={isLoadingServices} />}
     >
-      <RoleGate allowedRoles={['CONDUCTOR', 'PROPIETARIO']}>
+      <RoleGate allowedRoles={['CONDUCTOR', 'PROPIETARIO', 'AMBOS']}>
         {/* Modal para validaciones con input */}
         <Modal animationType="fade" onRequestClose={() => setModalConfig(null)} transparent visible={!!modalConfig}>
           <View style={styles.modalOverlay}>

@@ -6,7 +6,7 @@ import { PreoperationalOption, PreoperationalQuestion } from '../mocks/preoperat
 import { fetchPreoperationalQuestions } from '../services/preoperationalApi';
 import { fetchAssignedServices } from '../services/servicesApi';
 import { clearBiometricCredentials } from '../services/biometricAuth';
-import { fetchConductorRole, fetchOwnedVehicles } from '../services/roleApi';
+import { debugFindPropietarioCandidates, fetchConductorRole, fetchOwnedVehicles } from '../services/roleApi';
 import { loginMobilUser, releaseMobilKey } from '../services/userAuth';
 import { colors } from '../theme';
 import { OwnedVehicle, Role, RoleCapability, Service, ServiceState } from '../types/domain';
@@ -49,6 +49,7 @@ type SessionContextValue = {
   isLoadingOwnerServices: boolean;
   reloadOwnerServices: () => void;
   activeService: Service | null;
+  ownerActiveService: Service | null;
   statusCounts: Record<ServiceState, number>;
   login: (username: string, password: string) => Promise<ActionResult>;
   submitPreoperational: (payload: {
@@ -168,11 +169,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   // owned vehicle (Locatario-based) is currently selected, independent of the
   // conductor's own `services`/`mobilUser.Vehiculo` fetch above.
   const loadOwnerServices = (vehiculoCodigo: number) => {
+    console.log('[session] loadOwnerServices start', { vehiculoCodigo });
     setIsLoadingOwnerServices(true);
     setOwnerServicesLoadError(null);
 
     fetchAssignedServices(vehiculoCodigo)
       .then((result) => {
+        console.log('[session] loadOwnerServices result', result);
         if (result.ok) {
           setOwnerServices(result.services);
         } else {
@@ -183,13 +186,16 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    if (mobilUser) {
+    // A pure PROPIETARIO never drives (mobilUser.Vehiculo is typically 0 for
+    // these accounts), so this conductor-only fetch would just be wasted.
+    if (mobilUser && roleCapability !== 'PROPIETARIO') {
       loadAssignedServices(mobilUser);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mobilUser]);
+  }, [mobilUser, roleCapability]);
 
   useEffect(() => {
+    console.log('[session] selectedVehiculo effect', { selectedVehiculo });
     if (selectedVehiculo) {
       loadOwnerServices(selectedVehiculo.codvehiculo);
     } else {
@@ -217,7 +223,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         // Intentionally not restoring isAuthenticated/username/mobilUser: every
         // cold start must show the Login screen (biometrics remain available
         // there for quick re-entry) instead of silently resuming a session.
-        if (parsed.role === 'CONDUCTOR' || parsed.role === 'PROPIETARIO') {
+        if (parsed.role === 'CONDUCTOR' || parsed.role === 'PROPIETARIO' || parsed.role === 'AMBOS') {
           setRole(parsed.role);
         }
 
@@ -264,7 +270,23 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     [services],
   );
 
-  const statusCounts = useMemo(() => buildStatusCounts(services), [services]);
+  // Real-data counterpart of `activeService` for the owner's vehicle: unlike
+  // `services` (only ever populated by the conductor's own local actions on
+  // their device), `ownerServices` comes straight from the backend, so this
+  // is what a pure PROPIETARIO (who never drives) needs for "Resumen Diario".
+  const ownerActiveService = useMemo(
+    () => ownerServices.find((service) => service.estado === 'EN_TRANSITO' || service.estado === 'TERMINADO') ?? null,
+    [ownerServices],
+  );
+
+  // "Resumen Diario" reflects whichever vehicle is relevant to the current
+  // role: the conductor's own driven vehicle, or the propietario/AMBOS's
+  // selected owned vehicle - a pure PROPIETARIO never drives, so `services`
+  // would otherwise stay empty and show a false all-zero summary.
+  const statusCounts = useMemo(
+    () => buildStatusCounts(role === 'CONDUCTOR' ? services : ownerServices),
+    [role, services, ownerServices],
+  );
 
   const needsPreoperational = useMemo(() => {
     if (!isAuthenticated || !username) {
@@ -320,6 +342,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         }
       },
       activeService,
+      ownerActiveService,
       statusCounts,
       login: async (rawUsername: string, rawPassword: string) => {
         const result = await loginMobilUser(rawUsername, rawPassword);
@@ -335,12 +358,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         let nextOwnedVehicles: OwnedVehicle[] = [];
 
         const roleResult = await fetchConductorRole(result.user.Conductor);
+        console.log('[session] fetchConductorRole', { conductor: result.user.Conductor, roleResult });
 
         if (roleResult.ok) {
           nextRoleCapability = roleResult.roleCapability;
 
           if (nextRoleCapability === 'PROPIETARIO' || nextRoleCapability === 'AMBOS') {
             const vehiclesResult = await fetchOwnedVehicles(result.user.Conductor);
+            console.log('[session] fetchOwnedVehicles', { conductor: result.user.Conductor, vehiclesResult });
 
             if (vehiclesResult.ok) {
               nextOwnedVehicles = vehiclesResult.vehicles;
@@ -348,8 +373,20 @@ export function SessionProvider({ children }: { children: ReactNode }) {
           }
         }
 
-        const nextRole: Role = nextRoleCapability === 'PROPIETARIO' ? 'PROPIETARIO' : 'CONDUCTOR';
+        const nextRole: Role = nextRoleCapability;
         const autoSelectedVehiculo = nextOwnedVehicles.length === 1 ? nextOwnedVehicles[0] : null;
+        console.log('[session] login role resolution', {
+          nextRole,
+          nextRoleCapability,
+          ownedVehiclesCount: nextOwnedVehicles.length,
+          autoSelectedVehiculo,
+        });
+
+        if (nextRoleCapability === 'CONDUCTOR') {
+          // TEMPORARY DEV DIAGNOSTIC: this account has no owned vehicles, so
+          // suggest a real PROPIETARIO/AMBOS account to test that flow with.
+          debugFindPropietarioCandidates().catch(() => undefined);
+        }
 
         setUsername(result.user.Username);
         setMobilUser(result.user);
@@ -522,6 +559,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       needsPreoperational,
       needsVehicleSelection,
       ownedVehicles,
+      ownerActiveService,
       ownerServices,
       ownerServicesLoadError,
       preoperationalByUser,

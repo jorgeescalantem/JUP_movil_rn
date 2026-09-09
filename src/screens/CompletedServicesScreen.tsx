@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { DrawerScreenProps } from '@react-navigation/drawer';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
@@ -7,9 +7,10 @@ import { RoleGate } from '../components/RoleGate';
 import { OwnerBottomBar } from '../components/OwnerBottomBar';
 import { SectionCard } from '../components/SectionCard';
 import { DrawerParamList } from '../navigation/AppDrawer';
+import { fetchVehicleServiceHistory } from '../services/servicesApi';
 import { useSession } from '../store/session';
 import { colors, spacing } from '../theme';
-import { SortKey } from '../types/domain';
+import { Service, SortKey } from '../types/domain';
 
 const WEEKDAY_LABELS = ['Do', 'Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sa'];
 const MONTH_LABELS = [
@@ -17,6 +18,9 @@ const MONTH_LABELS = [
   'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
 ];
 const MONTH_ABBR = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+// Keeps the Tbservicios history fetch light - a vehicle's full history could
+// otherwise span years of rows for a single request.
+const MAX_RANGE_DAYS = 30;
 
 function last30DaysRange() {
   const now = new Date();
@@ -52,6 +56,20 @@ function formatDisplayDate(value: string) {
 
 function addMonths(date: Date, amount: number) {
   return new Date(date.getFullYear(), date.getMonth() + amount, 1);
+}
+
+function addDays(date: Date, amount: number) {
+  const next = new Date(date);
+  next.setDate(next.getDate() + amount);
+  return next;
+}
+
+// Clamps a date key to the selectable window: no later than today, no
+// earlier than MAX_RANGE_DAYS-1 days before today.
+function clampToSelectable(key: string, minKey: string, maxKey: string) {
+  if (key < minKey) return minKey;
+  if (key > maxKey) return maxKey;
+  return key;
 }
 
 function getMonthMatrix(monthDate: Date) {
@@ -91,7 +109,13 @@ type Props = DrawerScreenProps<DrawerParamList, 'ServiciosPrestados'>;
 
 export function CompletedServicesScreen({ route }: Props) {
   const defaults = last30DaysRange();
-  const { services } = useSession();
+  const maxSelectableKey = dateKey(new Date());
+  const minSelectableKey = dateKey(addDays(new Date(), -(MAX_RANGE_DAYS - 1)));
+  const { selectedVehiculo } = useSession();
+  const [historyServices, setHistoryServices] = useState<Service[]>([]);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  const [historyError, setHistoryError] = useState<string | null>(null);
+  const [searchText, setSearchText] = useState('');
   const [fromDateDraft, setFromDateDraft] = useState(route.params?.fromDate ?? defaults.from);
   const [toDateDraft, setToDateDraft] = useState(route.params?.toDate ?? defaults.to);
   const [fromDate, setFromDate] = useState<string | null>(route.params?.autoApply ? (route.params.fromDate ?? defaults.from) : null);
@@ -116,6 +140,10 @@ export function CompletedServicesScreen({ route }: Props) {
   const handleDayPress = (day: Date) => {
     const key = dateKey(day);
 
+    if (key < minSelectableKey || key > maxSelectableKey) {
+      return;
+    }
+
     if (!rangeAnchor) {
       setRangeAnchor(key);
       setFromDateDraft(key);
@@ -123,14 +151,11 @@ export function CompletedServicesScreen({ route }: Props) {
       return;
     }
 
-    if (key < rangeAnchor) {
-      setFromDateDraft(key);
-      setToDateDraft(rangeAnchor);
-    } else {
-      setFromDateDraft(rangeAnchor);
-      setToDateDraft(key);
-    }
+    const from = key < rangeAnchor ? key : rangeAnchor;
+    const to = key < rangeAnchor ? rangeAnchor : key;
 
+    setFromDateDraft(clampToSelectable(from, minSelectableKey, maxSelectableKey));
+    setToDateDraft(clampToSelectable(to, minSelectableKey, maxSelectableKey));
     setRangeAnchor(null);
     setShowRangePicker(false);
   };
@@ -152,15 +177,39 @@ export function CompletedServicesScreen({ route }: Props) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [route.params]);
 
-  const completedServices = useMemo(() => {
-    const base = services.filter((service) => service.estado === 'COMPLETADO' || service.estado === 'procesado');
+  // Real backend-backed history for the owned vehicle, refetched whenever the
+  // applied date range changes - replaces the old client-side-only filter
+  // over the conductor's local `services`, which a PROPIETARIO never populates.
+  useEffect(() => {
+    if (!selectedVehiculo || !fromDate || !toDate) {
+      setHistoryServices([]);
+      return;
+    }
 
-    const filtered = fromDate && toDate
-      ? base.filter((service) => {
-          const serviceDate = toInputDate(service.fechaServicio);
-          return serviceDate >= fromDate && serviceDate <= toDate;
-        })
-      : base;
+    setIsLoadingHistory(true);
+    setHistoryError(null);
+
+    fetchVehicleServiceHistory(selectedVehiculo.codvehiculo, fromDate, toDate)
+      .then((result) => {
+        if (result.ok) {
+          setHistoryServices(result.services);
+        } else {
+          setHistoryError(result.message);
+        }
+      })
+      .finally(() => setIsLoadingHistory(false));
+  }, [selectedVehiculo, fromDate, toDate]);
+
+  const completedServices = useMemo(() => {
+    const normalizedSearch = searchText.trim().toLowerCase();
+    const filtered = normalizedSearch
+      ? historyServices.filter((service) =>
+          [service.numeroServicio, service.clienteNombre, service.companiaNombre]
+            .join(' ')
+            .toLowerCase()
+            .includes(normalizedSearch),
+        )
+      : historyServices;
 
     if (!sortKey) return filtered;
 
@@ -171,7 +220,7 @@ export function CompletedServicesScreen({ route }: Props) {
 
       return left[sortKey].localeCompare(right[sortKey]);
     });
-  }, [fromDate, services, sortKey, toDate]);
+  }, [historyServices, searchText, sortKey]);
 
   const totals = completedServices.reduce(
     (accumulator, service) => ({
@@ -184,7 +233,7 @@ export function CompletedServicesScreen({ route }: Props) {
 
   return (
     <View style={styles.screen}>
-      <RoleGate allowedRoles={['PROPIETARIO']}>
+      <RoleGate allowedRoles={['PROPIETARIO', 'AMBOS']}>
         <ScrollView contentContainerStyle={styles.content}>
         <SectionCard centerTitle title="Ver servicios Prestados" subtitle="Filtra un rango de fechas para comenzar">
           <View style={styles.filterRow}>
@@ -233,10 +282,11 @@ export function CompletedServicesScreen({ route }: Props) {
                     const isStart = key === fromDateDraft;
                     const isEnd = key === toDateDraft;
                     const isInRange = key > fromDateDraft && key < toDateDraft;
+                    const isOutOfRange = key < minSelectableKey || key > maxSelectableKey;
 
                     return (
                       <Pressable
-                        disabled={!inMonth}
+                        disabled={!inMonth || isOutOfRange}
                         key={key}
                         onPress={() => handleDayPress(date)}
                         style={[
@@ -250,7 +300,7 @@ export function CompletedServicesScreen({ route }: Props) {
                           <Text
                             style={[
                               styles.dayText,
-                              !inMonth ? styles.dayTextDisabled : null,
+                              (!inMonth || isOutOfRange) ? styles.dayTextDisabled : null,
                               (isStart || isEnd) ? styles.dayTextSelected : null,
                             ]}
                           >
@@ -268,6 +318,16 @@ export function CompletedServicesScreen({ route }: Props) {
               </Pressable>
             </View>
           ) : null}
+
+          <View style={styles.filterRow}>
+            <TextInput
+              onChangeText={setSearchText}
+              placeholder="Buscar por No de servicio, cliente o compania"
+              placeholderTextColor={colors.muted}
+              style={styles.searchInput}
+              value={searchText}
+            />
+          </View>
 
           <View style={styles.chipsRow}>
             {[
@@ -291,8 +351,12 @@ export function CompletedServicesScreen({ route }: Props) {
 
           <Pressable
             onPress={() => {
-              setFromDate(fromDateDraft);
-              setToDate(toDateDraft);
+              const from = clampToSelectable(fromDateDraft, minSelectableKey, maxSelectableKey);
+              const to = clampToSelectable(toDateDraft, minSelectableKey, maxSelectableKey);
+              setFromDateDraft(from);
+              setToDateDraft(to);
+              setFromDate(from);
+              setToDate(to);
               setSortKey(sortKeyDraft);
             }}
             style={styles.applyFilterButton}
@@ -323,22 +387,30 @@ export function CompletedServicesScreen({ route }: Props) {
         </SectionCard>
 
         <SectionCard title="Detalle de Servicios prestados" subtitle="Vista detallada de servicios completados en el rango seleccionado">
-          {completedServices.map((service) => (
-            <View key={service.numeroServicio} style={styles.serviceCard}>
-              <Text style={styles.serviceTitle}>Servicio #{service.numeroServicio}</Text>
-              <Text style={styles.detailText}>Cliente: {service.clienteNombre}</Text>
-              <Text style={styles.detailText}>Compania: {service.companiaNombre}</Text>
-              <Text style={styles.detailText}>Fecha: {toInputDate(service.fechaServicio)}</Text>
-              <Text style={styles.detailText}>Origen: {service.origenDireccion}</Text>
-              <Text style={styles.detailText}>Destino: {service.destinoDireccion}</Text>
-              <Text style={styles.detailText}>Valor: {currency(service.valor)}</Text>
-              <Text style={styles.detailText}>Copago: {currency(service.copago)}</Text>
-              <Text style={styles.detailText}>Estado: {service.estado}</Text>
-              <Text style={styles.detailText}>Guia: {service.Guiacontrol ?? 'Sin registrar'}</Text>
-            </View>
-          ))}
+          {isLoadingHistory ? <ActivityIndicator color={colors.accent} /> : null}
 
-          {completedServices.length === 0 ? <Text style={styles.emptyText}>No hay servicios en el rango seleccionado.</Text> : null}
+          {!isLoadingHistory && historyError ? <Text style={styles.emptyText}>{historyError}</Text> : null}
+
+          {!isLoadingHistory && !historyError
+            ? completedServices.map((service) => (
+                <View key={service.numeroServicio} style={styles.serviceCard}>
+                  <Text style={styles.serviceTitle}>Servicio #{service.numeroServicio}</Text>
+                  <Text style={styles.detailText}>Cliente: {service.clienteNombre}</Text>
+                  <Text style={styles.detailText}>Compania: {service.companiaNombre}</Text>
+                  <Text style={styles.detailText}>Fecha: {toInputDate(service.fechaServicio)}</Text>
+                  <Text style={styles.detailText}>Origen: {service.origenDireccion}</Text>
+                  <Text style={styles.detailText}>Destino: {service.destinoDireccion}</Text>
+                  <Text style={styles.detailText}>Valor: {currency(service.valor)}</Text>
+                  <Text style={styles.detailText}>Copago: {currency(service.copago)}</Text>
+                  <Text style={styles.detailText}>Estado: {service.estado}</Text>
+                  <Text style={styles.detailText}>Guia: {service.Guiacontrol ?? 'Sin registrar'}</Text>
+                </View>
+              ))
+            : null}
+
+          {!isLoadingHistory && !historyError && completedServices.length === 0 ? (
+            <Text style={styles.emptyText}>No hay servicios en el rango seleccionado.</Text>
+          ) : null}
         </SectionCard>
         </ScrollView>
 
@@ -399,6 +471,17 @@ const styles = StyleSheet.create({
     color: colors.textStrong,
     fontSize: 14,
     fontWeight: '600',
+  },
+  searchInput: {
+    backgroundColor: colors.surfaceAlt,
+    borderColor: colors.border,
+    borderRadius: 14,
+    borderWidth: 1,
+    color: colors.textStrong,
+    flex: 1,
+    fontSize: 14,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
   },
   pickerWrap: {
     backgroundColor: colors.accentSoft,

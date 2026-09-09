@@ -1,4 +1,4 @@
-export type Role = 'CONDUCTOR' | 'PROPIETARIO';
+export type Role = 'CONDUCTOR' | 'PROPIETARIO' | 'AMBOS';
 
 // Real capability resolved from Tcconductores.Tipo after login (source of truth),
 // as opposed to `Role` which is just the currently active drawer view.

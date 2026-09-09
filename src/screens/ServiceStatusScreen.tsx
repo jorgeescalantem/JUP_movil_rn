@@ -173,7 +173,11 @@ const STATE_VISUALS: Record<StateVisualKey, StateVisual> = {
 };
 
 export function ServiceStatusScreen() {
-  const { activeService, statusCounts, role } = useSession();
+  const { activeService, ownerActiveService, statusCounts, role } = useSession();
+  // `activeService` only ever reflects the conductor's own local state
+  // (arrivedAtOrigin/deliverService on their device); a PROPIETARIO/AMBOS
+  // viewing their vehicle's real summary needs `ownerActiveService` instead.
+  const displayActiveService = role === 'CONDUCTOR' ? activeService : ownerActiveService;
 
   const { width: screenWidth } = useWindowDimensions();
   const [themeMode, setThemeMode] = useState<ThemeMode>('light');
@@ -206,9 +210,9 @@ export function ServiceStatusScreen() {
   const todayIndex   = new Date().getDay();
   const highlightIdx = filter === '7' ? (todayIndex === 0 ? 6 : todayIndex - 1) : -1;
 
-  const stateVisualKey: StateVisualKey = activeService?.estado === 'TERMINADO'
+  const stateVisualKey: StateVisualKey = displayActiveService?.estado === 'TERMINADO'
     ? 'TERMINADO'
-    : activeService?.estado === 'EN_TRANSITO'
+    : displayActiveService?.estado === 'EN_TRANSITO'
       ? 'EN_TRANSITO'
       : 'ACTIVO';
   const stateVisual = STATE_VISUALS[stateVisualKey];
@@ -218,7 +222,7 @@ export function ServiceStatusScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: palette.background }}>
-      <RoleGate allowedRoles={['CONDUCTOR', 'PROPIETARIO']}>
+      <RoleGate allowedRoles={['CONDUCTOR', 'PROPIETARIO', 'AMBOS']}>
         <ScrollView style={{ backgroundColor: palette.background }} contentContainerStyle={styles.content}>
 
         {/* ── Header ── */}
@@ -283,16 +287,16 @@ export function ServiceStatusScreen() {
             </View>
           </View>
 
-          {activeService ? (
+          {displayActiveService ? (
             <>
               {/* Vehicle row */}
               <View style={styles.vehicleRow}>
                 <Building2 color={stateColors.accent} size={22} />
                 <View style={styles.vehicleInfo}>
                   <Text style={[styles.vehicleLabel, { color: stateColors.accent }]}>CONTRATO</Text>
-                  <Text style={styles.vehicleValue}>{activeService.contrato}</Text>
+                  <Text style={styles.vehicleValue}>{displayActiveService.contrato}</Text>
                   <Text style={[styles.vehicleLabel, { color: stateColors.accent }]}>EMPRESA</Text>
-                  <Text style={styles.companyValue}>{activeService.companiaNombre}</Text>
+                  <Text style={styles.companyValue}>{displayActiveService.companiaNombre}</Text>
                 </View>
               </View>
 
@@ -302,11 +306,11 @@ export function ServiceStatusScreen() {
               <View style={styles.routeRow}>
                 <View style={styles.routeCol}>
                   <Text style={[styles.routeLabel, { color: stateColors.accent }]}>ORIGEN</Text>
-                  <Text style={styles.routeValue}>{activeService.origenDireccion}</Text>
+                  <Text style={styles.routeValue}>{displayActiveService.origenDireccion}</Text>
                 </View>
                 <View style={styles.routeCol}>
                   <Text style={[styles.routeLabel, { color: stateColors.accent }]}>DESTINO</Text>
-                  <Text style={styles.routeValue}>{activeService.destinoDireccion}</Text>
+                  <Text style={styles.routeValue}>{displayActiveService.destinoDireccion}</Text>
                 </View>
               </View>
 
@@ -316,11 +320,11 @@ export function ServiceStatusScreen() {
               <View style={styles.routeRow}>
                 <View style={styles.routeCol}>
                   <Text style={[styles.routeLabel, { color: stateColors.accent }]}>SERVICIO</Text>
-                  <Text style={styles.routeValue}>#{activeService.numeroServicio}</Text>
+                  <Text style={styles.routeValue}>#{displayActiveService.numeroServicio}</Text>
                 </View>
                 <View style={styles.routeCol}>
                   <Text style={[styles.routeLabel, { color: stateColors.accent }]}>HORA DE INICIO</Text>
-                  <Text style={styles.routeValue}>{activeService.HoraRecogida}</Text>
+                  <Text style={styles.routeValue}>{displayActiveService.HoraRecogida}</Text>
                 </View>
               </View>
             </>
@@ -483,7 +487,7 @@ export function ServiceStatusScreen() {
 
         </ScrollView>
 
-        {role === 'PROPIETARIO' ? <OwnerBottomBar /> : null}
+        {role === 'PROPIETARIO' || role === 'AMBOS' ? <OwnerBottomBar /> : null}
       </RoleGate>
     </View>
   );

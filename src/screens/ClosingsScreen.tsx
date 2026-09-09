@@ -58,7 +58,7 @@ export function ClosingsScreen() {
 
   return (
     <ScrollView contentContainerStyle={styles.content}>
-      <RoleGate allowedRoles={['PROPIETARIO']}>
+      <RoleGate allowedRoles={['PROPIETARIO', 'AMBOS']}>
         <SectionCard
           title="Detalle de servicios"
           subtitle="Filtra por fechas. Este rol solo permite consultar el detalle; no permite cierre por GuíaControl."

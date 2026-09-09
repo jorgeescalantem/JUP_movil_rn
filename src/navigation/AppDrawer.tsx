@@ -41,7 +41,9 @@ const navigationTheme: Theme = {
 };
 
 function CustomDrawerContent(props: DrawerContentComponentProps) {
-  const { role, setRole, resetSession } = useSession();
+  const { role, roleCapability, setRole, resetSession } = useSession();
+  // Only offer a role switch for AMBOS; single-capability users have nothing to switch to.
+  const roleOptions: Role[] = roleCapability === 'AMBOS' ? ['CONDUCTOR', 'PROPIETARIO'] : [roleCapability];
 
   return (
     <DrawerContentScrollView {...props} contentContainerStyle={styles.drawerContent}>
@@ -53,7 +55,7 @@ function CustomDrawerContent(props: DrawerContentComponentProps) {
       </View>
 
       <View style={styles.roleSwitch}>
-        {(['CONDUCTOR', 'PROPIETARIO'] as Role[]).map((item) => {
+        {roleOptions.map((item) => {
           const isActive = item === role;
           const iconName = item === 'CONDUCTOR' ? 'steering' : 'account-tie';
 

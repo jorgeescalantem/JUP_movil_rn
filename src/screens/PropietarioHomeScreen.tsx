@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { DrawerScreenProps } from '@react-navigation/drawer';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -56,11 +56,32 @@ export function PropietarioHomeScreen({}: Props) {
   // Real assigned services for whichever owned vehicle is currently selected (Locatario-based).
   const placa = selectedVehiculo?.placa ?? mobilUser?.Placa ?? '-';
 
+  useEffect(() => {
+    console.log('[PropietarioHome] mount/update', {
+      username,
+      mobilUserConductor: mobilUser?.Conductor,
+      mobilUserPlaca: mobilUser?.Placa,
+      selectedVehiculo,
+      placa,
+      isLoadingOwnerServices,
+      ownerServicesLoadError,
+      ownerServicesCount: ownerServices.length,
+      ownerServicesNumeros: ownerServices.map((s) => s.numeroServicio),
+    });
+  }, [username, mobilUser, selectedVehiculo, placa, isLoadingOwnerServices, ownerServicesLoadError, ownerServices]);
+
   const todayServices = useMemo(() => {
     const today = toInputDate(new Date().toISOString());
-    return ownerServices
+    const filtered = ownerServices
       .filter((service) => toInputDate(service.fechaServicio) === today)
       .sort((a, b) => new Date(a.fechaServicio).getTime() - new Date(b.fechaServicio).getTime());
+    console.log('[PropietarioHome] todayServices filter', {
+      today,
+      totalOwnerServices: ownerServices.length,
+      matchingToday: filtered.length,
+      allServices: ownerServices.map((s) => ({ numero: s.numeroServicio, fecha: toInputDate(s.fechaServicio) })),
+    });
+    return filtered;
   }, [ownerServices]);
 
   const totals = todayServices.reduce(
@@ -74,7 +95,7 @@ export function PropietarioHomeScreen({}: Props) {
 
   return (
     <View style={styles.screen}>
-      <RoleGate allowedRoles={['PROPIETARIO']}>
+      <RoleGate allowedRoles={['PROPIETARIO', 'AMBOS']}>
         <ScrollView
           contentContainerStyle={styles.content}
           refreshControl={<RefreshControl onRefresh={reloadOwnerServices} refreshing={isLoadingOwnerServices} />}
