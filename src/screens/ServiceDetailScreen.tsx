@@ -81,6 +81,7 @@ export function ServiceDetailScreen() {
   );
   const signatureRef = useRef<any>(null);
   const signatureFullScreenRef = useRef<any>(null);
+  const pendingFullScreenCloseRef = useRef(false);
 
   const service = useMemo(
     () => services.find((item) => item.numeroServicio === route.params.serviceNumber) ?? null,
@@ -188,19 +189,22 @@ export function ServiceDetailScreen() {
     // Best-effort: the local delivery flow is already confirmed, so a network
     // failure saving the signature must not block the driver from continuing.
     const timestamp = nowInColombiaIso();
-    saveFirma({
-      Codservicio: Number(service.numeroServicio),
-      Codorden: service.orden,
-      Noorden: '',
-      Fechaserviciofirma: timestamp,
-      Horaserviciofirma: timestamp,
-      Placa: mobilUser?.Placa ?? '',
-      Conductor: mobilUser?.Conductor ?? 0,
-      Firma: toRawBase64(signatureData),
-      Firmaguia: null,
-      Cordenadasfirma: '',
-      Favorito: false,
-    }).catch(() => undefined);
+    saveFirma(
+      {
+        Codservicio: Number(service.numeroServicio),
+        Codorden: service.orden,
+        Noorden: '',
+        Fechaserviciofirma: timestamp,
+        Horaserviciofirma: timestamp,
+        Placa: mobilUser?.Placa ?? '',
+        Conductor: mobilUser?.Conductor ?? 0,
+        Firma: toRawBase64(signatureData),
+        Firmaguia: Number(effectiveGuideControl),
+        Cordenadasfirma: '',
+        Favorito: false,
+      },
+      mobilUser?.Nodoc ?? '',
+    ).catch(() => undefined);
 
     resetDeliveryDialog();
     setFeedbackDialog({
@@ -215,10 +219,18 @@ export function ServiceDetailScreen() {
     if (deliveryError) {
       setDeliveryError(null);
     }
+    if (pendingFullScreenCloseRef.current) {
+      pendingFullScreenCloseRef.current = false;
+      closeFullScreenSignature();
+    }
   };
 
   const handleSignatureEmpty = () => {
     setSignatureData(null);
+    if (pendingFullScreenCloseRef.current) {
+      pendingFullScreenCloseRef.current = false;
+      closeFullScreenSignature();
+    }
   };
 
   const requestSignatureSnapshot = (ref: React.MutableRefObject<any>) => {
@@ -228,6 +240,14 @@ export function ServiceDetailScreen() {
   const closeFullScreenSignature = () => {
     setSignatureFullScreenOpen(false);
     setIsFullScreenModalReady(false);
+  };
+
+  const useFullScreenSignature = () => {
+    // readSignature() replies asynchronously (onOK/onEmpty); closing here
+    // right away would tear down the WebView before its reply arrives,
+    // losing the just-drawn signature. Defer the close until it lands.
+    pendingFullScreenCloseRef.current = true;
+    requestSignatureSnapshot(signatureFullScreenRef);
   };
 
   const ctaLabel =
@@ -328,9 +348,8 @@ export function ServiceDetailScreen() {
         <View style={styles.dialogOverlay}>
           <View style={styles.dialogCardLarge}>
             <Text style={styles.dialogTitle}>Completar servicio</Text>
-            <Text style={styles.dialogSubtitle}>
-              GuíaControl Cierre: Solicita la firma del
-              Paciente.
+            <Text style={styles.deliveryNoticeText}>
+              Con la firma el cliente certifica que recibió el servicio a Conformidad. 
             </Text>
 
             <TextInput
@@ -339,7 +358,7 @@ export function ServiceDetailScreen() {
                 setGuideControl(value);
                 if (deliveryError) setDeliveryError(null);
               }}
-              placeholder={`GuíaControl (Opcional,  ${service.numeroServicio})`}
+              placeholder={`GuíaControl  ${service.numeroServicio}`}
               placeholderTextColor="#7b8791"
               style={styles.dialogInput}
               value={guideControl}
@@ -456,13 +475,7 @@ export function ServiceDetailScreen() {
           </View>
 
           <View style={styles.fullSignatureFooter}>
-            <Pressable
-              onPress={() => {
-                requestSignatureSnapshot(signatureFullScreenRef);
-                closeFullScreenSignature();
-              }}
-              style={styles.fullSignatureUseBtn}
-            >
+            <Pressable onPress={useFullScreenSignature} style={styles.fullSignatureUseBtn}>
               <Text style={styles.fullSignatureUseBtnText}>Usar firma</Text>
             </Pressable>
           </View>
@@ -836,6 +849,14 @@ const styles = StyleSheet.create({
     color: '#4b5563',
     fontSize: 13,
     lineHeight: 20,
+  },
+  deliveryNoticeText: {
+    color: '#1d4ed8',
+    fontSize: 13,
+    fontWeight: '700',
+    lineHeight: 20,
+    textDecorationColor: '#93c5fd',
+    textDecorationLine: 'underline',
   },
   dialogInput: {
     backgroundColor: '#f7fafc',

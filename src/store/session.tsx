@@ -44,6 +44,10 @@ type SessionContextValue = {
   servicesLoadError: string | null;
   isLoadingServices: boolean;
   reloadAssignedServices: () => void;
+  ownerServices: Service[];
+  ownerServicesLoadError: string | null;
+  isLoadingOwnerServices: boolean;
+  reloadOwnerServices: () => void;
   activeService: Service | null;
   statusCounts: Record<ServiceState, number>;
   login: (username: string, password: string) => Promise<ActionResult>;
@@ -102,6 +106,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [services, setServices] = useState<Service[]>([]);
   const [servicesLoadError, setServicesLoadError] = useState<string | null>(null);
   const [isLoadingServices, setIsLoadingServices] = useState(false);
+  const [ownerServices, setOwnerServices] = useState<Service[]>([]);
+  const [ownerServicesLoadError, setOwnerServicesLoadError] = useState<string | null>(null);
+  const [isLoadingOwnerServices, setIsLoadingOwnerServices] = useState(false);
   const [preoperationalByUser, setPreoperationalByUser] = useState<Record<string, string>>({});
   const [preoperationalQuestions, setPreoperationalQuestions] = useState<PreoperationalQuestion[]>([]);
   const [preoperationalLoadError, setPreoperationalLoadError] = useState<string | null>(null);
@@ -157,12 +164,39 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       .finally(() => setIsLoadingServices(false));
   };
 
+  // Read-only feed for the PROPIETARIO home card: services assigned to whichever
+  // owned vehicle (Locatario-based) is currently selected, independent of the
+  // conductor's own `services`/`mobilUser.Vehiculo` fetch above.
+  const loadOwnerServices = (vehiculoCodigo: number) => {
+    setIsLoadingOwnerServices(true);
+    setOwnerServicesLoadError(null);
+
+    fetchAssignedServices(vehiculoCodigo)
+      .then((result) => {
+        if (result.ok) {
+          setOwnerServices(result.services);
+        } else {
+          setOwnerServicesLoadError(result.message);
+        }
+      })
+      .finally(() => setIsLoadingOwnerServices(false));
+  };
+
   useEffect(() => {
     if (mobilUser) {
       loadAssignedServices(mobilUser);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mobilUser]);
+
+  useEffect(() => {
+    if (selectedVehiculo) {
+      loadOwnerServices(selectedVehiculo.codvehiculo);
+    } else {
+      setOwnerServices([]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedVehiculo]);
 
   useEffect(() => {
     loadPreoperationalChecklist();
@@ -277,6 +311,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
           loadAssignedServices(mobilUser);
         }
       },
+      ownerServices,
+      ownerServicesLoadError,
+      isLoadingOwnerServices,
+      reloadOwnerServices: () => {
+        if (selectedVehiculo) {
+          loadOwnerServices(selectedVehiculo.codvehiculo);
+        }
+      },
       activeService,
       statusCounts,
       login: async (rawUsername: string, rawPassword: string) => {
@@ -366,6 +408,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         setOwnedVehicles([]);
         setSelectedVehiculo(null);
         setServices([]);
+        setOwnerServices([]);
       },
       roleCapability,
       ownedVehicles,
@@ -472,12 +515,15 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     [
       activeService,
       isAuthenticated,
+      isLoadingOwnerServices,
       isLoadingServices,
       isReady,
       mobilUser,
       needsPreoperational,
       needsVehicleSelection,
       ownedVehicles,
+      ownerServices,
+      ownerServicesLoadError,
       preoperationalByUser,
       preoperationalLoadError,
       preoperationalQuestions,

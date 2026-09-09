@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { DrawerScreenProps } from '@react-navigation/drawer';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Bus, TrendingUp, Wallet, type LucideIcon } from 'lucide-react-native';
@@ -43,17 +43,25 @@ function formatDateTime(value: string) {
 }
 
 export function PropietarioHomeScreen({}: Props) {
-  const { services, username, mobilUser, selectedVehiculo } = useSession();
+  const {
+    ownerServices,
+    ownerServicesLoadError,
+    isLoadingOwnerServices,
+    reloadOwnerServices,
+    username,
+    mobilUser,
+    selectedVehiculo,
+  } = useSession();
 
-  // Services aren't fetched per-plate yet, so the whole list belongs to a single vehicle context.
+  // Real assigned services for whichever owned vehicle is currently selected (Locatario-based).
   const placa = selectedVehiculo?.placa ?? mobilUser?.Placa ?? '-';
 
   const todayServices = useMemo(() => {
     const today = toInputDate(new Date().toISOString());
-    return services
+    return ownerServices
       .filter((service) => toInputDate(service.fechaServicio) === today)
       .sort((a, b) => new Date(a.fechaServicio).getTime() - new Date(b.fechaServicio).getTime());
-  }, [services]);
+  }, [ownerServices]);
 
   const totals = todayServices.reduce(
     (acc, service) => ({
@@ -67,7 +75,10 @@ export function PropietarioHomeScreen({}: Props) {
   return (
     <View style={styles.screen}>
       <RoleGate allowedRoles={['PROPIETARIO']}>
-        <ScrollView contentContainerStyle={styles.content}>
+        <ScrollView
+          contentContainerStyle={styles.content}
+          refreshControl={<RefreshControl onRefresh={reloadOwnerServices} refreshing={isLoadingOwnerServices} />}
+        >
           <View style={styles.greeting}>
             <Text style={styles.eyebrow}> {mobilUser?.Nombre ?? username ?? 'Sin nombre'}</Text>
             <Text style={styles.title}>Programación Diaria</Text>
@@ -94,7 +105,9 @@ export function PropietarioHomeScreen({}: Props) {
 
         {todayServices.length === 0 ? (
           <View style={styles.emptyCard}>
-            <Text style={styles.emptyText}>No hay servicios programados para hoy.</Text>
+            <Text style={styles.emptyText}>
+              {ownerServicesLoadError ?? 'No hay servicios programados para hoy.'}
+            </Text>
           </View>
         ) : (
           todayServices.map((service) => (

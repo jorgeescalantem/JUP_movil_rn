@@ -1,18 +1,37 @@
 import { env } from '../config/env';
-import { TbFirmaPayload } from '../types/api';
-import { getSystemToken } from './apiSessionStore';
+import { ODataListResponse, TbFirmaPayload, TcconductorRecord } from '../types/api';
 import { fetchWithTimeout } from './jupwebCoAuth';
 
 export type SaveFirmaResult = { ok: true } | { ok: false; message: string };
 
-function authHeaders(): Record<string, string> {
-  const token = getSystemToken();
+function escapeODataStringLiteral(value: string): string {
+  return value.replace(/'/g, "''");
+}
 
-  return {
-    'Content-Type': 'application/json',
-    Accept: 'application/json',
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  };
+/**
+ * Fetches a FRESH system token for this request instead of reusing the one
+ * cached by ConnectivityGate at app startup: that token is short-lived
+ * (~30 min) and a driver typically signs well after that window (drive to
+ * origin, then destination, then delivery), so the cached token is often
+ * already expired by the time saveFirma runs, causing a silent 401 here.
+ */
+async function getFreshMobilToken(): Promise<string | null> {
+  try {
+    const response = await fetchWithTimeout(`${env.apiBaseUrl}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({ user: env.apiAuthUser, pwd: env.apiAuthPwd }),
+    });
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const data = (await response.json()) as { token?: string };
+    return data.token ?? null;
+  } catch {
+    return null;
+  }
 }
 
 // react-native-signature-canvas returns a "data:image/png;base64,..." URL;
@@ -34,14 +53,63 @@ export function nowInColombiaIso(): string {
   );
 }
 
-/** Persists a signature captured in the app against its service/order. */
-export async function saveFirma(payload: TbFirmaPayload): Promise<SaveFirmaResult> {
+/** Looks up the real Tcconductores.Id for the logged-in user's document number. */
+async function findConductorIdByDocument(nodoc: string, token: string): Promise<number | null> {
   try {
+    const query = new URLSearchParams({
+      $top: '1',
+      $filter: `Condnumerodoc eq '${escapeODataStringLiteral(nodoc)}'`,
+      $select: 'Id',
+    });
+
+    const response = await fetchWithTimeout(`${env.apiODataUrl}/Tcconductores?${query.toString()}`, {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+    });
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const payload = (await response.json()) as ODataListResponse<TcconductorRecord>;
+    return payload.value[0]?.Id ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** Persists a signature captured in the app against its service/order. */
+export async function saveFirma(payload: TbFirmaPayload, documentoConductor: string): Promise<SaveFirmaResult> {
+  try {
+    const token = await getFreshMobilToken();
+
+    if (!token) {
+      console.warn('[saveFirma] No se pudo obtener token, firma no enviada.');
+      return { ok: false, message: 'No se pudo establecer conexion con el servidor.' };
+    }
+
+    // Re-resolve the conductor tied to this plate/document instead of trusting
+    // whatever Conductor id the caller had cached, in case it's stale/wrong.
+    const resolvedConductorId = await findConductorIdByDocument(documentoConductor, token);
+
+    // TB_FIRMAS.PLACA is only 6 chars wide in the real DB (metadata claims
+    // unbounded Edm.String) - anything longer causes a hard "String or binary
+    // data would be truncated" 400, verified live. Sanitize defensively since
+    // some TusuarioMobil.Placa values carry stray whitespace/length issues.
+    const sanitizedPayload = {
+      ...payload,
+      Placa: (payload.Placa ?? '').trim().slice(0, 6),
+      Conductor: resolvedConductorId ?? payload.Conductor,
+    };
+
     const response = await fetchWithTimeout(`${env.apiODataUrl}/TbFirmas`, {
       method: 'POST',
-      headers: authHeaders(),
-      body: JSON.stringify(payload),
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify(sanitizedPayload),
     });
+
+    const responseText = await response.text();
+    console.log(`[saveFirma] Respuesta ${response.status}:`, responseText);
 
     if (!response.ok) {
       return { ok: false, message: 'No se pudo guardar la firma.' };
@@ -49,6 +117,8 @@ export async function saveFirma(payload: TbFirmaPayload): Promise<SaveFirmaResul
 
     return { ok: true };
   } catch (error) {
+    console.warn('[saveFirma] Error al guardar la firma:', error);
+
     if (error instanceof Error && error.name === 'AbortError') {
       return { ok: false, message: 'Tiempo de espera agotado al guardar la firma.' };
     }
@@ -56,3 +126,4 @@ export async function saveFirma(payload: TbFirmaPayload): Promise<SaveFirmaResul
     return { ok: false, message: 'No se pudo guardar la firma.' };
   }
 }
+
