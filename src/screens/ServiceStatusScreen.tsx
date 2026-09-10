@@ -25,6 +25,28 @@ import { OwnerBottomBar } from '../components/OwnerBottomBar';
 import { useSession } from '../store/session';
 import { spacing } from '../theme';
 
+// ─────────────────────────────────────────────────────────────
+// SCA Soluciones brand palette
+// ─────────────────────────────────────────────────────────────
+const SCA = {
+  navy: '#1B2A4A',
+  navyDeep: '#131E36',
+  blue: '#0FA0F3',
+  blueSoft: '#E6F4FD',
+  sky: '#7FB3D5',
+  white: '#FFFFFF',
+  surface: '#FFFFFF',
+  surfaceSoft: '#F8FAFC',
+  muted: '#8B96AC',
+  border: '#E2E8F0',
+  success: '#10B981',
+  successSoft: '#E7F8F1',
+  warning: '#B07800',
+  warningSoft: '#FFF8DC',
+  neutralSoft: '#EEF1F6',
+  textStrong: '#1B2A4A',
+} as const;
+
 // ── Theme (light/dark) ──────────────────────────────────────────────────────
 type ThemeMode = 'light' | 'dark';
 
@@ -43,31 +65,31 @@ type ScreenPalette = {
 };
 
 const LIGHT_PALETTE: ScreenPalette = {
-  background: '#f8f9fa',
-  surface: '#ffffff',
-  surfaceAlt: '#f3f4f5',
-  border: '#e0e7ef',
-  textStrong: '#121417',
-  textMuted: '#4a5568',
-  accent: '#006493',
-  accentSoft: '#dbeeff',
-  chartBar: '#006493',
-  chartBarToday: '#1a6b43',
-  chartLine: '#ff6424',
+  background: SCA.surfaceSoft,
+  surface: SCA.surface,
+  surfaceAlt: SCA.neutralSoft,
+  border: SCA.border,
+  textStrong: SCA.navy,
+  textMuted: SCA.muted,
+  accent: SCA.blue,
+  accentSoft: SCA.blueSoft,
+  chartBar: SCA.navy,
+  chartBarToday: SCA.blue,
+  chartLine: SCA.sky,
 };
 
 const DARK_PALETTE: ScreenPalette = {
-  background: '#0f1720',
-  surface: '#161f2b',
-  surfaceAlt: '#1c2733',
-  border: '#293544',
-  textStrong: '#f1f5f9',
-  textMuted: '#94a3b8',
-  accent: '#38bdf8',
+  background: SCA.navyDeep,
+  surface: SCA.navy,
+  surfaceAlt: '#243458',
+  border: '#2C3A5A',
+  textStrong: '#F1F5F9',
+  textMuted: '#94A3B8',
+  accent: SCA.sky,
   accentSoft: '#123044',
-  chartBar: '#38bdf8',
-  chartBarToday: '#34d399',
-  chartLine: '#fb923c',
+  chartBar: SCA.sky,
+  chartBarToday: '#34D399',
+  chartLine: '#FB923C',
 };
 
 // ── Mock histogram data per filter ──────────────────────────────────────────
@@ -123,10 +145,34 @@ type StatConfig = {
 };
 
 const STAT_CONFIGS: StatConfig[] = [
-  { key: 'ASIGNADA', label: 'ASIGNADO', icon: Clock3, light: { bg: '#dbeeff', color: '#006493' }, dark: { bg: '#123044', color: '#7dd3fc' } },
-  { key: 'EN_TRANSITO', label: 'EN TRÁNSITO', icon: Navigation, light: { bg: '#fff8dc', color: '#b07800' }, dark: { bg: '#3a2f0d', color: '#fbbf24' } },
-  { key: 'TERMINADO', label: 'TERMINADO', icon: CheckCircle2, light: { bg: '#f4f4f4', color: '#444444' }, dark: { bg: '#232b35', color: '#cbd5e1' } },
-  { key: 'COMPLETADO', label: 'COMPLETADO', icon: PackageCheck, light: { bg: '#d9f5e8', color: '#1a7a4e' }, dark: { bg: '#0f2f22', color: '#34d399' } },
+  {
+    key: 'ASIGNADA',
+    label: 'ASIGNADO',
+    icon: Clock3,
+    light: { bg: SCA.blueSoft, color: SCA.blue },
+    dark: { bg: '#123044', color: '#7DD3FC' },
+  },
+  {
+    key: 'EN_TRANSITO',
+    label: 'EN TRÁNSITO',
+    icon: Navigation,
+    light: { bg: SCA.warningSoft, color: SCA.warning },
+    dark: { bg: '#3A2F0D', color: '#FBBF24' },
+  },
+  {
+    key: 'TERMINADO',
+    label: 'TERMINADO',
+    icon: CheckCircle2,
+    light: { bg: SCA.neutralSoft, color: '#444444' },
+    dark: { bg: '#232B35', color: '#CBD5E1' },
+  },
+  {
+    key: 'COMPLETADO',
+    label: 'COMPLETADO',
+    icon: PackageCheck,
+    light: { bg: SCA.successSoft, color: SCA.success },
+    dark: { bg: '#0F2F22', color: '#34D399' },
+  },
 ];
 
 // ── Card 2 visual presets per service state, themed for light/dark ─────────
@@ -153,22 +199,58 @@ const STATE_VISUALS: Record<StateVisualKey, StateVisual> = {
     title: 'Servicio terminado',
     badgeText: 'TERMINADO',
     icon: Flag,
-    light: { cardBg: '#fff5e6', cardBorder: '#f8d9a8', accent: '#b45309', badgeBg: '#f59e0b', divider: '#f3c988' },
-    dark: { cardBg: '#2a1f0f', cardBorder: '#4d3a17', accent: '#fbbf24', badgeBg: '#d97706', divider: '#4d3a17' },
+    light: {
+      cardBg: '#FFF5E6',
+      cardBorder: '#F8D9A8',
+      accent: '#B45309',
+      badgeBg: '#F59E0B',
+      divider: '#F3C988',
+    },
+    dark: {
+      cardBg: '#2A1F0F',
+      cardBorder: '#4D3A17',
+      accent: '#FBBF24',
+      badgeBg: '#D97706',
+      divider: '#4D3A17',
+    },
   },
   EN_TRANSITO: {
     title: 'Servicio en tránsito',
-    badgeText: 'LIVE',
+    badgeText: 'EN VIVO',
     icon: Truck,
-    light: { cardBg: '#dceeff', cardBorder: '#9fc8ee', accent: '#006493', badgeBg: '#0ea5e9', divider: '#9fc8ee' },
-    dark: { cardBg: '#0d2436', cardBorder: '#1c4a68', accent: '#38bdf8', badgeBg: '#0ea5e9', divider: '#1c4a68' },
+    light: {
+      cardBg: SCA.blueSoft,
+      cardBorder: '#9FC8EE',
+      accent: SCA.blue,
+      badgeBg: SCA.blue,
+      divider: '#9FC8EE',
+    },
+    dark: {
+      cardBg: '#0D2436',
+      cardBorder: '#1C4A68',
+      accent: '#38BDF8',
+      badgeBg: '#0EA5E9',
+      divider: '#1C4A68',
+    },
   },
   ACTIVO: {
     title: 'Servicio activo',
     badgeText: 'ACTIVO',
     icon: Activity,
-    light: { cardBg: '#eef2f5', cardBorder: '#d5dee8', accent: '#1f3b57', badgeBg: '#006493', divider: '#d5dee8' },
-    dark: { cardBg: '#161f2b', cardBorder: '#293544', accent: '#94a3b8', badgeBg: '#334155', divider: '#293544' },
+    light: {
+      cardBg: SCA.neutralSoft,
+      cardBorder: SCA.border,
+      accent: SCA.navy,
+      badgeBg: SCA.navy,
+      divider: SCA.border,
+    },
+    dark: {
+      cardBg: SCA.navy,
+      cardBorder: '#293544',
+      accent: '#94A3B8',
+      badgeBg: '#334155',
+      divider: '#293544',
+    },
   },
 };
 
@@ -225,265 +307,297 @@ export function ServiceStatusScreen() {
       <RoleGate allowedRoles={['CONDUCTOR', 'PROPIETARIO', 'AMBOS']}>
         <ScrollView style={{ backgroundColor: palette.background }} contentContainerStyle={styles.content}>
 
-        {/* ── Header ── */}
-        <Animated.View entering={FadeInDown.duration(400)} style={styles.header}>
-          <View style={styles.headerLeft}>
-            <View style={styles.headerIconBadge}>
-              <LayoutDashboard color={palette.accent} size={22} />
-            </View>
-            <View>
-              <Text style={styles.headerTitle}>Resumen Diario</Text>
-              <Text style={styles.headerSubtitle}>Actividad de servicios en tiempo real</Text>
-            </View>
-          </View>
-          <Pressable
-            accessibilityLabel="Cambiar tema"
-            hitSlop={8}
-            onPress={() => setThemeMode((current) => (current === 'light' ? 'dark' : 'light'))}
-            style={styles.themeToggle}
-          >
-            <ThemeIcon color={palette.accent} size={20} />
-          </Pressable>
-        </Animated.View>
-
-        {/* ── Card 1: Servicios del día ── */}
-        <Animated.View entering={FadeInUp.delay(80).duration(400)} style={styles.card}>
-          <View style={styles.cardTitleRow}>
-            <ListChecks color={palette.accent} size={20} />
-            <View style={styles.cardTitleTextGroup}>
-              <Text style={styles.cardTitle}>Servicios del día</Text>
-              <Text style={styles.cardSubtitle}>Estado de los servicios de hoy</Text>
-            </View>
-          </View>
-
-          <View style={styles.statsGrid}>
-            {STAT_CONFIGS.map(({ key, label, icon: StatIcon, light, dark }) => {
-              const tone = themeMode === 'light' ? light : dark;
-              return (
-                <View key={key} style={[styles.statBox, { backgroundColor: tone.bg }]}>
-                  <StatIcon color={tone.color} size={18} />
-                  <Text style={[styles.statValue, { color: tone.color }]}>
-                    {(statusCounts as Record<string, number>)[key] ?? 0}
-                  </Text>
-                  <Text style={styles.statLabel}>{label}</Text>
-                </View>
-              );
-            })}
-          </View>
-        </Animated.View>
-
-        {/* ── Card 2: Servicio en tránsito / terminado / activo ── */}
-        <Animated.View
-          entering={FadeInUp.delay(160).duration(400)}
-          style={[styles.card, { backgroundColor: stateColors.cardBg, borderColor: stateColors.cardBorder }]}
-        >
-          <View style={styles.transitHeader}>
-            <View style={styles.transitTitleGroup}>
-              <StateIcon color={stateColors.accent} size={20} />
-              <Text style={styles.transitTitle}>{stateVisual.title}</Text>
-            </View>
-            <View style={[styles.badgePill, { backgroundColor: stateColors.badgeBg }]}>
-              <Text style={styles.badgeText}>{stateVisual.badgeText}</Text>
-            </View>
-          </View>
-
-          {displayActiveService ? (
-            <>
-              {/* Vehicle row */}
-              <View style={styles.vehicleRow}>
-                <Building2 color={stateColors.accent} size={22} />
-                <View style={styles.vehicleInfo}>
-                  <Text style={[styles.vehicleLabel, { color: stateColors.accent }]}>CONTRATO</Text>
-                  <Text style={styles.vehicleValue}>{displayActiveService.contrato}</Text>
-                  <Text style={[styles.vehicleLabel, { color: stateColors.accent }]}>EMPRESA</Text>
-                  <Text style={styles.companyValue}>{displayActiveService.companiaNombre}</Text>
-                </View>
+          {/* ── Header ── */}
+          <Animated.View entering={FadeInDown.duration(400)} style={styles.header}>
+            <View style={styles.headerLeft}>
+              <View style={styles.headerIconBadge}>
+                <LayoutDashboard color={palette.accent} size={22} />
               </View>
-
-              <View style={[styles.divider, { backgroundColor: stateColors.divider }]} />
-
-              {/* Origin / destination */}
-              <View style={styles.routeRow}>
-                <View style={styles.routeCol}>
-                  <Text style={[styles.routeLabel, { color: stateColors.accent }]}>ORIGEN</Text>
-                  <Text style={styles.routeValue}>{displayActiveService.origenDireccion}</Text>
-                </View>
-                <View style={styles.routeCol}>
-                  <Text style={[styles.routeLabel, { color: stateColors.accent }]}>DESTINO</Text>
-                  <Text style={styles.routeValue}>{displayActiveService.destinoDireccion}</Text>
-                </View>
+              <View style={styles.headerTextGroup}>
+                <Text style={styles.headerTitle}>Resumen Diario</Text>
+                <Text numberOfLines={1} style={styles.headerSubtitle}>
+                  Servicios en tiempo real
+                </Text>
               </View>
-
-              <View style={[styles.divider, { backgroundColor: stateColors.divider }]} />
-
-              {/* Service number / start time */}
-              <View style={styles.routeRow}>
-                <View style={styles.routeCol}>
-                  <Text style={[styles.routeLabel, { color: stateColors.accent }]}>SERVICIO</Text>
-                  <Text style={styles.routeValue}>#{displayActiveService.numeroServicio}</Text>
-                </View>
-                <View style={styles.routeCol}>
-                  <Text style={[styles.routeLabel, { color: stateColors.accent }]}>HORA DE INICIO</Text>
-                  <Text style={styles.routeValue}>{displayActiveService.HoraRecogida}</Text>
-                </View>
-              </View>
-            </>
-          ) : (
-            <Text style={styles.emptyText}>No hay servicio en tránsito en este momento.</Text>
-          )}
-        </Animated.View>
-
-        {/* ── Card 3: Histórico de servicios ── */}
-        <Animated.View entering={FadeInUp.delay(240).duration(400)} style={styles.card}>
-          <View style={styles.cardTitleRow}>
-            <BarChart3 color={palette.accent} size={20} />
-            <Text style={styles.cardTitle}>Histórico de servicios</Text>
-          </View>
-
-          {/* ── Filter toggle ── */}
-          <View style={styles.filterRow}>
-            <Text style={styles.filterLabel}>FILTRAR:</Text>
-            <View style={styles.filterGroup}>
-              {FILTER_OPTS.map(({ key, label }) => (
-                <Pressable
-                  key={key}
-                  onPress={() => {
-                    setFilter(key);
-                    setSelectedBarIndex(null);
-                    setSelectedDate(null);
-                  }}
-                  style={[styles.filterBtn, filter === key && styles.filterBtnActive]}
-                >
-                  <Text style={[styles.filterBtnText, filter === key && styles.filterBtnTextActive]}>
-                    {label}
-                  </Text>
-                </Pressable>
-              ))}
             </View>
-          </View>
-
-          {/* ── Chart (victory-native + skia) ── */}
-          <View style={[styles.chartContainer, { width: chartW, height: BAR_AREA_H }]}>
-            <CartesianChart
-              data={chartData}
-              domain={{ y: [0, maxCount] }}
-              domainPadding={{ left: slotW / 2, right: slotW / 2 }}
-              xKey="day"
-              yKeys={['count']}
+            <Pressable
+              accessibilityLabel="Cambiar tema"
+              hitSlop={8}
+              onPress={() => setThemeMode((current) => (current === 'light' ? 'dark' : 'light'))}
+              style={styles.themeToggle}
             >
-              {({ points, chartBounds }) => (
-                <>
-                  <Bar
-                    animate={{ type: 'timing', duration: 350 }}
-                    barCount={chartData.length}
-                    chartBounds={chartBounds}
-                    color={palette.chartBar}
-                    innerPadding={0.4}
-                    points={points.count}
-                    roundedCorners={{ topLeft: 6, topRight: 6 }}
-                  />
-                  {highlightIdx >= 0 ? (
-                    <Bar
-                      barCount={chartData.length}
-                      chartBounds={chartBounds}
-                      color={palette.chartBarToday}
-                      innerPadding={0.4}
-                      points={[points.count[highlightIdx]]}
-                      roundedCorners={{ topLeft: 6, topRight: 6 }}
-                    />
-                  ) : null}
-                  {selectedBarIndex !== null ? (
-                    <Bar
-                      barCount={chartData.length}
-                      chartBounds={chartBounds}
-                      color={palette.chartLine}
-                      innerPadding={0.4}
-                      points={[points.count[selectedBarIndex]]}
-                      roundedCorners={{ topLeft: 6, topRight: 6 }}
-                    />
-                  ) : null}
-                  <Line
-                    animate={{ type: 'timing', duration: 350 }}
-                    color={palette.chartLine}
-                    curveType="natural"
-                    points={points.count}
-                    strokeWidth={2}
-                  />
-                  {points.count.map((point, i) =>
-                    typeof point.y === 'number' ? (
-                      <Circle key={`dot-${i}`} color={palette.chartLine} cx={point.x} cy={point.y} r={3.5} />
-                    ) : null,
-                  )}
-                </>
-              )}
-            </CartesianChart>
+              <ThemeIcon color={palette.accent} size={20} />
+            </Pressable>
+          </Animated.View>
 
-            {/* Count labels above each bar */}
-            {chartData.map((item, i) => (
-              <Text
-                key={`cnt-${i}`}
-                style={[
-                  styles.barCountLabel,
-                  {
-                    bottom: barHeight(item.count) + 4,
-                    left: barCenterX(i) - slotW / 2,
-                    width: slotW,
-                    color: i === highlightIdx ? palette.chartBarToday : palette.chartBar,
-                    fontSize: filter === '30' ? 7 : 10,
-                  },
-                ]}
-              >
-                {item.count}
-              </Text>
-            ))}
-
-            {/* Transparent touch overlay, preserves tap-to-select behaviour */}
-            <View pointerEvents="box-none" style={StyleSheet.absoluteFill}>
-              {chartData.map((item, i) => (
-                <Pressable
-                  key={`hit-${i}`}
-                  onPress={() => {
-                    setSelectedBarIndex(i);
-                    setSelectedDate(getDateForBar(i));
-                  }}
-                  style={{ position: 'absolute', left: i * slotW, top: 0, width: slotW, height: '100%' }}
-                />
-              ))}
+          {/* ── Card 1: Servicios del día ── */}
+          <Animated.View entering={FadeInUp.delay(80).duration(400)} style={styles.card}>
+            <View style={styles.cardTitleRow}>
+              <ListChecks color={palette.accent} size={20} />
+              <View style={styles.cardTitleTextGroup}>
+                <Text style={styles.cardTitle}>Servicios del día</Text>
+                <Text style={styles.cardSubtitle}>Estado de los servicios de hoy</Text>
+              </View>
             </View>
-          </View>
 
-          {/* ── Day labels row ── */}
-          <View style={styles.dayLabelsRow}>
-            {chartData.map((item, i) => {
-              const isToday = i === highlightIdx;
-              const isSelected = i === selectedBarIndex;
-              // For 30-day view, only show label every 5th bar
-              const showLabel = filter === '30' ? i % 5 === 0 : true;
-              return (
-                <View key={`dl-${i}`} style={styles.dayLabelCell}>
-                  <Text
-                    style={[
-                      styles.dayLabelText,
-                      {
-                        color: isSelected ? palette.chartLine : isToday ? palette.chartBarToday : palette.textMuted,
-                        fontWeight: isToday || isSelected ? '800' : '600',
-                        fontSize: filter === '30' ? 8 : filter === '15' ? 9 : 10,
-                        opacity: showLabel ? 1 : 0,
-                      },
-                    ]}
-                  >
-                    {item.day}
-                  </Text>
+            <View style={styles.statsGrid}>
+              {STAT_CONFIGS.map(({ key, label, icon: StatIcon, light, dark }) => {
+                const tone = themeMode === 'light' ? light : dark;
+                return (
+                  <View key={key} style={[styles.statBox, { backgroundColor: tone.bg }]}>
+                    <StatIcon color={tone.color} size={18} />
+                    <Text style={[styles.statValue, { color: tone.color }]}>
+                      {(statusCounts as Record<string, number>)[key] ?? 0}
+                    </Text>
+                    <Text style={[styles.statLabel, { color: tone.color }]}>{label}</Text>
+                  </View>
+                );
+              })}
+            </View>
+          </Animated.View>
+
+          {/* ── Card 2: Servicio activo / en tránsito / terminado ── */}
+          <Animated.View
+            entering={FadeInUp.delay(160).duration(400)}
+            style={[styles.card, { backgroundColor: stateColors.cardBg, borderColor: stateColors.cardBorder }]}
+          >
+            <View style={styles.transitHeader}>
+              <View style={styles.transitTitleGroup}>
+                <StateIcon color={stateColors.accent} size={20} />
+                <Text style={[styles.transitTitle, { color: stateColors.accent }]}>
+                  {stateVisual.title}
+                </Text>
+              </View>
+              <View style={[styles.badgePill, { backgroundColor: stateColors.badgeBg }]}>
+                <Text style={styles.badgeText}>{stateVisual.badgeText}</Text>
+              </View>
+            </View>
+
+            {displayActiveService ? (
+              <>
+                {/* Vehicle row */}
+                <View style={styles.vehicleRow}>
+                  <Building2 color={stateColors.accent} size={22} />
+                  <View style={styles.vehicleInfo}>
+                    <Text style={[styles.vehicleLabel, { color: stateColors.accent }]}>
+                      CONTRATO
+                    </Text>
+                    <Text style={[styles.vehicleValue, { color: palette.textStrong }]}>
+                      {displayActiveService.contrato}
+                    </Text>
+                    <Text style={[styles.vehicleLabel, { color: stateColors.accent }]}>
+                      EMPRESA
+                    </Text>
+                    <Text style={styles.companyValue}>
+                      {displayActiveService.companiaNombre}
+                    </Text>
+                  </View>
                 </View>
-              );
-            })}
-          </View>
 
-          <Text style={styles.chartHint}>Toca una barra para ver el día del mes.</Text>
-          {selectedDate !== null ? (
-            <Text style={styles.selectedDayText}>Fecha: {selectedDate}</Text>
-          ) : null}
-        </Animated.View>
+                <View style={[styles.divider, { backgroundColor: stateColors.divider }]} />
+
+                {/* Origin / destination */}
+                <View style={styles.routeRow}>
+                  <View style={styles.routeCol}>
+                    <Text style={[styles.routeLabel, { color: stateColors.accent }]}>
+                      ORIGEN
+                    </Text>
+                    <Text style={[styles.routeValue, { color: palette.textStrong }]}>
+                      {displayActiveService.origenDireccion}
+                    </Text>
+                  </View>
+                  <View style={styles.routeCol}>
+                    <Text style={[styles.routeLabel, { color: stateColors.accent }]}>
+                      DESTINO
+                    </Text>
+                    <Text style={[styles.routeValue, { color: palette.textStrong }]}>
+                      {displayActiveService.destinoDireccion}
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={[styles.divider, { backgroundColor: stateColors.divider }]} />
+
+                {/* Service number / start time */}
+                <View style={styles.routeRow}>
+                  <View style={styles.routeCol}>
+                    <Text style={[styles.routeLabel, { color: stateColors.accent }]}>
+                      SERVICIO
+                    </Text>
+                    <Text style={[styles.routeValue, { color: palette.textStrong }]}>
+                      #{displayActiveService.numeroServicio}
+                    </Text>
+                  </View>
+                  <View style={styles.routeCol}>
+                    <Text style={[styles.routeLabel, { color: stateColors.accent }]}>
+                      HORA DE INICIO
+                    </Text>
+                    <Text style={[styles.routeValue, { color: palette.textStrong }]}>
+                      {displayActiveService.HoraRecogida}
+                    </Text>
+                  </View>
+                </View>
+              </>
+            ) : (
+              <Text style={styles.emptyText}>No hay servicio en tránsito en este momento</Text>
+            )}
+          </Animated.View>
+
+          {/* ── Card 3: Histórico de servicios ── */}
+          <Animated.View entering={FadeInUp.delay(240).duration(400)} style={styles.card}>
+            <View style={styles.cardTitleRow}>
+              <BarChart3 color={palette.accent} size={20} />
+              <Text style={styles.cardTitle}>Histórico de servicios</Text>
+            </View>
+
+            {/* ── Filter toggle ── */}
+            <View style={styles.filterRow}>
+              <Text style={styles.filterLabel}>FILTRAR:</Text>
+              <View style={styles.filterGroup}>
+                {FILTER_OPTS.map(({ key, label }) => (
+                  <Pressable
+                    key={key}
+                    onPress={() => {
+                      setFilter(key);
+                      setSelectedBarIndex(null);
+                      setSelectedDate(null);
+                    }}
+                    style={[styles.filterBtn, filter === key && styles.filterBtnActive]}
+                  >
+                    <Text style={[styles.filterBtnText, filter === key && styles.filterBtnTextActive]}>
+                      {label}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+
+            {/* ── Chart (victory-native + skia) ── */}
+            <View style={[styles.chartContainer, { width: chartW, height: BAR_AREA_H }]}>
+              <CartesianChart
+                data={chartData}
+                domain={{ y: [0, maxCount] }}
+                domainPadding={{ left: slotW / 2, right: slotW / 2 }}
+                xKey="day"
+                yKeys={['count']}
+              >
+                {({ points, chartBounds }) => (
+                  <>
+                    <Bar
+                      animate={{ type: 'timing', duration: 350 }}
+                      barCount={chartData.length}
+                      chartBounds={chartBounds}
+                      color={palette.chartBar}
+                      innerPadding={0.4}
+                      points={points.count}
+                      roundedCorners={{ topLeft: 6, topRight: 6 }}
+                    />
+                    {highlightIdx >= 0 ? (
+                      <Bar
+                        barCount={chartData.length}
+                        chartBounds={chartBounds}
+                        color={palette.chartBarToday}
+                        innerPadding={0.4}
+                        points={[points.count[highlightIdx]]}
+                        roundedCorners={{ topLeft: 6, topRight: 6 }}
+                      />
+                    ) : null}
+                    {selectedBarIndex !== null ? (
+                      <Bar
+                        barCount={chartData.length}
+                        chartBounds={chartBounds}
+                        color={palette.chartLine}
+                        innerPadding={0.4}
+                        points={[points.count[selectedBarIndex]]}
+                        roundedCorners={{ topLeft: 6, topRight: 6 }}
+                      />
+                    ) : null}
+                    <Line
+                      animate={{ type: 'timing', duration: 350 }}
+                      color={palette.chartLine}
+                      curveType="natural"
+                      points={points.count}
+                      strokeWidth={2}
+                    />
+                    {points.count.map((point, i) =>
+                      typeof point.y === 'number' ? (
+                        <Circle key={`dot-${i}`} color={palette.chartLine} cx={point.x} cy={point.y} r={3.5} />
+                      ) : null,
+                    )}
+                  </>
+                )}
+              </CartesianChart>
+
+              {/* Count labels above each bar */}
+              {chartData.map((item, i) => (
+                <Text
+                  key={`cnt-${i}`}
+                  style={[
+                    styles.barCountLabel,
+                    {
+                      bottom: barHeight(item.count) + 4,
+                      left: barCenterX(i) - slotW / 2,
+                      width: slotW,
+                      color: i === highlightIdx ? palette.chartBarToday : palette.chartBar,
+                      fontSize: filter === '30' ? 7 : 10,
+                    },
+                  ]}
+                >
+                  {item.count}
+                </Text>
+              ))}
+
+              {/* Transparent touch overlay, preserves tap-to-select behaviour */}
+              <View pointerEvents="box-none" style={StyleSheet.absoluteFill}>
+                {chartData.map((item, i) => (
+                  <Pressable
+                    key={`hit-${i}`}
+                    onPress={() => {
+                      setSelectedBarIndex(i);
+                      setSelectedDate(getDateForBar(i));
+                    }}
+                    style={{ position: 'absolute', left: i * slotW, top: 0, width: slotW, height: '100%' }}
+                  />
+                ))}
+              </View>
+            </View>
+
+            {/* ── Day labels row ── */}
+            <View style={styles.dayLabelsRow}>
+              {chartData.map((item, i) => {
+                const isToday = i === highlightIdx;
+                const isSelected = i === selectedBarIndex;
+                // For 30-day view, only show label every 5th bar
+                const showLabel = filter === '30' ? i % 5 === 0 : true;
+                return (
+                  <View key={`dl-${i}`} style={styles.dayLabelCell}>
+                    <Text
+                      style={[
+                        styles.dayLabelText,
+                        {
+                          color: isSelected
+                            ? palette.chartLine
+                            : isToday
+                              ? palette.chartBarToday
+                              : palette.textMuted,
+                          fontWeight: isToday || isSelected ? '800' : '600',
+                          fontSize: filter === '30' ? 8 : filter === '15' ? 9 : 10,
+                          opacity: showLabel ? 1 : 0,
+                        },
+                      ]}
+                    >
+                      {item.day}
+                    </Text>
+                  </View>
+                );
+              })}
+            </View>
+
+            <Text style={styles.chartHint}>Toca una barra para ver el detalle del día</Text>
+            {selectedDate !== null ? (
+              <Text style={styles.selectedDayText}>Fecha: {selectedDate}</Text>
+            ) : null}
+          </Animated.View>
 
         </ScrollView>
 
@@ -498,7 +612,7 @@ function createStyles(palette: ScreenPalette) {
     content: {
       gap: spacing.lg,
       padding: spacing.lg,
-      paddingBottom: spacing.xl,
+      paddingBottom: spacing.xl + 60,
     },
 
     /* ── Header ── */
@@ -513,6 +627,10 @@ function createStyles(palette: ScreenPalette) {
       flexShrink: 1,
       gap: spacing.sm,
     },
+    headerTextGroup: {
+      flexShrink: 1,
+      gap: 2,
+    },
     headerIconBadge: {
       alignItems: 'center',
       backgroundColor: palette.accentSoft,
@@ -525,10 +643,12 @@ function createStyles(palette: ScreenPalette) {
       color: palette.textStrong,
       fontSize: 22,
       fontWeight: '800',
+      letterSpacing: -0.3,
     },
     headerSubtitle: {
       color: palette.textMuted,
       fontSize: 13,
+      fontWeight: '500',
       marginTop: 2,
     },
     themeToggle: {
@@ -536,7 +656,7 @@ function createStyles(palette: ScreenPalette) {
       backgroundColor: palette.surfaceAlt,
       borderColor: palette.border,
       borderRadius: 999,
-      borderWidth: 1,
+      borderWidth: StyleSheet.hairlineWidth,
       height: 40,
       justifyContent: 'center',
       width: 40,
@@ -546,10 +666,14 @@ function createStyles(palette: ScreenPalette) {
     card: {
       backgroundColor: palette.surface,
       borderColor: palette.border,
-      borderRadius: 18,
-      borderWidth: 1,
+      borderRadius: 20,
+      borderWidth: StyleSheet.hairlineWidth,
       gap: spacing.md,
       padding: spacing.lg,
+      shadowColor: SCA.navy,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.04,
+      shadowRadius: 8,
     },
     cardTitleRow: {
       alignItems: 'center',
@@ -564,6 +688,7 @@ function createStyles(palette: ScreenPalette) {
       color: palette.textStrong,
       fontSize: 20,
       fontWeight: '700',
+      letterSpacing: -0.2,
     },
     cardSubtitle: {
       color: palette.textMuted,
@@ -580,18 +705,19 @@ function createStyles(palette: ScreenPalette) {
     },
     statBox: {
       alignItems: 'center',
-      borderRadius: 14,
+      borderRadius: 16,
       flex: 1,
       gap: 4,
       minWidth: '44%',
-      paddingVertical: 14,
+      paddingVertical: 16,
     },
     statValue: {
       fontSize: 32,
+      fontVariant: ['tabular-nums'],
       fontWeight: '800',
+      letterSpacing: -0.5,
     },
     statLabel: {
-      color: palette.textMuted,
       fontSize: 11,
       fontWeight: '700',
       letterSpacing: 0.5,
@@ -603,17 +729,18 @@ function createStyles(palette: ScreenPalette) {
       alignItems: 'center',
       flexDirection: 'row',
       gap: 10,
-      justifyContent: 'center',
+      justifyContent: 'space-between',
     },
     transitTitleGroup: {
       alignItems: 'center',
       flexDirection: 'row',
+      flexShrink: 1,
       gap: 8,
     },
     transitTitle: {
-      color: palette.textStrong,
-      fontSize: 20,
+      fontSize: 18,
       fontWeight: '800',
+      letterSpacing: -0.2,
     },
     badgePill: {
       borderRadius: 20,
@@ -621,7 +748,7 @@ function createStyles(palette: ScreenPalette) {
       paddingVertical: 3,
     },
     badgeText: {
-      color: '#ffffff',
+      color: '#FFFFFF',
       fontSize: 11,
       fontWeight: '800',
       letterSpacing: 1,
@@ -632,6 +759,7 @@ function createStyles(palette: ScreenPalette) {
       gap: 10,
     },
     vehicleInfo: {
+      flex: 1,
       gap: 1,
     },
     vehicleLabel: {
@@ -641,7 +769,6 @@ function createStyles(palette: ScreenPalette) {
       textTransform: 'uppercase',
     },
     vehicleValue: {
-      color: palette.textStrong,
       fontSize: 17,
       fontWeight: '800',
     },
@@ -651,7 +778,7 @@ function createStyles(palette: ScreenPalette) {
       fontWeight: '600',
     },
     divider: {
-      height: 1,
+      height: StyleSheet.hairlineWidth,
     },
     routeRow: {
       flexDirection: 'row',
@@ -668,7 +795,6 @@ function createStyles(palette: ScreenPalette) {
       textTransform: 'uppercase',
     },
     routeValue: {
-      color: palette.textStrong,
       fontSize: 14,
       lineHeight: 20,
     },
@@ -698,7 +824,7 @@ function createStyles(palette: ScreenPalette) {
     filterBtn: {
       borderColor: palette.border,
       borderRadius: 20,
-      borderWidth: 1,
+      borderWidth: StyleSheet.hairlineWidth,
       paddingHorizontal: 12,
       paddingVertical: 5,
     },
@@ -712,7 +838,7 @@ function createStyles(palette: ScreenPalette) {
       fontWeight: '600',
     },
     filterBtnTextActive: {
-      color: '#ffffff',
+      color: '#FFFFFF',
       fontWeight: '700',
     },
 
