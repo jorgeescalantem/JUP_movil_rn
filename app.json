@@ -7,7 +7,8 @@
     "icon": "./assets/iconjup.png",
     "userInterfaceStyle": "light",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.jaem.JUPmovilrn"
     },
     "android": {
       "adaptiveIcon": {

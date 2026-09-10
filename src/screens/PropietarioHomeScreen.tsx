@@ -2,44 +2,209 @@ import { useMemo } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { DrawerScreenProps } from '@react-navigation/drawer';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Bus, TrendingUp, Wallet, type LucideIcon } from 'lucide-react-native';
+import {
+  ArrowRight,
+  Bus,
+  Car,
+  MapPin,
+  Navigation,
+  TrendingUp,
+  Wallet,
+  type LucideIcon,
+} from 'lucide-react-native';
 
 import { OwnerBottomBar } from '../components/OwnerBottomBar';
 import { RoleGate } from '../components/RoleGate';
 import { DrawerParamList } from '../navigation/AppDrawer';
 import { useSession } from '../store/session';
-import { colors, spacing } from '../theme';
+import { spacing } from '../theme';
 
 type Props = DrawerScreenProps<DrawerParamList, 'PropietarioHome'>;
 
-// Brand gradient reused across the app (submit buttons, app icon).
-const BRAND_GRADIENT = ['#2fdeb0', '#1bbbe8', '#0fa0f3'] as const;
+// ─────────────────────────────────────────────────────────────
+// SCA Soluciones brand palette
+// ─────────────────────────────────────────────────────────────
+const SCA = {
+  navy: '#1B2A4A',
+  navyDeep: '#131E36',
+  blue: '#0FA0F3',
+  blueSoft: '#E6F4FD',
+  sky: '#7FB3D5',
+  white: '#FFFFFF',
+  surface: '#FFFFFF',
+  surfaceSoft: '#F8FAFC',
+  muted: '#8B96AC',
+  border: '#E2E8F0',
+  success: '#10B981',
+  successSoft: '#E7F8F1',
+  neutralSoft: '#EEF1F6',
+} as const;
 
-function GradientIcon({ icon: Icon, size = 20 }: { icon: LucideIcon; size?: number }) {
-  const badgeSize = size + 20;
-  return (
-    <LinearGradient
-      colors={BRAND_GRADIENT}
-      end={{ x: 1, y: 1 }}
-      start={{ x: 0, y: 0 }}
-      style={[styles.iconBadge, { width: badgeSize, height: badgeSize, borderRadius: badgeSize / 2 }]}
-    >
-      <Icon color="#ffffff" size={size} />
-    </LinearGradient>
-  );
-}
+// Altura reservada para que la barra flotante no tape el último item.
+const BOTTOM_BAR_OFFSET = 120;
 
 function toInputDate(isoValue: string) {
   return new Date(isoValue).toISOString().slice(0, 10);
 }
 
 function currency(value: number) {
-  return `$ ${value.toLocaleString('es-CO')}`;
+  return `$${value.toLocaleString('es-CO', { maximumFractionDigits: 0 })}`;
 }
 
 function formatDateTime(value: string) {
   const date = new Date(value);
-  return `${date.toLocaleDateString('es-CO')} · ${date.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}`;
+  return `${date.toLocaleDateString('es-CO')} · ${date.toLocaleTimeString('es-CO', {
+    hour: '2-digit',
+    minute: '2-digit',
+  })}`;
+}
+
+// ─────────────────────────────────────────────────────────────
+// Avatar con iniciales sobre gradiente SCA
+// ─────────────────────────────────────────────────────────────
+function Avatar({ name }: { name: string }) {
+  const initials = name
+    .split(' ')
+    .filter(Boolean)
+    .map((w) => w[0])
+    .slice(0, 2)
+    .join('')
+    .toUpperCase();
+
+  return (
+    <LinearGradient
+      colors={[SCA.sky, SCA.blue]}
+      end={{ x: 1, y: 1 }}
+      start={{ x: 0, y: 0 }}
+      style={styles.avatar}
+    >
+      <Text style={styles.avatarText}>{initials || '·'}</Text>
+    </LinearGradient>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// KPI Card
+// ─────────────────────────────────────────────────────────────
+type KpiVariant = 'services' | 'amount' | 'copays';
+
+const KPI_STYLE: Record<
+  KpiVariant,
+  { Icon: LucideIcon; color: string; bg: string }
+> = {
+  services: { Icon: Bus,        color: SCA.blue,    bg: SCA.blueSoft },
+  amount:   { Icon: TrendingUp, color: SCA.success, bg: SCA.successSoft },
+  copays:   { Icon: Wallet,     color: SCA.navy,    bg: SCA.neutralSoft },
+};
+
+function KpiCard({
+  variant,
+  value,
+  label,
+}: {
+  variant: KpiVariant;
+  value: string;
+  label: string;
+}) {
+  const { Icon, color, bg } = KPI_STYLE[variant];
+  return (
+    <View style={styles.kpiCard}>
+      <View style={[styles.kpiIconWrap, { backgroundColor: bg }]}>
+        <Icon color={color} size={18} strokeWidth={2.5} />
+      </View>
+      <Text style={styles.kpiValue} numberOfLines={1} adjustsFontSizeToFit>
+        {value}
+      </Text>
+      <Text style={styles.kpiLabel} numberOfLines={2}>
+        {label}
+      </Text>
+    </View>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// Service Card
+// ─────────────────────────────────────────────────────────────
+type ServiceCardProps = {
+  fechaServicio: string;
+  placa: string;
+  origenDireccion: string;
+  destinoDireccion: string;
+  valor: number;
+  copago: number;
+};
+
+function ServiceCard({
+  fechaServicio,
+  placa,
+  origenDireccion,
+  destinoDireccion,
+  valor,
+  copago,
+}: ServiceCardProps) {
+  return (
+    <View style={styles.serviceCard}>
+      {/* Header: fecha + placa */}
+      <View style={styles.serviceHeader}>
+        <View style={styles.serviceDateRow}>
+          <View style={styles.serviceBullet} />
+          <Text style={styles.serviceDateText} numberOfLines={1}>
+            {formatDateTime(fechaServicio)}
+          </Text>
+        </View>
+        <View style={styles.plateChip}>
+          <Text style={styles.plateText} numberOfLines={1}>
+            {placa}
+          </Text>
+        </View>
+      </View>
+
+      {/* Ruta: origen → destino */}
+      <View style={styles.routeBlock}>
+        <View style={styles.routeItem}>
+          <View style={[styles.routeIconWrap, styles.routeIconOrigin]}>
+            <MapPin color={SCA.blue} size={14} strokeWidth={2.5} />
+          </View>
+          <View style={styles.routeTextWrap}>
+            <Text style={styles.routeLabel}>Origen</Text>
+            <Text style={styles.routeValue} numberOfLines={3}>
+              {origenDireccion}
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.routeConnector}>
+          <View style={styles.routeConnectorLine} />
+          <ArrowRight color={SCA.muted} size={12} strokeWidth={2.5} />
+        </View>
+
+        <View style={styles.routeItem}>
+          <View style={[styles.routeIconWrap, styles.routeIconDest]}>
+            <Navigation color={SCA.navy} size={14} strokeWidth={2.5} />
+          </View>
+          <View style={styles.routeTextWrap}>
+            <Text style={styles.routeLabel}>Destino</Text>
+            <Text style={styles.routeValue} numberOfLines={3}>
+              {destinoDireccion}
+            </Text>
+          </View>
+        </View>
+      </View>
+
+      {/* Footer: valor + copago */}
+      <View style={styles.serviceFooter}>
+        <View style={styles.footerItem}>
+          <Text style={styles.footerLabel}>Valor</Text>
+          <Text style={styles.footerValue}>{currency(valor)}</Text>
+        </View>
+        <View style={styles.footerDivider} />
+        <View style={styles.footerItem}>
+          <Text style={styles.footerLabel}>Copago</Text>
+          <Text style={styles.footerValue}>{currency(copago)}</Text>
+        </View>
+      </View>
+    </View>
+  );
 }
 
 export function PropietarioHomeScreen({}: Props) {
@@ -55,12 +220,16 @@ export function PropietarioHomeScreen({}: Props) {
 
   // Real assigned services for whichever owned vehicle is currently selected (Locatario-based).
   const placa = selectedVehiculo?.placa ?? mobilUser?.Placa ?? '-';
+  const userName = mobilUser?.Nombre ?? username ?? 'Sin nombre';
 
   const todayServices = useMemo(() => {
     const today = toInputDate(new Date().toISOString());
     return ownerServices
       .filter((service) => toInputDate(service.fechaServicio) === today)
-      .sort((a, b) => new Date(a.fechaServicio).getTime() - new Date(b.fechaServicio).getTime());
+      .sort(
+        (a, b) =>
+          new Date(a.fechaServicio).getTime() - new Date(b.fechaServicio).getTime(),
+      );
   }, [ownerServices]);
 
   const totals = todayServices.reduce(
@@ -77,65 +246,76 @@ export function PropietarioHomeScreen({}: Props) {
       <RoleGate allowedRoles={['PROPIETARIO', 'AMBOS']}>
         <ScrollView
           contentContainerStyle={styles.content}
-          refreshControl={<RefreshControl onRefresh={reloadOwnerServices} refreshing={isLoadingOwnerServices} />}
+          refreshControl={
+            <RefreshControl
+              colors={[SCA.blue]}
+              onRefresh={reloadOwnerServices}
+              refreshing={isLoadingOwnerServices}
+              tintColor={SCA.blue}
+            />
+          }
         >
-          <View style={styles.greeting}>
-            <Text style={styles.eyebrow}> {mobilUser?.Nombre ?? username ?? 'Sin nombre'}</Text>
-            <Text style={styles.title}>Programación Diaria</Text>
-            <Text style={styles.subtitle}>Vehículo {placa}.</Text>
-          </View>
-
-        <View style={styles.metricsRow}>
-          <View style={styles.metricCard}>
-            <GradientIcon icon={Bus} size={18} />
-            <Text style={styles.metricValue}>{totals.count}</Text>
-            <Text numberOfLines={2} style={styles.metricLabel}>Servicios de hoy</Text>
-          </View>
-          <View style={styles.metricCard}>
-            <GradientIcon icon={TrendingUp} size={18} />
-            <Text style={styles.metricValue}>{currency(totals.totalValue)}</Text>
-            <Text numberOfLines={2} style={styles.metricLabel}>Valor acumulado</Text>
-          </View>
-          <View style={styles.metricCard}>
-            <GradientIcon icon={Wallet} size={18} />
-            <Text style={styles.metricValue}>{currency(totals.totalCopago)}</Text>
-            <Text numberOfLines={2} style={styles.metricLabel}>Valor Copagos</Text>
-          </View>
-        </View>
-
-        {todayServices.length === 0 ? (
-          <View style={styles.emptyCard}>
-            <Text style={styles.emptyText}>
-              {ownerServicesLoadError ?? 'No hay servicios programados para hoy.'}
-            </Text>
-          </View>
-        ) : (
-          todayServices.map((service) => (
-            <View key={`${service.orden}-${service.numeroServicio}`} style={styles.serviceCard}>
-              <View style={styles.serviceCardHeader}>
-                <View style={styles.bulletRow}>
-                  <View style={styles.bulletDot} />
-                  <Text style={styles.serviceDate}>{formatDateTime(service.fechaServicio)}</Text>
-                </View>
-                <Text style={styles.servicePlate}>{placa}</Text>
-              </View>
-
-              <Text style={styles.routeLabel}>Origen</Text>
-              <Text style={styles.routeValue}>{service.origenDireccion}</Text>
-              <Text style={styles.routeLabel}>Destino</Text>
-              <Text style={styles.routeValue}>{service.destinoDireccion}</Text>
-
-              <View style={styles.serviceCardFooter}>
-                <Text style={styles.footerText}>
-                  Valor: <Text style={styles.footerValue}>{currency(service.valor)}</Text>
+          {/* ─── Header ─────────────────────────────────────── */}
+          <View style={styles.header}>
+            <View style={styles.headerTop}>
+              <Avatar name={userName} />
+              <View style={styles.headerIdentity}>
+                <Text numberOfLines={1} style={styles.userName}>
+                  {userName}
                 </Text>
-                <Text style={styles.footerText}>
-                  Copago: <Text style={styles.footerValue}>{currency(service.copago)}</Text>
+                <Text numberOfLines={1} style={styles.userMeta}>
+                  Próximos servicios programados
                 </Text>
               </View>
             </View>
-          ))
-        )}
+
+            <View style={styles.vehicleChip}>
+              <Car color={SCA.blue} size={14} strokeWidth={2.5} />
+              <Text numberOfLines={1} style={styles.vehicleChipText}>
+                Vehículo {placa}
+              </Text>
+            </View>
+          </View>
+
+          {/* ─── KPIs ───────────────────────────────────────── */}
+          <View style={styles.metricsRow}>
+            <KpiCard
+              label="Total de servicios"
+              value={String(totals.count)}
+              variant="services"
+            />
+            <KpiCard
+              label="Valor acumulado"
+              value={currency(totals.totalValue)}
+              variant="amount"
+            />
+            <KpiCard
+              label="Valor copagos"
+              value={currency(totals.totalCopago)}
+              variant="copays"
+            />
+          </View>
+
+          {/* ─── Lista de servicios ─────────────────────────── */}
+          {todayServices.length === 0 ? (
+            <View style={styles.emptyCard}>
+              <Text style={styles.emptyText}>
+                {ownerServicesLoadError ?? 'No hay servicios programados aún.'}
+              </Text>
+            </View>
+          ) : (
+            todayServices.map((service) => (
+              <ServiceCard
+                key={`${service.orden}-${service.numeroServicio}`}
+                copago={service.copago}
+                destinoDireccion={service.destinoDireccion}
+                fechaServicio={service.fechaServicio}
+                origenDireccion={service.origenDireccion}
+                placa={placa}
+                valor={service.valor}
+              />
+            ))
+          )}
         </ScrollView>
 
         <OwnerBottomBar />
@@ -146,137 +326,261 @@ export function PropietarioHomeScreen({}: Props) {
 
 const styles = StyleSheet.create({
   screen: {
-    backgroundColor: colors.background,
+    backgroundColor: SCA.surfaceSoft,
     flex: 1,
   },
   content: {
     gap: spacing.md,
-    padding: spacing.lg,
+    paddingBottom: BOTTOM_BAR_OFFSET,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg,
   },
-  greeting: {
-    gap: 2,
-    marginTop: 4,
+
+  // ─── Header ────────────────────────────────────────────────
+  header: {
+    gap: spacing.md,
   },
-  eyebrow: {
-    color: colors.muted,
-    fontSize: 13,
+  headerTop: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: spacing.md,
+  },
+  avatar: {
+    alignItems: 'center',
+    borderRadius: 24,
+    height: 48,
+    justifyContent: 'center',
+    width: 48,
+  },
+  avatarText: {
+    color: SCA.white,
+    fontSize: 16,
     fontWeight: '700',
-    letterSpacing: 1,
-    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
-  title: {
-    color: colors.textStrong,
+  headerIdentity: {
+    flex: 1,
+    gap: 2,
+  },
+  userName: {
+    color: SCA.navy,
     fontSize: 18,
     fontWeight: '700',
+    letterSpacing: 0.2,
   },
-  subtitle: {
-    color: colors.muted,
+  userMeta: {
+    color: SCA.muted,
     fontSize: 13,
+    fontWeight: '500',
   },
+  vehicleChip: {
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: SCA.blueSoft,
+    borderRadius: 999,
+    flexDirection: 'row',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  vehicleChipText: {
+    color: SCA.blue,
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+  },
+
+  // ─── KPIs ──────────────────────────────────────────────────
   metricsRow: {
     flexDirection: 'row',
     gap: spacing.sm,
   },
-  metricCard: {
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderRadius: 16,
-    borderWidth: 1,
+  kpiCard: {
+    alignItems: 'flex-start',
+    backgroundColor: SCA.surface,
+    borderColor: SCA.border,
+    borderRadius: 20,
+    borderWidth: StyleSheet.hairlineWidth,
     flex: 1,
     gap: spacing.xs,
-    padding: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    shadowColor: SCA.navy,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
   },
-  metricValue: {
-    color: colors.textStrong,
-    fontSize: 18,
-    fontWeight: '700',
-    textAlign: 'center',
-  },
-  metricLabel: {
-    color: colors.muted,
-    fontSize: 11,
-    lineHeight: 14,
-    minHeight: 28,
-    textAlign: 'center',
-  },
-  iconBadge: {
+  kpiIconWrap: {
     alignItems: 'center',
+    borderRadius: 12,
+    height: 32,
     justifyContent: 'center',
-    overflow: 'hidden',
+    marginBottom: 4,
+    width: 32,
   },
+  kpiValue: {
+    color: SCA.navy,
+    fontSize: 20,
+    fontVariant: ['tabular-nums'],
+    fontWeight: '800',
+    letterSpacing: -0.3,
+  },
+  kpiLabel: {
+    color: SCA.muted,
+    fontSize: 11,
+    fontWeight: '600',
+    letterSpacing: 0.2,
+    lineHeight: 14,
+  },
+
+  // ─── Empty state ───────────────────────────────────────────
   emptyCard: {
     alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderRadius: 16,
-    borderWidth: 1,
+    backgroundColor: SCA.surface,
+    borderColor: SCA.border,
+    borderRadius: 20,
+    borderWidth: StyleSheet.hairlineWidth,
     padding: spacing.lg,
   },
   emptyText: {
-    color: colors.muted,
+    color: SCA.muted,
     fontSize: 14,
     textAlign: 'center',
   },
+
+  // ─── Service Card ──────────────────────────────────────────
   serviceCard: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
+    backgroundColor: SCA.surface,
+    borderColor: SCA.border,
     borderRadius: 20,
-    borderWidth: 1,
-    gap: spacing.xs,
+    borderWidth: StyleSheet.hairlineWidth,
+    gap: spacing.md,
     padding: spacing.md,
+    shadowColor: SCA.navy,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
   },
-  serviceCardHeader: {
+  serviceHeader: {
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
-  bulletRow: {
+  serviceDateRow: {
     alignItems: 'center',
     flexDirection: 'row',
+    flexShrink: 1,
     gap: spacing.xs,
   },
-  bulletDot: {
-    backgroundColor: colors.accent,
+  serviceBullet: {
+    backgroundColor: SCA.blue,
     borderRadius: 4,
     height: 8,
     width: 8,
   },
-  serviceDate: {
-    color: colors.accent,
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  servicePlate: {
-    color: colors.muted,
+  serviceDateText: {
+    color: SCA.blue,
     fontSize: 13,
     fontWeight: '700',
-    letterSpacing: 0.5,
+    letterSpacing: 0.2,
+  },
+  plateChip: {
+    backgroundColor: SCA.blueSoft,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  plateText: {
+    color: SCA.blue,
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.6,
+  },
+
+  // ─── Ruta ──────────────────────────────────────────────────
+  routeBlock: {
+    gap: spacing.xs,
+  },
+  routeItem: {
+    alignItems: 'flex-start',
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  routeIconWrap: {
+    alignItems: 'center',
+    borderRadius: 10,
+    height: 28,
+    justifyContent: 'center',
+    marginTop: 2,
+    width: 28,
+  },
+  routeIconOrigin: {
+    backgroundColor: SCA.blueSoft,
+  },
+  routeIconDest: {
+    backgroundColor: SCA.neutralSoft,
+  },
+  routeTextWrap: {
+    flex: 1,
+    gap: 2,
   },
   routeLabel: {
-    color: colors.muted,
-    fontSize: 12,
+    color: SCA.muted,
+    fontSize: 11,
+    fontWeight: '600',
+    letterSpacing: 0.3,
+    textTransform: 'uppercase',
   },
   routeValue: {
-    color: colors.textStrong,
-    fontSize: 15,
-    fontWeight: '700',
+    color: SCA.navy,
+    fontSize: 14,
+    fontWeight: '600',
+    lineHeight: 19,
   },
-  serviceCardFooter: {
-    borderTopColor: colors.border,
-    borderTopWidth: 1,
+  routeConnector: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 4,
+    marginLeft: 14,
+    opacity: 0.6,
+  },
+  routeConnectorLine: {
+    backgroundColor: SCA.border,
+    height: 1,
+    width: 16,
+  },
+
+  // ─── Footer del servicio ──────────────────────────────────
+  serviceFooter: {
+    alignItems: 'center',
+    borderTopColor: SCA.border,
+    borderTopWidth: StyleSheet.hairlineWidth,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: spacing.xs,
     paddingTop: spacing.sm,
   },
-  footerText: {
-    color: colors.muted,
-    fontSize: 13,
+  footerItem: {
+    alignItems: 'flex-start',
+    flex: 1,
+    gap: 2,
+  },
+  footerLabel: {
+    color: SCA.muted,
+    fontSize: 11,
+    fontWeight: '600',
+    letterSpacing: 0.3,
+    textTransform: 'uppercase',
   },
   footerValue: {
-    color: colors.textStrong,
-    fontWeight: '700',
+    color: SCA.navy,
+    fontSize: 15,
+    fontWeight: '800',
+    fontVariant: ['tabular-nums'],
+  },
+  footerDivider: {
+    backgroundColor: SCA.border,
+    height: 24,
+    marginHorizontal: spacing.sm,
+    width: StyleSheet.hairlineWidth,
   },
 });
-
