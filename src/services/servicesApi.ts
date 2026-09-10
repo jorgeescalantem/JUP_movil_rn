@@ -289,6 +289,9 @@ export async function fetchVehicleServiceHistory(
     return { ok: false, message: 'No se pudo cargar el historico de servicios.' };
   }
 
+  // Only servicios in a terminal state (Estservicio >= 6) count as "prestados".
+  records = records.filter((r) => r.Estservicio >= 6);
+
   if (records.length === 0) {
     return { ok: true, services: [] };
   }
