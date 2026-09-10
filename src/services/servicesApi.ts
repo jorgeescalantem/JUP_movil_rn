@@ -193,30 +193,94 @@ export async function fetchVehicleServiceHistory(
   // `$orderby=Fecha desc` (and/or $top>100) triggered a 400 from this OData
   // backend - Codservicio (the primary key, virtually always orderable) is
   // used instead as a recency proxy, since Codservicio grows over time.
-  // 100 is the highest $top confirmed NOT to 400 (300 also failed) - the
-  // 30-day range cap (see MAX_RANGE_DAYS) keeps this from truncating in practice.
-  const query = new URLSearchParams({
+  // Try filtering by Fecha server-side first (never actually tested before -
+  // only $orderby=Fecha was tried and rejected). If the backend rejects this
+  // filter too, fall back to the old broad-fetch + client-side Fecha filter.
+  const filteredQuery = new URLSearchParams({
     $top: '100',
     $orderby: 'Codservicio desc',
-    $filter: `UnidadAsignada eq ${vehiculoCodigo}`,
+    $filter: `UnidadAsignada eq ${vehiculoCodigo} and Fecha ge '${fromDate}' and Fecha le '${toDate}'`,
   });
 
   let records: TbservicioRawRecord[];
 
   try {
-    const response = await fetchWithTimeout(`${env.preopBaseUrl}/oData/Tbservicios?${query.toString()}`, {
-      method: 'GET',
-      headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
-    });
+    const filteredResponse = await fetchWithTimeout(
+      `${env.preopBaseUrl}/oData/Tbservicios?${filteredQuery.toString()}`,
+      { method: 'GET', headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' } },
+    );
 
-    if (!response.ok) {
-      return { ok: false, message: 'No se pudo cargar el historico de servicios.' };
+    if (filteredResponse.ok) {
+      const filteredPayload = (await filteredResponse.json()) as ODataListResponse<TbservicioRawRecord>;
+      // Still re-applies the same Fecha check client-side as a safety net -
+      // the server is the source of truth here, this never widens the result.
+      records = filteredPayload.value
+        .filter((r) => r.Fecha >= fromDate && r.Fecha <= toDate)
+        .sort((a, b) => (a.Fecha < b.Fecha ? 1 : a.Fecha > b.Fecha ? -1 : 0));
+    } else {
+      // Fecha can't be used in $orderby or $filter on this backend (both 400) -
+      // so every page for the vehicle must be fetched (ordered by Codservicio,
+      // the only confirmed-safe order/filter combo) and Fecha is applied client-side
+      // across the FULL accumulated set, never trusting a single top-100 page.
+      // $skip is confirmed working (disjoint, decreasing Codservicio ranges per page).
+      const PAGE_SIZE = 100;
+      const MAX_PAGES = 50; // ultimate safety cap: 5000 records for a single vehicle
+      // Codservicio is only a rough recency proxy (not perfectly chronological), so
+      // stop only after several consecutive pages are entirely older than fromDate -
+      // a buffer against the occasional out-of-order straggler row.
+      const PAGES_BEFORE_RANGE_TO_STOP = 3;
+      const seenCodservicio = new Set<number>();
+      const allRows: TbservicioRawRecord[] = [];
+      let pagesFullyBeforeRange = 0;
+
+      for (let page = 0; page < MAX_PAGES; page += 1) {
+        const pageQuery = new URLSearchParams({
+          $top: String(PAGE_SIZE),
+          $skip: String(page * PAGE_SIZE),
+          $orderby: 'Codservicio desc',
+          $filter: `UnidadAsignada eq ${vehiculoCodigo}`,
+        });
+
+        const pageResponse = await fetchWithTimeout(`${env.preopBaseUrl}/oData/Tbservicios?${pageQuery.toString()}`, {
+          method: 'GET',
+          headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+        });
+
+        if (!pageResponse.ok) {
+          if (page === 0) {
+            return { ok: false, message: 'No se pudo cargar el historico de servicios.' };
+          }
+          break;
+        }
+
+        const pagePayload = (await pageResponse.json()) as ODataListResponse<TbservicioRawRecord>;
+        const newRows = pagePayload.value.filter((r) => !seenCodservicio.has(r.Codservicio));
+        newRows.forEach((r) => seenCodservicio.add(r.Codservicio));
+        allRows.push(...newRows);
+
+        const fechas = pagePayload.value.map((r) => r.Fecha);
+        const pageFullyBeforeRange = fechas.every((f) => f < fromDate);
+        pagesFullyBeforeRange = pageFullyBeforeRange ? pagesFullyBeforeRange + 1 : 0;
+
+        // $skip is being ignored by the backend (same page repeating) - stop here
+        // instead of burning through MAX_PAGES re-fetching identical rows.
+        if (newRows.length === 0) {
+          break;
+        }
+
+        if (pagePayload.value.length < PAGE_SIZE) {
+          break;
+        }
+
+        if (pagesFullyBeforeRange >= PAGES_BEFORE_RANGE_TO_STOP) {
+          break;
+        }
+      }
+
+      records = allRows
+        .filter((r) => r.Fecha >= fromDate && r.Fecha <= toDate)
+        .sort((a, b) => (a.Fecha < b.Fecha ? 1 : a.Fecha > b.Fecha ? -1 : 0));
     }
-
-    const payload = (await response.json()) as ODataListResponse<TbservicioRawRecord>;
-    records = payload.value
-      .filter((r) => r.Fecha >= fromDate && r.Fecha <= toDate)
-      .sort((a, b) => (a.Fecha < b.Fecha ? 1 : a.Fecha > b.Fecha ? -1 : 0));
   } catch (error) {
     if (error instanceof Error && error.name === 'AbortError') {
       return { ok: false, message: 'Tiempo de espera agotado al cargar el historico.' };
