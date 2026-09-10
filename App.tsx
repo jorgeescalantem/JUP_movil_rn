@@ -2,6 +2,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useState } from 'react';
 import { StyleSheet } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { ConnectivityGate } from './src/components/ConnectivityGate';
 import { AppDrawer } from './src/navigation/AppDrawer';
@@ -17,12 +18,14 @@ import { colors } from './src/theme';
 export default function App() {
   return (
     <GestureHandlerRootView style={styles.root}>
-      <StatusBar style="dark" />
-      <ConnectivityGate>
-        <SessionProvider>
-          <RootNavigator />
-        </SessionProvider>
-      </ConnectivityGate>
+      <SafeAreaProvider>
+        <StatusBar style="dark" />
+        <ConnectivityGate>
+          <SessionProvider>
+            <RootNavigator />
+          </SessionProvider>
+        </ConnectivityGate>
+      </SafeAreaProvider>
     </GestureHandlerRootView>
   );
 }

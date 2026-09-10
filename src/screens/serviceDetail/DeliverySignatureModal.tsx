@@ -76,8 +76,8 @@ export function DeliverySignatureModal({
             {isDeliveryModalReady ? (
               <SignatureScreen
                 autoClear={false}
-                bgHeight={220}
-                bgWidth={300}
+                bgHeight={280}
+                bgWidth={undefined}
                 clearText=""
                 confirmText=""
                 dataURL={signatureData ?? undefined}
