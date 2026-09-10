@@ -123,6 +123,10 @@ export const serviceDetailModalStyles = StyleSheet.create({
   dialogConfirmButtonWide: {
     flex: 1.6,
   },
+  dialogSingleActionButton: {
+    alignSelf: 'stretch',
+    flex: 0,
+  },
   dialogCancelButton: {
     backgroundColor: '#eff3f7',
   },

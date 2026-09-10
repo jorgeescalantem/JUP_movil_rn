@@ -50,9 +50,6 @@ export function DeliverySignatureModal({
       <View style={styles.dialogOverlay}>
         <View style={styles.dialogCardLarge}>
           <Text style={styles.dialogTitle}>Completar servicio</Text>
-          <Text style={styles.deliveryNoticeText}>
-            Con la firma el cliente certifica que recibió el servicio a Conformidad. 
-          </Text>
 
           <TextInput
             keyboardType="number-pad"

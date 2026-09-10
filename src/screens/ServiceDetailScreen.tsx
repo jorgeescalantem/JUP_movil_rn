@@ -10,6 +10,7 @@ import { saveFirma, nowInColombiaIso, toRawBase64 } from '../services/firmasApi'
 import { DeliverySignatureModal } from './serviceDetail/DeliverySignatureModal';
 import { FullScreenSignatureModal } from './serviceDetail/FullScreenSignatureModal';
 import { SatisfactionModal } from './serviceDetail/SatisfactionModal';
+import { SignatureNoticeModal } from './serviceDetail/SignatureNoticeModal';
 import { useSession } from '../store/session';
 import { spacing } from '../theme';
 
@@ -53,6 +54,7 @@ export function ServiceDetailScreen() {
   const [satisfactionLevel, setSatisfactionLevel] = useState<number | null>(null);
   const [satisfactionComment, setSatisfactionComment] = useState('');
   const [satisfactionError, setSatisfactionError] = useState<string | null>(null);
+  const [signatureNoticeOpen, setSignatureNoticeOpen] = useState(false);
   const [signatureData, setSignatureData] = useState<string | null>(null);
   const [deliverySignatureMountKey, setDeliverySignatureMountKey] = useState(0);
   const [fullScreenSignatureMountKey, setFullScreenSignatureMountKey] = useState(0);
@@ -192,6 +194,11 @@ export function ServiceDetailScreen() {
 
     setSatisfactionDialogOpen(false);
     setSatisfactionError(null);
+    setSignatureNoticeOpen(true);
+  };
+
+  const handleAcceptSignatureNotice = () => {
+    setSignatureNoticeOpen(false);
     setDeliverySignatureMountKey((key) => key + 1);
     setDeliveryDialogOpen(true);
   };
@@ -422,6 +429,8 @@ export function ServiceDetailScreen() {
         satisfactionLevel={satisfactionLevel}
         visible={satisfactionDialogOpen}
       />
+
+      <SignatureNoticeModal onAccept={handleAcceptSignatureNotice} visible={signatureNoticeOpen} />
 
       <DeliverySignatureModal
         deliveryError={deliveryError}
