@@ -17,3 +17,15 @@ export function setSystemToken(token: string | null) {
 export function getSystemToken(): string | null {
   return systemToken;
 }
+
+// JWT issued by jup-api's own /auth/login, used to authenticate every call to
+// our new backend. Same in-memory-only convention as systemToken above.
+let jupApiToken: string | null = null;
+
+export function setJupApiToken(token: string | null) {
+  jupApiToken = token;
+}
+
+export function getJupApiToken(): string | null {
+  return jupApiToken;
+}

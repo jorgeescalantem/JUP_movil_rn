@@ -11,6 +11,8 @@ const API_AUTH_PWD = process.env.EXPO_PUBLIC_API_AUTH_PWD ?? '';
 const API_ODATA_URL = process.env.EXPO_PUBLIC_API_ODATA_URL ?? '';
 // Tppreoperacion lives on a separate host; tokens issued for API_BASE_URL are not accepted there.
 const API_PREOP_BASE_URL = process.env.EXPO_PUBLIC_API_PREOP_BASE_URL ?? '';
+// Our own backend (jup-api), replacing the legacy OData calls endpoint by endpoint.
+const JUP_API_URL = process.env.EXPO_PUBLIC_JUP_API_URL ?? '';
 // EmailJS (temporary transactional-email provider for password recovery). The
 // public key is safe to bundle client-side by design (unlike the Gmail password,
 // which stays on EmailJS's servers, configured in their dashboard).
@@ -41,6 +43,7 @@ export const env = {
   apiAuthPwd: API_AUTH_PWD,
   apiODataUrl: API_ODATA_URL,
   preopBaseUrl: API_PREOP_BASE_URL,
+  jupApiUrl: JUP_API_URL,
   emailjsServiceId: EMAILJS_SERVICE_ID,
   emailjsTemplateId: EMAILJS_TEMPLATE_ID,
   emailjsPublicKey: EMAILJS_PUBLIC_KEY,

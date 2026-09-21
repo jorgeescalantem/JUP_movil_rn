@@ -35,9 +35,18 @@ export type TusuarioMobilRecord = {
   Vehiculo: number;
 };
 
-// Same record with the sensitive fields stripped. This is the only shape
-// that should ever reach UI/state layers.
-export type SanitizedMobilUser = Omit<TusuarioMobilRecord, 'Contrasena' | 'AndroidToken'>;
+// Sanitized user profile returned by jup-api's POST /auth/login (see
+// src/services/userAuth.ts) alongside the JWT. Never includes Contrasena/AndroidToken.
+export type SanitizedMobilUser = {
+  Id: number;
+  Conductor: number;
+  Email: string | null;
+  Nodoc: string;
+  Nombre: string | null;
+  Placa: string | null;
+  Username: string;
+  Vehiculo: number;
+};
 
 export type ODataListResponse<T> = {
   '@odata.count'?: number;
