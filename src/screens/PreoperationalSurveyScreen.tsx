@@ -32,6 +32,7 @@ export function PreoperationalSurveyScreen() {
   const [mileage, setMileage] = useState('');
   const [observations, setObservations] = useState('');
   const [alertModal, setAlertModal] = useState<AlertModal>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const title = useMemo(
     () => `Preoperacional del ${getTodayDisplay()}, Vehiculo: ${mobilUser?.Placa ?? '-'}`,
@@ -42,19 +43,29 @@ export function PreoperationalSurveyScreen() {
     setAnswers((current) => ({ ...current, [questionId]: option }));
   };
 
-  const onSubmit = () => {
-    const result = submitPreoperational({ answers, mileage, observations });
-
-    if (!result.ok) {
-      setAlertModal({ title: 'Encuesta incompleta', message: result.message ?? 'Completa la encuesta antes de enviar.' });
+  const onSubmit = async () => {
+    if (isSubmitting) {
       return;
     }
 
-    setAlertModal({
-      title: 'Encuesta enviada',
-      message: 'Inspeccion preoperacional registrada correctamente.',
-      onClose: () => { setAnswers({}); setMileage(''); setObservations(''); },
-    });
+    setIsSubmitting(true);
+
+    try {
+      const result = await submitPreoperational({ answers, mileage, observations });
+
+      if (!result.ok) {
+        setAlertModal({ title: 'Encuesta incompleta', message: result.message ?? 'Completa la encuesta antes de enviar.' });
+        return;
+      }
+
+      setAlertModal({
+        title: 'Encuesta enviada',
+        message: 'Inspeccion preoperacional registrada correctamente.',
+        onClose: () => { setAnswers({}); setMileage(''); setObservations(''); },
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleCloseAlert = () => {
@@ -157,15 +168,21 @@ export function PreoperationalSurveyScreen() {
             </View>
           </View>
 
-          <Pressable onPress={onSubmit} style={styles.submitButton}>
+          <Pressable disabled={isSubmitting} onPress={onSubmit} style={styles.submitButton}>
             <LinearGradient
               colors={['#2fdeb0', '#1bbbe8', '#0fa0f3']}
               end={{ x: 1, y: 0.5 }}
               start={{ x: 0, y: 0.5 }}
               style={styles.submitGradient}
             >
-              <MaterialCommunityIcons color="#f8fffe" name="send" size={24} />
-              <Text style={styles.submitText}>Enviar</Text>
+              {isSubmitting ? (
+                <ActivityIndicator color="#f8fffe" />
+              ) : (
+                <>
+                  <MaterialCommunityIcons color="#f8fffe" name="send" size={24} />
+                  <Text style={styles.submitText}>Enviar</Text>
+                </>
+              )}
             </LinearGradient>
           </Pressable>
         </>

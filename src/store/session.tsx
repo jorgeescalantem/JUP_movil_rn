@@ -3,7 +3,7 @@ import { ReactNode, createContext, useContext, useEffect, useMemo, useState } fr
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import { PreoperationalOption, PreoperationalQuestion } from '../mocks/preoperational';
-import { fetchPreoperationalQuestions } from '../services/preoperationalApi';
+import { fetchPreoperationalQuestions, submitPreoperationalAnswers } from '../services/preoperationalApi';
 import { fetchAssignedServices } from '../services/servicesApi';
 import { clearBiometricCredentials } from '../services/biometricAuth';
 import { fetchConductorRole, fetchOwnedVehicles } from '../services/roleApi';
@@ -56,7 +56,7 @@ type SessionContextValue = {
     answers: Record<string, PreoperationalOption>;
     mileage: string;
     observations: string;
-  }) => ActionResult;
+  }) => Promise<ActionResult>;
   setRole: (role: Role) => void;
   resetSession: () => void;
   closeService: (serviceNumber: string, guideControl: string) => ActionResult;
@@ -381,7 +381,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
         return { ok: true };
       },
-      submitPreoperational: ({ answers, mileage, observations }) => {
+      submitPreoperational: async ({ answers, mileage, observations }) => {
         if (!username) {
           return { ok: false, message: 'No hay usuario activo.' };
         }
@@ -399,6 +399,18 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
         if (String(observations).length > 69) {
           return { ok: false, message: 'Observaciones no puede superar 69 caracteres.' };
+        }
+
+        const vehiculo = mobilUser?.Vehiculo;
+
+        if (!vehiculo) {
+          return { ok: false, message: 'No se pudo determinar el vehiculo activo.' };
+        }
+
+        const result = await submitPreoperationalAnswers({ vehiculo, answers, mileage, observations });
+
+        if (!result.ok) {
+          return { ok: false, message: result.message };
         }
 
         setPreoperationalByUser((current) => ({

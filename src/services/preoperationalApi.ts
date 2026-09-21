@@ -1,57 +1,68 @@
-import { env } from '../config/env';
-import { PreoperationalQuestion } from '../mocks/preoperational';
-import { ODataListResponse, TppreoperacionRecord } from '../types/api';
-import { fetchWithTimeout, getJupwebCoToken } from './jupwebCoAuth';
+import { PreoperationalOption, PreoperationalQuestion } from '../mocks/preoperational';
+import { isTimeoutError, jupApiFetch } from './jupApiClient';
 
 export type PreoperationalFetchResult =
   | { ok: true; questions: PreoperationalQuestion[] }
   | { ok: false; message: string };
 
-/**
- * Fetches the active checklist items from Tppreoperacion, sorted by `Orden`.
- * KILOMETRAJE/OBSERVACIONES (`Editar: true`) are rendered as dedicated
- * free-text fields by the screen itself, so only SI/NO/NO_APLICA items
- * (`Editar: false`) are returned here.
- */
+/** Catalogo activo del checklist (KILOMETRAJE/OBSERVACIONES se manejan aparte en la pantalla) - via jup-api. */
 export async function fetchPreoperationalQuestions(): Promise<PreoperationalFetchResult> {
-  const token = await getJupwebCoToken();
-
-  if (!token) {
-    return { ok: false, message: 'No se pudo establecer conexion con el servidor de preoperacionales.' };
-  }
-
-  const query = new URLSearchParams({
-    $top: '50',
-    $count: 'true',
-    $filter: 'Activo eq true',
-    $orderby: 'Orden',
-  });
-
   try {
-    const response = await fetchWithTimeout(`${env.preopBaseUrl}/oData/Tppreoperacion?${query.toString()}`, {
-      method: 'GET',
-      headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
-    });
+    const response = await jupApiFetch('/preoperational/questions');
+    const data = (await response.json().catch(() => null)) as
+      | { questions?: { id: number; text: string }[]; message?: string }
+      | null;
 
-    if (!response.ok) {
-      return { ok: false, message: 'No se pudo cargar la encuesta preoperacional.' };
+    if (!response.ok || !data?.questions) {
+      return { ok: false, message: data?.message ?? 'No se pudo cargar la encuesta preoperacional.' };
     }
 
-    const payload = (await response.json()) as ODataListResponse<TppreoperacionRecord>;
-    const questions = payload.value
-      .filter((record) => !record.Editar)
-      .map((record) => ({ id: String(record.Id), text: record.Concepto.trim() }));
-
-    if (questions.length === 0) {
+    if (data.questions.length === 0) {
       return { ok: false, message: 'La encuesta preoperacional no tiene preguntas configuradas.' };
     }
 
-    return { ok: true, questions };
+    return { ok: true, questions: data.questions.map((question) => ({ id: String(question.id), text: question.text })) };
   } catch (error) {
-    if (error instanceof Error && error.name === 'AbortError') {
+    if (isTimeoutError(error)) {
       return { ok: false, message: 'Tiempo de espera agotado al cargar la encuesta preoperacional.' };
     }
 
     return { ok: false, message: 'No se pudo cargar la encuesta preoperacional.' };
   }
 }
+
+export type SubmitPreoperationalResult = { ok: true } | { ok: false; message: string };
+
+/** Envia las respuestas del preoperacional - via jup-api (guarda en TBPREOPERACIONALES). */
+export async function submitPreoperationalAnswers(params: {
+  vehiculo: number;
+  answers: Record<string, PreoperationalOption>;
+  mileage: string;
+  observations: string;
+}): Promise<SubmitPreoperationalResult> {
+  try {
+    const response = await jupApiFetch('/preoperational/answers', {
+      method: 'POST',
+      body: JSON.stringify({
+        vehiculo: params.vehiculo,
+        answers: Object.entries(params.answers).map(([questionId, valor]) => ({ questionId: Number(questionId), valor })),
+        mileage: params.mileage,
+        observations: params.observations,
+      }),
+    });
+
+    if (!response.ok) {
+      const data = (await response.json().catch(() => null)) as { message?: string } | null;
+      return { ok: false, message: data?.message ?? 'No se pudo enviar la encuesta preoperacional.' };
+    }
+
+    return { ok: true };
+  } catch (error) {
+    if (isTimeoutError(error)) {
+      return { ok: false, message: 'Tiempo de espera agotado al enviar la encuesta preoperacional.' };
+    }
+
+    return { ok: false, message: 'No se pudo enviar la encuesta preoperacional.' };
+  }
+}
+
