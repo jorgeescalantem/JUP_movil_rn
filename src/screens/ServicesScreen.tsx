@@ -38,10 +38,7 @@ function formatStatusLabel(status: ServiceState) {
   return status.replace('_', ' ');
 }
 
-type ModalConfig =
-  | { type: 'origin'; serviceNumber: string }
-  | { type: 'deliver'; serviceNumber: string }
-  | null;
+type ModalConfig = { type: 'origin'; serviceNumber: string } | null;
 
 export function ServicesScreen() {
   const navigation = useNavigation<DrawerNavigationProp<DrawerParamList>>();
@@ -50,7 +47,6 @@ export function ServicesScreen() {
     activeService,
     arrivedAtOrigin,
     arrivedAtDestination,
-    deliverService,
     isLoadingServices,
     servicesLoadError,
     reloadAssignedServices,
@@ -101,16 +97,10 @@ export function ServicesScreen() {
     reloadAssignedServices();
   };
 
-  const handleModalConfirm = () => {
+  const handleModalConfirm = async () => {
     if (!modalConfig) return;
 
-    let result: { ok: boolean; message?: string };
-
-    if (modalConfig.type === 'origin') {
-      result = arrivedAtOrigin(modalConfig.serviceNumber, codeInput);
-    } else {
-      result = deliverService(modalConfig.serviceNumber, codeInput);
-    }
+    const result = await arrivedAtOrigin(modalConfig.serviceNumber, codeInput);
 
     if (!result.ok) {
       setFeedbackDialog({ title: 'No fue posible continuar', message: result.message ?? 'Intenta nuevamente.' });
@@ -121,10 +111,10 @@ export function ServicesScreen() {
     setCodeInput('');
   };
 
-  const confirmArrivedAtDestination = () => {
+  const confirmArrivedAtDestination = async () => {
     if (!destinationConfirmService) return;
 
-    const result = arrivedAtDestination(destinationConfirmService.numeroServicio);
+    const result = await arrivedAtDestination(destinationConfirmService.numeroServicio);
     setDestinationConfirmService(null);
 
     if (!result.ok) {
@@ -142,20 +132,16 @@ export function ServicesScreen() {
         <Modal animationType="fade" onRequestClose={() => setModalConfig(null)} transparent visible={!!modalConfig}>
           <View style={styles.modalOverlay}>
             <View style={styles.modalBox}>
-              <Text style={styles.modalTitle}>
-                {modalConfig?.type === 'origin' ? 'Llegue al origen' : 'Entregar servicio'}
-              </Text>
+              <Text style={styles.modalTitle}>Llegue al origen</Text>
               <Text style={styles.modalSubtitle}>
-                {modalConfig?.type === 'origin'
-                  ? 'Ingresa el numero de servicio para confirmar tu llegada al origen.'
-                  : 'Ingresa la Guiacontrol (solo numeros, 1 a 10 digitos).'}
+                Ingresa el numero de servicio para confirmar tu llegada al origen.
               </Text>
 
               <TextInput
                 autoFocus
                 keyboardType="number-pad"
                 onChangeText={setCodeInput}
-                placeholder={modalConfig?.type === 'origin' ? 'Numero de servicio' : 'Guiacontrol'}
+                placeholder="Numero de servicio"
                 placeholderTextColor={colors.muted}
                 style={styles.modalInput}
                 value={codeInput}

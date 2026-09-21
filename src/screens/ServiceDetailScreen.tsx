@@ -6,7 +6,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Linking, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { DrawerParamList } from '../navigation/AppDrawer';
-import { saveFirma, nowInColombiaIso, toRawBase64 } from '../services/firmasApi';
+import { nowInColombiaIso, toRawBase64 } from '../services/firmasApi';
 import { DeliverySignatureModal } from './serviceDetail/DeliverySignatureModal';
 import { FullScreenSignatureModal } from './serviceDetail/FullScreenSignatureModal';
 import { SatisfactionModal } from './serviceDetail/SatisfactionModal';
@@ -41,11 +41,13 @@ function buildMapUrl(lat: number, lng: number, app: 'google' | 'waze') {
 export function ServiceDetailScreen() {
   const route = useRoute<DetailRoute>();
   const navigation = useNavigation<DrawerNavigationProp<DrawerParamList>>();
-  const { services, activeService, arrivedAtOrigin, arrivedAtDestination, deliverService, mobilUser } = useSession();
+  const { services, activeService, arrivedAtOrigin, arrivedAtDestination, deliverService, submitServiceSurvey, mobilUser } =
+    useSession();
 
   const [originDialogOpen, setOriginDialogOpen] = useState(false);
   const [originCode, setOriginCode] = useState('');
   const [originError, setOriginError] = useState<string | null>(null);
+  const [isProcessingAction, setIsProcessingAction] = useState(false);
   const [deliveryDialogOpen, setDeliveryDialogOpen] = useState(false);
   const [signatureFullScreenOpen, setSignatureFullScreenOpen] = useState(false);
   const [guideControl, setGuideControl] = useState('');
@@ -186,15 +188,32 @@ export function ServiceDetailScreen() {
     }
   };
 
-  const handleConfirmSatisfaction = () => {
+  const handleConfirmSatisfaction = async () => {
     if (!satisfactionLevel) {
       setSatisfactionError('Selecciona un nivel de satisfaccion.');
       return;
     }
 
-    setSatisfactionDialogOpen(false);
-    setSatisfactionError(null);
-    setSignatureNoticeOpen(true);
+    if (isProcessingAction) {
+      return;
+    }
+
+    setIsProcessingAction(true);
+
+    try {
+      const result = await submitServiceSurvey(service.numeroServicio, satisfactionLevel, satisfactionComment);
+
+      if (!result.ok) {
+        setSatisfactionError(result.message ?? 'No se pudo enviar la encuesta. Intenta nuevamente.');
+        return;
+      }
+
+      setSatisfactionDialogOpen(false);
+      setSatisfactionError(null);
+      setSignatureNoticeOpen(true);
+    } finally {
+      setIsProcessingAction(false);
+    }
   };
 
   const handleAcceptSignatureNotice = () => {
@@ -203,41 +222,61 @@ export function ServiceDetailScreen() {
     setDeliveryDialogOpen(true);
   };
 
-  const handleConfirmOriginCode = () => {
+  const handleConfirmOriginCode = async () => {
     if (String(originCode).trim() !== String(service.numeroServicio).trim()) {
       setOriginError('Codigo incorrecto. Intenta nuevamente o cancela.');
       return;
     }
 
-    const result = arrivedAtOrigin(service.numeroServicio, originCode);
-
-    if (!result.ok) {
-      setOriginError(result.message ?? 'Codigo incorrecto. Intenta nuevamente.');
+    if (isProcessingAction) {
       return;
     }
 
-    setOriginDialogOpen(false);
-    setOriginCode('');
-    setOriginError(null);
-    setFeedbackDialog({
-      title: 'Codigo correcto',
-      message: 'Validacion correcta. El servicio ahora esta en transito.',
-    });
+    setIsProcessingAction(true);
+
+    try {
+      const result = await arrivedAtOrigin(service.numeroServicio, originCode);
+
+      if (!result.ok) {
+        setOriginError(result.message ?? 'Codigo incorrecto. Intenta nuevamente.');
+        return;
+      }
+
+      setOriginDialogOpen(false);
+      setOriginCode('');
+      setOriginError(null);
+      setFeedbackDialog({
+        title: 'Codigo correcto',
+        message: 'Validacion correcta. El servicio ahora esta en transito.',
+      });
+    } finally {
+      setIsProcessingAction(false);
+    }
   };
 
   const handleArrivedAtDestination = () => {
     setDestinationDialogOpen(true);
   };
 
-  const confirmArrivedAtDestination = () => {
-    const result = arrivedAtDestination(service.numeroServicio);
-    setDestinationDialogOpen(false);
-    if (!result.ok) {
-      setFeedbackDialog({ title: 'No fue posible continuar', message: result.message ?? 'Intenta nuevamente.' });
+  const confirmArrivedAtDestination = async () => {
+    if (isProcessingAction) {
+      return;
+    }
+
+    setIsProcessingAction(true);
+
+    try {
+      const result = await arrivedAtDestination(service.numeroServicio);
+      setDestinationDialogOpen(false);
+      if (!result.ok) {
+        setFeedbackDialog({ title: 'No fue posible continuar', message: result.message ?? 'Intenta nuevamente.' });
+      }
+    } finally {
+      setIsProcessingAction(false);
     }
   };
 
-  const handleConfirmDelivery = () => {
+  const handleConfirmDelivery = async () => {
     const trimmedGuideControl = guideControl.trim();
     const effectiveGuideControl = trimmedGuideControl.length > 0 ? trimmedGuideControl : service.numeroServicio;
 
@@ -251,38 +290,34 @@ export function ServiceDetailScreen() {
       return;
     }
 
-    const result = deliverService(service.numeroServicio, effectiveGuideControl);
-    if (!result.ok) {
-      setDeliveryError(result.message ?? 'No fue posible entregar el servicio.');
+    if (isProcessingAction) {
       return;
     }
 
-    // Best-effort: the local delivery flow is already confirmed, so a network
-    // failure saving the signature must not block the driver from continuing.
-    const timestamp = nowInColombiaIso();
-    saveFirma(
-      {
-        Codservicio: Number(service.numeroServicio),
-        Codorden: service.orden,
-        Noorden: '',
-        Fechaserviciofirma: timestamp,
-        Horaserviciofirma: timestamp,
-        Placa: mobilUser?.Placa ?? '',
-        Conductor: mobilUser?.Conductor ?? 0,
-        Firma: toRawBase64(signatureData),
-        Firmaguia: Number(effectiveGuideControl),
-        Cordenadasfirma: '',
-        Favorito: false,
-      },
-      mobilUser?.Nodoc ?? '',
-    ).catch(() => undefined);
+    setIsProcessingAction(true);
 
-    resetDeliveryDialog();
-    setFeedbackDialog({
-      title: 'Servicio Completado',
-      message: `Servicio # ${service.numeroServicio} completado — ${formatDateOnly(service.fechaServicio)}\n Servicio Completado y firmado por el cliente. Fecha/Hora Firma: ${formatDateOnly(timestamp)} ${formatTimeOnly(timestamp)}`,
-      onClose: () => navigation.navigate('Servicios'),
-    });
+    try {
+      const result = await deliverService(service.numeroServicio, effectiveGuideControl, {
+        orden: service.orden,
+        placa: mobilUser?.Placa ?? '',
+        firmaBase64: toRawBase64(signatureData),
+      });
+
+      if (!result.ok) {
+        setDeliveryError(result.message ?? 'No fue posible entregar el servicio.');
+        return;
+      }
+
+      const timestamp = nowInColombiaIso();
+      resetDeliveryDialog();
+      setFeedbackDialog({
+        title: 'Servicio Completado',
+        message: `Servicio # ${service.numeroServicio} completado — ${formatDateOnly(service.fechaServicio)}\n Servicio Completado y firmado por el cliente. Fecha/Hora Firma: ${formatDateOnly(timestamp)} ${formatTimeOnly(timestamp)}`,
+        onClose: () => navigation.navigate('Servicios'),
+      });
+    } finally {
+      setIsProcessingAction(false);
+    }
   };
 
   const handleSignatureOk = (signature: string) => {

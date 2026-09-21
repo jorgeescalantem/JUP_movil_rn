@@ -6,7 +6,14 @@ import { PreoperationalOption, PreoperationalQuestion } from '../mocks/preoperat
 import { fetchPreoperationalQuestions, submitPreoperationalAnswers } from '../services/preoperationalApi';
 import { fetchAssignedServices } from '../services/servicesApi';
 import { clearBiometricCredentials } from '../services/biometricAuth';
+import { nowInColombiaIso } from '../services/firmasApi';
 import { fetchConductorRole, fetchOwnedVehicles } from '../services/roleApi';
+import {
+  arriveAtDestination,
+  arriveAtOrigin,
+  completeService,
+  submitServiceSurvey as submitServiceSurveyRequest,
+} from '../services/serviceStateApi';
 import { loginMobilUser, releaseMobilKey } from '../services/userAuth';
 import { colors } from '../theme';
 import { OwnedVehicle, Role, RoleCapability, Service, ServiceState } from '../types/domain';
@@ -60,9 +67,14 @@ type SessionContextValue = {
   setRole: (role: Role) => void;
   resetSession: () => void;
   closeService: (serviceNumber: string, guideControl: string) => ActionResult;
-  arrivedAtOrigin: (serviceNumber: string, code: string) => ActionResult;
-  arrivedAtDestination: (serviceNumber: string) => ActionResult;
-  deliverService: (serviceNumber: string, guideControl: string) => ActionResult;
+  arrivedAtOrigin: (serviceNumber: string, code: string) => Promise<ActionResult>;
+  arrivedAtDestination: (serviceNumber: string) => Promise<ActionResult>;
+  submitServiceSurvey: (serviceNumber: string, calificacion: number, comentario: string) => Promise<ActionResult>;
+  deliverService: (
+    serviceNumber: string,
+    guideControl: string,
+    firma: { orden: number; placa: string; firmaBase64: string },
+  ) => Promise<ActionResult>;
 };
 
 const SessionContext = createContext<SessionContextValue | null>(null);
@@ -477,7 +489,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         return { ok: true };
       },
 
-      arrivedAtOrigin: (serviceNumber: string, code: string) => {
+      arrivedAtOrigin: async (serviceNumber: string, code: string) => {
         const target = services.find((s) => s.numeroServicio === serviceNumber);
 
         if (!target || target.estado !== 'ASIGNADA') {
@@ -496,6 +508,12 @@ export function SessionProvider({ children }: { children: ReactNode }) {
           return { ok: false, message: 'Ya existe un servicio activo. Finaliza el servicio en curso primero.' };
         }
 
+        const result = await arriveAtOrigin(serviceNumber);
+
+        if (!result.ok) {
+          return result;
+        }
+
         setServices((current) =>
           current.map((s) =>
             s.numeroServicio === serviceNumber ? { ...s, estado: 'EN_TRANSITO' } : s,
@@ -505,11 +523,17 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         return { ok: true };
       },
 
-      arrivedAtDestination: (serviceNumber: string) => {
+      arrivedAtDestination: async (serviceNumber: string) => {
         const target = services.find((s) => s.numeroServicio === serviceNumber);
 
         if (!target || target.estado !== 'EN_TRANSITO') {
           return { ok: false, message: 'El servicio no esta en estado EN_TRANSITO.' };
+        }
+
+        const result = await arriveAtDestination(serviceNumber);
+
+        if (!result.ok) {
+          return result;
         }
 
         setServices((current) =>
@@ -521,7 +545,15 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         return { ok: true };
       },
 
-      deliverService: (serviceNumber: string, guideControl: string) => {
+      submitServiceSurvey: async (serviceNumber: string, calificacion: number, comentario: string) => {
+        return submitServiceSurveyRequest(serviceNumber, calificacion, comentario);
+      },
+
+      deliverService: async (
+        serviceNumber: string,
+        guideControl: string,
+        firma: { orden: number; placa: string; firmaBase64: string },
+      ) => {
         if (!/^\d{1,10}$/.test(guideControl)) {
           return { ok: false, message: 'La guia debe ser numerica y tener entre 1 y 10 digitos.' };
         }
@@ -530,6 +562,25 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
         if (!target || target.estado !== 'TERMINADO') {
           return { ok: false, message: 'El servicio debe estar en estado TERMINADO para entregar.' };
+        }
+
+        const timestamp = nowInColombiaIso();
+
+        const result = await completeService(serviceNumber, {
+          guia: guideControl,
+          codorden: firma.orden,
+          noorden: '',
+          fechaServicioFirma: timestamp,
+          horaServicioFirma: timestamp,
+          placa: firma.placa,
+          firma: firma.firmaBase64,
+          firmaguia: Number(guideControl),
+          cordenadasFirma: '',
+          favorito: false,
+        });
+
+        if (!result.ok) {
+          return result;
         }
 
         setServices((current) =>
