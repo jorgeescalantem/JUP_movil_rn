@@ -17,7 +17,11 @@ export async function jupApiFetch(path: string, init: RequestInit = {}): Promise
     return await fetch(`${env.jupApiUrl}${path}`, {
       ...init,
       headers: {
-        'Content-Type': 'application/json',
+        // Fastify rejects a declared 'application/json' content-type on a
+        // request with no body ("Body cannot be empty..."), so it's only
+        // set when there's actually a body to send (e.g. arrive-origin/
+        // arrive-destination send no body at all).
+        ...(init.body !== undefined ? { 'Content-Type': 'application/json' } : {}),
         Accept: 'application/json',
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...(init.headers ?? {}),
