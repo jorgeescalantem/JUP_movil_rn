@@ -565,12 +565,15 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         }
 
         const timestamp = nowInColombiaIso();
+        // fechaServicioFirma solo acepta YYYY-MM-DD (ver serviceState.schemas.ts);
+        // horaServicioFirma si necesita el timestamp completo (se parsea como DateTime).
+        const fechaOnly = timestamp.slice(0, 10);
 
         const result = await completeService(serviceNumber, {
           guia: guideControl,
           codorden: firma.orden,
           noorden: '',
-          fechaServicioFirma: timestamp,
+          fechaServicioFirma: fechaOnly,
           horaServicioFirma: timestamp,
           placa: firma.placa,
           firma: firma.firmaBase64,

@@ -85,7 +85,7 @@ export function SatisfactionModal({
 
           <Text style={styles.dialogInputLabelHint}>Observaciones, comentarios o felicitaciones (opcional)</Text>
           <TextInput
-            maxLength={350}
+            maxLength={280}
             multiline
             numberOfLines={4}
             onChangeText={onChangeComment}
@@ -94,7 +94,7 @@ export function SatisfactionModal({
             style={[styles.dialogInput, styles.satisfactionCommentInput]}
             value={satisfactionComment}
           />
-          <Text style={styles.satisfactionCounter}>{`${satisfactionComment.length}/350`}</Text>
+          <Text style={styles.satisfactionCounter}>{`${satisfactionComment.length}/280`}</Text>
 
           <View style={styles.dialogActions}>
             <Pressable onPress={onClose} style={[styles.dialogButton, styles.dialogCancelButton]}>

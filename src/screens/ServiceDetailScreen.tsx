@@ -30,11 +30,16 @@ function formatCurrency(value: number) {
 
 type DetailRoute = RouteProp<DrawerParamList, 'ServicioDetalle'>;
 
-function buildMapUrl(lat: number, lng: number, app: 'google' | 'waze') {
+// 👇 Ahora apunta al destino si el servicio está en tránsito o terminado.
+// Si está asignado, apunta al origen.
+function buildMapUrl(
+  lat: number,
+  lng: number,
+  app: 'google' | 'waze',
+) {
   if (app === 'waze') {
     return `https://waze.com/ul?ll=${lat},${lng}&navigate=yes`;
   }
-
   return `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
 }
 
@@ -118,23 +123,30 @@ export function ServiceDetailScreen() {
           <View style={styles.headerIconButton} />
         </View>
         <View style={styles.emptyWrap}>
-          <Text style={styles.emptyText}>No se encontro el servicio seleccionado.</Text>
+          <Text style={styles.emptyText}>No se encontró el servicio seleccionado.</Text>
         </View>
       </View>
     );
   }
 
+  // 👇 Determina si Maps/Waze deben apuntar al destino o al origen.
+  const goToDestination =
+    service.estado === 'EN_TRANSITO' || service.estado === 'TERMINADO';
+
+  const mapLat = goToDestination ? service.destinoLat : service.origenLat;
+  const mapLng = goToDestination ? service.destinoLng : service.origenLng;
+
   const openExternalUrl = async (url: string) => {
     try {
       await Linking.openURL(url);
     } catch {
-      setFeedbackDialog({ title: 'No disponible', message: 'No se pudo abrir la accion solicitada.' });
+      setFeedbackDialog({ title: 'No disponible', message: 'No se pudo abrir la acción solicitada.' });
     }
   };
 
   const openPhones = () => {
     if (service.telefonos.length === 0) {
-      setFeedbackDialog({ title: 'Sin telefonos', message: 'Este servicio no tiene telefonos disponibles.' });
+      setFeedbackDialog({ title: 'Sin teléfonos', message: 'Este servicio no tiene teléfonos disponibles.' });
       return;
     }
 
@@ -190,7 +202,7 @@ export function ServiceDetailScreen() {
 
   const handleConfirmSatisfaction = async () => {
     if (!satisfactionLevel) {
-      setSatisfactionError('Selecciona un nivel de satisfaccion.');
+      setSatisfactionError('Selecciona un nivel de satisfacción.');
       return;
     }
 
@@ -224,7 +236,7 @@ export function ServiceDetailScreen() {
 
   const handleConfirmOriginCode = async () => {
     if (String(originCode).trim() !== String(service.numeroServicio).trim()) {
-      setOriginError('Codigo incorrecto. Intenta nuevamente o cancela.');
+      setOriginError('Código incorrecto. Intenta nuevamente o cancela.');
       return;
     }
 
@@ -238,7 +250,7 @@ export function ServiceDetailScreen() {
       const result = await arrivedAtOrigin(service.numeroServicio, originCode);
 
       if (!result.ok) {
-        setOriginError(result.message ?? 'Codigo incorrecto. Intenta nuevamente.');
+        setOriginError(result.message ?? 'Código incorrecto. Intenta nuevamente.');
         return;
       }
 
@@ -246,8 +258,8 @@ export function ServiceDetailScreen() {
       setOriginCode('');
       setOriginError(null);
       setFeedbackDialog({
-        title: 'Codigo correcto',
-        message: 'Validacion correcta. El servicio ahora esta en transito.',
+        title: 'Código correcto',
+        message: 'Validación correcta. El servicio ahora está en tránsito.',
       });
     } finally {
       setIsProcessingAction(false);
@@ -281,7 +293,7 @@ export function ServiceDetailScreen() {
     const effectiveGuideControl = trimmedGuideControl.length > 0 ? trimmedGuideControl : service.numeroServicio;
 
     if (!/^\d{1,10}$/.test(effectiveGuideControl)) {
-      setDeliveryError('Ingresa una GuíaControl numerica entre 1 y 10 digitos.');
+      setDeliveryError('Ingresa una GuíaControl numérica entre 1 y 10 dígitos.');
       return;
     }
 
@@ -311,8 +323,8 @@ export function ServiceDetailScreen() {
       const timestamp = nowInColombiaIso();
       resetDeliveryDialog();
       setFeedbackDialog({
-        title: 'Servicio Completado',
-        message: `Servicio # ${service.numeroServicio} completado — ${formatDateOnly(service.fechaServicio)}\n Servicio Completado y firmado por el cliente. Fecha/Hora Firma: ${formatDateOnly(timestamp)} ${formatTimeOnly(timestamp)}`,
+        title: 'Servicio completado',
+        message: `Servicio # ${service.numeroServicio} completado — ${formatDateOnly(service.fechaServicio)}\n Servicio completado y firmado por el cliente. Fecha/Hora Firma: ${formatDateOnly(timestamp)} ${formatTimeOnly(timestamp)}`,
         onClose: () => navigation.navigate('Servicios'),
       });
     } finally {
@@ -360,9 +372,9 @@ export function ServiceDetailScreen() {
 
   const ctaLabel =
     service.estado === 'ASIGNADA'
-      ? 'Llegue al origen'
+      ? 'Llegué al origen'
       : service.estado === 'EN_TRANSITO'
-        ? 'Llegue al destino'
+        ? 'Llegué al destino'
         : service.estado === 'TERMINADO'
           ? 'Entregar servicio'
           : 'Completado';
@@ -415,9 +427,9 @@ export function ServiceDetailScreen() {
       >
         <View style={styles.dialogOverlay}>
           <View style={styles.dialogCard}>
-            <Text style={styles.dialogTitle}>Llegue al origen</Text>
+            <Text style={styles.dialogTitle}>Llegué al origen</Text>
             <Text style={styles.dialogSubtitle}>
-              Ingresa el codigo del servicio para iniciar el recorrido. El numero de servicio fue enviado al cliente.
+              Ingresa el código del servicio para iniciar el recorrido. El número de servicio fue enviado al cliente.
             </Text>
 
             <TextInput
@@ -427,7 +439,7 @@ export function ServiceDetailScreen() {
                 setOriginCode(value);
                 if (originError) setOriginError(null);
               }}
-              placeholder="Codigo de servicio"
+              placeholder="Código de servicio"
               placeholderTextColor="#7b8791"
               style={styles.dialogInput}
               value={originCode}
@@ -510,7 +522,7 @@ export function ServiceDetailScreen() {
       >
         <View style={styles.dialogOverlay}>
           <View style={styles.dialogCard}>
-            <Text style={styles.dialogTitle}>Llegue al destino</Text>
+            <Text style={[styles.dialogTitle, styles.dialogTitleCentered]}>Llegué al destino</Text>
             <Text style={styles.dialogSubtitle}>¿Confirmar la llegada al destino de este servicio?</Text>
 
             <View style={styles.dialogActions}>
@@ -539,13 +551,14 @@ export function ServiceDetailScreen() {
       >
         <View style={styles.dialogOverlay}>
           <View style={styles.dialogCard}>
-            <Text style={styles.dialogTitle}>Telefonos disponibles</Text>
-            <Text style={styles.dialogSubtitle}>Selecciona un numero para llamar al paciente.</Text>
+            <Text style={styles.dialogTitle}>Teléfonos disponibles</Text>
+            <Text style={styles.dialogSubtitle}>Selecciona un número para llamar al paciente.</Text>
 
             <View style={styles.phoneActionsWrap}>
-              {service.telefonos.map((phone) => (
+              {/* 👇 Deduplicado + keys únicas (fix del error de keys) */}
+              {Array.from(new Set(service.telefonos)).map((phone, index) => (
                 <Pressable
-                  key={phone}
+                  key={`${phone}-${index}`}
                   onPress={() => {
                     setPhonesDialogOpen(false);
                     void openExternalUrl(`tel:${phone}`);
@@ -600,14 +613,15 @@ export function ServiceDetailScreen() {
           <Pressable onPress={openPhones} style={styles.headerMiniAction}>
             <MaterialCommunityIcons color="#0f172a" name="phone-outline" size={18} />
           </Pressable>
+          {/* 👇 Ahora respeta el estado: destino si EN_TRANSITO/TERMINADO, origen si ASIGNADA */}
           <Pressable
-            onPress={() => openExternalUrl(buildMapUrl(service.origenLat, service.origenLng, 'google'))}
+            onPress={() => openExternalUrl(buildMapUrl(mapLat, mapLng, 'google'))}
             style={styles.headerMiniAction}
           >
             <MaterialCommunityIcons color="#ff6424" name="google-maps" size={18} />
           </Pressable>
           <Pressable
-            onPress={() => openExternalUrl(buildMapUrl(service.origenLat, service.origenLng, 'waze'))}
+            onPress={() => openExternalUrl(buildMapUrl(mapLat, mapLng, 'waze'))}
             style={styles.headerMiniAction}
           >
             <FontAwesome5 color="#169cf3" name="waze" size={15} />
@@ -671,7 +685,7 @@ export function ServiceDetailScreen() {
           <View style={styles.detailRowBlock}>
             <View style={styles.detailLabelRow}>
               <MaterialCommunityIcons color="#8b98a3" name="phone-outline" size={16} />
-              <Text style={styles.detailLabel}>TELEFONOS</Text>
+              <Text style={styles.detailLabel}>TELÉFONOS</Text>
             </View>
             <Text style={styles.detailValueMultiline}>{service.telefonos.join(', ')}</Text>
           </View>
@@ -687,7 +701,7 @@ export function ServiceDetailScreen() {
           <View style={styles.detailRowBlockLast}>
             <View style={styles.detailLabelRow}>
               <MaterialCommunityIcons color="#8b98a3" name="office-building-outline" size={16} />
-              <Text style={styles.detailLabel}>COMPANIA</Text>
+              <Text style={styles.detailLabel}>COMPAÑÍA</Text>
             </View>
             <Text style={styles.detailValueMultiline}>{service.companiaNombre.toUpperCase()}</Text>
           </View>
@@ -865,6 +879,9 @@ const styles = StyleSheet.create({
     color: '#0f172a',
     fontSize: 18,
     fontWeight: '800',
+  },
+  dialogTitleCentered: {
+    textAlign: 'center',
   },
   dialogSubtitle: {
     color: '#4b5563',

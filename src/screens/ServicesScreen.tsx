@@ -1,7 +1,19 @@
 import { FontAwesome5, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useState } from 'react';
-import { Linking, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useRef, useState } from 'react';
+import {
+  Linking,
+  Modal,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { DrawerNavigationProp } from '@react-navigation/drawer';
 
@@ -17,12 +29,19 @@ function formatDateTime(value: string) {
   return `${date.toLocaleDateString()} ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
 }
 
+// 👇 Ahora apunta al destino si el servicio está en tránsito o terminado.
+// Si está asignado, apunta al origen.
 function buildMapUrl(service: Service, app: 'google' | 'waze') {
-  if (app === 'waze') {
-    return `https://waze.com/ul?ll=${service.origenLat},${service.origenLng}&navigate=yes`;
-  }
+  const goToDestination =
+    service.estado === 'EN_TRANSITO' || service.estado === 'TERMINADO';
 
-  return `https://www.google.com/maps/dir/?api=1&destination=${service.origenLat},${service.origenLng}`;
+  const lat = goToDestination ? service.destinoLat : service.origenLat;
+  const lng = goToDestination ? service.destinoLng : service.origenLng;
+
+  if (app === 'waze') {
+    return `https://waze.com/ul?ll=${lat},${lng}&navigate=yes`;
+  }
+  return `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
 }
 
 const STATE_COLORS: Record<ServiceState, string> = {
@@ -39,6 +58,9 @@ function formatStatusLabel(status: ServiceState) {
 }
 
 type ModalConfig = { type: 'origin'; serviceNumber: string } | null;
+
+// 👇 Card lateral para uniformar bordes con la pantalla
+const CARD_MARGIN = 16;
 
 export function ServicesScreen() {
   const navigation = useNavigation<DrawerNavigationProp<DrawerParamList>>();
@@ -57,6 +79,11 @@ export function ServicesScreen() {
   const [destinationConfirmService, setDestinationConfirmService] = useState<Service | null>(null);
   const [feedbackDialog, setFeedbackDialog] = useState<{ title: string; message: string } | null>(null);
 
+  // ─── Refs y estado para el FAB de subir al inicio ──────────
+  const scrollViewRef = useRef<ScrollView>(null);
+  const firstServiceY = useRef(0);
+  const [showScrollTop, setShowScrollTop] = useState(false);
+
   const visibleServices = Array.from(
     new Map(
       services
@@ -66,8 +93,6 @@ export function ServicesScreen() {
             service.estado === 'EN_TRANSITO' ||
             service.estado === 'TERMINADO',
         )
-        // Defensive de-dupe by numeroServicio: guarantees unique list keys
-        // even if upstream state ever contains a duplicate entry.
         .map((service) => [service.numeroServicio, service]),
     ).values(),
   );
@@ -89,7 +114,6 @@ export function ServicesScreen() {
       setFeedbackDialog({ title: 'Sin telefonos', message: 'Este servicio no tiene telefonos disponibles.' });
       return;
     }
-
     setPhonesDialogService(service);
   };
 
@@ -99,328 +123,358 @@ export function ServicesScreen() {
 
   const handleModalConfirm = async () => {
     if (!modalConfig) return;
-
     const result = await arrivedAtOrigin(modalConfig.serviceNumber, codeInput);
-
     if (!result.ok) {
       setFeedbackDialog({ title: 'No fue posible continuar', message: result.message ?? 'Intenta nuevamente.' });
       return;
     }
-
     setModalConfig(null);
     setCodeInput('');
   };
 
   const confirmArrivedAtDestination = async () => {
     if (!destinationConfirmService) return;
-
     const result = await arrivedAtDestination(destinationConfirmService.numeroServicio);
     setDestinationConfirmService(null);
-
     if (!result.ok) {
       setFeedbackDialog({ title: 'No fue posible continuar', message: result.message ?? 'Intenta nuevamente.' });
     }
   };
 
+  // ─── FAB: mostrar cuando pasamos del primer servicio ──────
+  const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const y = event.nativeEvent.contentOffset.y;
+    const threshold = firstServiceY.current > 0 ? firstServiceY.current : 300;
+    setShowScrollTop(y > threshold);
+  };
+
+  const scrollToTop = () => {
+    scrollViewRef.current?.scrollTo({ animated: true, y: 0 });
+  };
+
   return (
-    <ScrollView
-      contentContainerStyle={styles.content}
-      refreshControl={<RefreshControl onRefresh={handleRefresh} refreshing={isLoadingServices} />}
-    >
-      <RoleGate allowedRoles={['CONDUCTOR', 'PROPIETARIO', 'AMBOS']}>
-        {/* Modal para validaciones con input */}
-        <Modal animationType="fade" onRequestClose={() => setModalConfig(null)} transparent visible={!!modalConfig}>
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalBox}>
-              <Text style={styles.modalTitle}>Llegue al origen</Text>
-              <Text style={styles.modalSubtitle}>
-                Ingresa el numero de servicio para confirmar tu llegada al origen.
-              </Text>
+    <View style={styles.screenRoot}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        onScroll={handleScroll}
+        ref={scrollViewRef}
+        refreshControl={<RefreshControl onRefresh={handleRefresh} refreshing={isLoadingServices} />}
+        scrollEventThrottle={16}
+      >
+        <RoleGate allowedRoles={['CONDUCTOR', 'PROPIETARIO', 'AMBOS']}>
+          {/* Modal para validaciones con input */}
+          <Modal animationType="fade" onRequestClose={() => setModalConfig(null)} transparent visible={!!modalConfig}>
+            <View style={styles.modalOverlay}>
+              <View style={styles.modalBox}>
+                <Text style={styles.modalTitle}>llegué al origen</Text>
+                <Text style={styles.modalSubtitle}>
+                  Ingresa el número de servicio para confirmar tu llegada al origen e iniciar el recorrido.
+                </Text>
+                <TextInput
+                  autoFocus
+                  keyboardType="number-pad"
+                  onChangeText={setCodeInput}
+                  placeholder="Código de servicio"
+                  placeholderTextColor={colors.muted}
+                  style={styles.modalInput}
+                  value={codeInput}
+                />
+                <View style={styles.modalActions}>
+                  <Pressable
+                    onPress={() => { setModalConfig(null); setCodeInput(''); }}
+                    style={[styles.modalBtn, styles.modalBtnCancel]}
+                  >
+                    <Text style={styles.modalBtnText}>Cancelar</Text>
+                  </Pressable>
+                  <Pressable onPress={handleModalConfirm} style={[styles.modalBtn, styles.modalBtnConfirm]}>
+                    <Text style={[styles.modalBtnText, styles.modalBtnConfirmText]}>Confirmar</Text>
+                  </Pressable>
+                </View>
+              </View>
+            </View>
+          </Modal>
 
-              <TextInput
-                autoFocus
-                keyboardType="number-pad"
-                onChangeText={setCodeInput}
-                placeholder="Numero de servicio"
-                placeholderTextColor={colors.muted}
-                style={styles.modalInput}
-                value={codeInput}
-              />
+          <Modal
+            animationType="fade"
+            onRequestClose={() => setPhonesDialogService(null)}
+            transparent
+            visible={!!phonesDialogService}
+          >
+            <View style={styles.modalOverlay}>
+              <View style={styles.modalBox}>
+                <Text style={styles.modalTitle}>Telefonos disponibles</Text>
+                <Text style={styles.modalSubtitle}>Selecciona un numero para llamar al paciente.</Text>
 
-              <View style={styles.modalActions}>
+                <View style={styles.modalList}>
+                  {/* Deduplicado + keys únicas (fix del error) */}
+                  {Array.from(new Set(phonesDialogService?.telefonos ?? [])).map((phone, index) => (
+                    <Pressable
+                      key={`${phone}-${index}`}
+                      onPress={() => {
+                        setPhonesDialogService(null);
+                        void openExternalUrl(`tel:${phone}`);
+                      }}
+                      style={[styles.modalBtn, styles.modalBtnConfirm, styles.modalSingleActionBtn]}
+                    >
+                      <Text style={[styles.modalBtnText, styles.modalBtnConfirmText]}>{phone}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+
                 <Pressable
-                  onPress={() => { setModalConfig(null); setCodeInput(''); }}
-                  style={[styles.modalBtn, styles.modalBtnCancel]}
+                  onPress={() => setPhonesDialogService(null)}
+                  style={[styles.modalBtn, styles.modalBtnCancel, styles.modalSingleActionBtn]}
                 >
                   <Text style={styles.modalBtnText}>Cancelar</Text>
                 </Pressable>
-                <Pressable onPress={handleModalConfirm} style={[styles.modalBtn, styles.modalBtnConfirm]}>
-                  <Text style={[styles.modalBtnText, styles.modalBtnConfirmText]}>Confirmar</Text>
-                </Pressable>
               </View>
             </View>
-          </View>
-        </Modal>
+          </Modal>
 
-        <Modal
-          animationType="fade"
-          onRequestClose={() => setPhonesDialogService(null)}
-          transparent
-          visible={!!phonesDialogService}
-        >
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalBox}>
-              <Text style={styles.modalTitle}>Telefonos disponibles</Text>
-              <Text style={styles.modalSubtitle}>Selecciona un numero para llamar al paciente.</Text>
-
-              <View style={styles.modalList}>
-                {phonesDialogService?.telefonos.map((phone) => (
-                  <Pressable
-                    key={phone}
-                    onPress={() => {
-                      setPhonesDialogService(null);
-                      void openExternalUrl(`tel:${phone}`);
-                    }}
-                    style={[styles.modalBtn, styles.modalBtnConfirm, styles.modalSingleActionBtn]}
-                  >
-                    <Text style={[styles.modalBtnText, styles.modalBtnConfirmText]}>{phone}</Text>
+          <Modal
+            animationType="fade"
+            onRequestClose={() => setDestinationConfirmService(null)}
+            transparent
+            visible={!!destinationConfirmService}
+          >
+            <View style={styles.modalOverlay}>
+              <View style={styles.modalBox}>
+                <Text style={styles.modalTitle}>Llegué al destino</Text>
+                <Text style={styles.modalSubtitle}>¿Confirmas que llegaste al destino de este servicio?</Text>
+                <View style={styles.modalActions}>
+                  <Pressable onPress={() => setDestinationConfirmService(null)} style={[styles.modalBtn, styles.modalBtnCancel]}>
+                    <Text style={styles.modalBtnText}>Cancelar</Text>
                   </Pressable>
-                ))}
+                  <Pressable onPress={confirmArrivedAtDestination} style={[styles.modalBtn, styles.modalBtnConfirm]}>
+                    <Text style={[styles.modalBtnText, styles.modalBtnConfirmText]}>Confirmar</Text>
+                  </Pressable>
+                </View>
               </View>
-
-              <Pressable
-                onPress={() => setPhonesDialogService(null)}
-                style={[styles.modalBtn, styles.modalBtnCancel, styles.modalSingleActionBtn]}
-              >
-                <Text style={styles.modalBtnText}>Cancelar</Text>
-              </Pressable>
             </View>
-          </View>
-        </Modal>
+          </Modal>
 
-        <Modal
-          animationType="fade"
-          onRequestClose={() => setDestinationConfirmService(null)}
-          transparent
-          visible={!!destinationConfirmService}
-        >
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalBox}>
-              <Text style={styles.modalTitle}>Llegue al destino</Text>
-              <Text style={styles.modalSubtitle}>¿Confirmas que llegaste al destino de este servicio?</Text>
-
-              <View style={styles.modalActions}>
-                <Pressable onPress={() => setDestinationConfirmService(null)} style={[styles.modalBtn, styles.modalBtnCancel]}>
-                  <Text style={styles.modalBtnText}>Cancelar</Text>
-                </Pressable>
-                <Pressable onPress={confirmArrivedAtDestination} style={[styles.modalBtn, styles.modalBtnConfirm]}>
-                  <Text style={[styles.modalBtnText, styles.modalBtnConfirmText]}>Confirmar</Text>
+          <Modal
+            animationType="fade"
+            onRequestClose={() => setFeedbackDialog(null)}
+            transparent
+            visible={!!feedbackDialog}
+          >
+            <View style={styles.modalOverlay}>
+              <View style={styles.modalBox}>
+                <Text style={styles.modalTitle}>{feedbackDialog?.title}</Text>
+                <Text style={styles.modalSubtitle}>{feedbackDialog?.message}</Text>
+                <Pressable
+                  onPress={() => setFeedbackDialog(null)}
+                  style={[styles.modalBtn, styles.modalBtnConfirm, styles.modalSingleActionBtn]}
+                >
+                  <Text style={[styles.modalBtnText, styles.modalBtnConfirmText]}>Aceptar</Text>
                 </Pressable>
               </View>
             </View>
-          </View>
-        </Modal>
+          </Modal>
 
-        <Modal
-          animationType="fade"
-          onRequestClose={() => setFeedbackDialog(null)}
-          transparent
-          visible={!!feedbackDialog}
-        >
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalBox}>
-              <Text style={styles.modalTitle}>{feedbackDialog?.title}</Text>
-              <Text style={styles.modalSubtitle}>{feedbackDialog?.message}</Text>
-
-              <Pressable
-                onPress={() => setFeedbackDialog(null)}
-                style={[styles.modalBtn, styles.modalBtnConfirm, styles.modalSingleActionBtn]}
-              >
-                <Text style={[styles.modalBtnText, styles.modalBtnConfirmText]}>Aceptar</Text>
+          <View style={styles.listContainer}>
+            {servicesLoadError ? (
+              <Pressable onPress={reloadAssignedServices} style={styles.errorBanner}>
+                <Text style={styles.errorBannerText}>{servicesLoadError} Toca para reintentar.</Text>
               </Pressable>
-            </View>
-          </View>
-        </Modal>
+            ) : null}
 
-        <SectionCard
-          title=""
-          subtitle=""
-          style={styles.sectionCardFull}
-        >
-          {servicesLoadError ? (
-            <Pressable onPress={reloadAssignedServices} style={styles.errorBanner}>
-              <Text style={styles.errorBannerText}>{servicesLoadError} Toca para reintentar.</Text>
-            </Pressable>
-          ) : null}
-
-          {activeService ? (
-            <Pressable
-              onPress={() => navigation.navigate('ServicioDetalle', { serviceNumber: activeService.numeroServicio })}
-              style={styles.activeBanner}
-            >
-              <Text style={styles.activeLabel}>Servicio activo</Text>
-              <Text style={styles.activeText}>
-                #{activeService.numeroServicio} — {formatStatusLabel(activeService.estado)}
-              </Text>
-            </Pressable>
-          ) : null}
-
-          {orderedServices.map((service) => {
-            const isInTransit = service.estado === 'EN_TRANSITO';
-            const isFinished = service.estado === 'TERMINADO';
-            const isBlocked = !!activeService && activeService.numeroServicio !== service.numeroServicio;
-
-            return (
+            {activeService ? (
               <Pressable
-                key={`${service.orden}-${service.numeroServicio}`}
-                onPress={() => navigation.navigate('ServicioDetalle', { serviceNumber: service.numeroServicio })}
-                style={[
-                  styles.serviceCard,
-                  isInTransit ? styles.serviceCardInTransit : null,
-                  isFinished ? styles.serviceCardFinished : null,
-                ]}
+                onPress={() => navigation.navigate('ServicioDetalle', { serviceNumber: activeService.numeroServicio })}
+                style={styles.activeBanner}
               >
-                <View style={styles.infoRow}>
-                  <View style={styles.infoCol}>
-                    <Text style={styles.infoLabel}>Contrato</Text>
-                    <View style={styles.contractWrap}>
-                      <MaterialCommunityIcons color="#260ff3" name="file-document-outline" size={19} />
-                      <Text style={styles.contractText}>{service.contrato}</Text>
+                <Text style={styles.activeLabel}>Servicio activo</Text>
+                <Text style={styles.activeText}>
+                  #{activeService.numeroServicio} — {formatStatusLabel(activeService.estado)}
+                </Text>
+              </Pressable>
+            ) : null}
+
+            {orderedServices.map((service, index) => {
+              const isInTransit = service.estado === 'EN_TRANSITO';
+              const isFinished = service.estado === 'TERMINADO';
+              const isBlocked = !!activeService && activeService.numeroServicio !== service.numeroServicio;
+              const goToDestination = isInTransit || isFinished;
+
+              return (
+                <Pressable
+                  key={`${service.orden}-${service.numeroServicio}`}
+                  onLayout={
+                    index === 0
+                      ? (e) => { firstServiceY.current = e.nativeEvent.layout.y; }
+                      : undefined
+                  }
+                  onPress={() => navigation.navigate('ServicioDetalle', { serviceNumber: service.numeroServicio })}
+                  style={[
+                    styles.serviceCard,
+                    isInTransit ? styles.serviceCardInTransit : null,
+                    isFinished ? styles.serviceCardFinished : null,
+                  ]}
+                >
+                  <View style={styles.infoRow}>
+                    <View style={styles.infoCol}>
+                      <Text style={styles.infoLabel}>Contrato</Text>
+                      <View style={styles.contractWrap}>
+                        <MaterialCommunityIcons color="#260ff3" name="file-document-outline" size={19} />
+                        <Text style={styles.contractText}>{service.contrato}</Text>
+                      </View>
+                    </View>
+                    <View style={styles.infoCol}>
+                      <Text style={styles.infoLabel}>Estado</Text>
+                      <View
+                        style={[
+                          styles.statePill,
+                          isInTransit ? styles.statePillTransit : { backgroundColor: STATE_COLORS[service.estado] + '22' },
+                        ]}
+                      >
+                        <Text style={[styles.stateText, isInTransit ? styles.stateTextTransit : { color: STATE_COLORS[service.estado] }]}>
+                          {formatStatusLabel(service.estado).replace(' ', '\n')}
+                        </Text>
+                      </View>
                     </View>
                   </View>
-                  <View style={styles.infoCol}>
-                    <Text style={styles.infoLabel}>Estado</Text>
-                    <View
-                      style={[
-                        styles.statePill,
-                        isInTransit ? styles.statePillTransit : { backgroundColor: STATE_COLORS[service.estado] + '22' },
-                      ]}
-                    >
-                      <Text style={[styles.stateText, isInTransit ? styles.stateTextTransit : { color: STATE_COLORS[service.estado] }]}>
-                        {formatStatusLabel(service.estado).replace(' ', '\n')}
+
+                  {service.estado === 'EN_TRANSITO' ? (
+                    <Text style={styles.inTransitServiceNumber}>Servicio #{service.numeroServicio}</Text>
+                  ) : null}
+                  <Text style={styles.routeLabel}>Fecha:
+                  <Text style={styles.dateText}>{formatDateTime(service.fechaServicio)}</Text></Text>
+                  <Text style={styles.routeLabel}>Origen</Text>
+                  <Text style={styles.routeValue}>{service.origenDireccion}</Text>
+                  <Text style={styles.routeLabel}>Destino</Text>
+                  <Text style={styles.routeValue}>{service.destinoDireccion}</Text>
+
+                  <View style={styles.actionsRow}>
+                    <Pressable onPress={() => openPhones(service)} style={styles.actionCircleWrap}>
+                      <View style={[styles.actionCircle, styles.actionButtonPhone]}>
+                        <MaterialCommunityIcons color="#ffffff" name="phone" size={24} />
+                      </View>
+                      <Text style={styles.actionText}>Telefonos</Text>
+                    </Pressable>
+                    <Pressable onPress={() => openExternalUrl(buildMapUrl(service, 'google'))} style={styles.actionCircleWrap}>
+                      <View style={[styles.actionCircle, styles.actionButtonMaps]}>
+                        <MaterialCommunityIcons color="#ffffff" name="google-maps" size={24} />
+                      </View>
+                      <Text style={styles.actionText}>
+                        {goToDestination ? 'Ir a destino' : 'Ir a origen'}
                       </Text>
-                    </View>
+                    </Pressable>
+                    <Pressable onPress={() => openExternalUrl(buildMapUrl(service, 'waze'))} style={styles.actionCircleWrap}>
+                      <View style={[styles.actionCircle, styles.actionButtonWaze]}>
+                        <FontAwesome5 color="#ffffff" name="waze" size={22} brand />
+                      </View>
+                      <Text style={styles.actionText}>
+                        {goToDestination ? 'Ir a destino' : 'Ir a origen'}
+                      </Text>
+                    </Pressable>
                   </View>
-                </View>
 
-                {service.estado === 'EN_TRANSITO' ? (
-                  <Text style={styles.inTransitServiceNumber}>Servicio #{service.numeroServicio}</Text>
-                ) : null}
-                <Text style={styles.routeLabel}>Fecha: 
-                <Text style={styles.dateText}>{formatDateTime(service.fechaServicio)}</Text></Text>
-                <Text style={styles.routeLabel}>Origen</Text>
-                <Text style={styles.routeValue}>{service.origenDireccion}</Text>
-                <Text style={styles.routeLabel}>Destino</Text>
-                <Text style={styles.routeValue}>{service.destinoDireccion}</Text>
-
-                {/* Acciones externas: siempre visibles */}
-                <View style={styles.actionsRow}>
-                  <Pressable
-                    onPress={() => openPhones(service)}
-                    style={styles.actionCircleWrap}
-                  >
-                    <View style={[styles.actionCircle, styles.actionButtonPhone]}>
-                      <MaterialCommunityIcons color="#ffffff" name="phone" size={24} />
-                    </View>
-                    <Text style={styles.actionText}>Telefonos</Text>
-                  </Pressable>
-                  <Pressable
-                    onPress={() => openExternalUrl(buildMapUrl(service, 'google'))}
-                    style={styles.actionCircleWrap}
-                  >
-                    <View style={[styles.actionCircle, styles.actionButtonMaps]}>
-                      <MaterialCommunityIcons color="#ffffff" name="google-maps" size={24} />
-                    </View>
-                    <Text style={styles.actionText}>Maps</Text>
-                  </Pressable>
-                  <Pressable
-                    onPress={() => openExternalUrl(buildMapUrl(service, 'waze'))}
-                    style={styles.actionCircleWrap}
-                  >
-                    <View style={[styles.actionCircle, styles.actionButtonWaze]}>
-                      <FontAwesome5 color="#ffffff" name="waze" size={22} brand />
-                    </View>
-                    <Text style={styles.actionText}>Waze</Text>
-                  </Pressable>
-                </View>
-
-                {/* Acciones operativas situacionales */}
-                {!isBlocked && (
-                  <View style={styles.opsRow}>
-                    {service.estado === 'ASIGNADA' && (
-                      <Pressable
-                        onPress={() => { setModalConfig({ type: 'origin', serviceNumber: service.numeroServicio }); setCodeInput(''); }}
-                        style={[styles.opsButton, styles.opsButtonPrimary]}
-                      >
-                        <Text style={styles.opsButtonText}>Llegue al origen</Text>
-                      </Pressable>
-                    )}
-
-                    {service.estado === 'EN_TRANSITO' && (
-                      <Pressable
-                        onPress={() => setDestinationConfirmService(service)}
-                        style={[styles.opsButton, styles.opsButtonTransitPressable]}
-                      >
-                        <LinearGradient
-                          colors={['#ff8a3d', '#ff6b2c', '#ea4f16']}
-                          end={{ x: 1, y: 0.5 }}
-                          start={{ x: 0, y: 0.5 }}
-                          style={styles.opsButtonTransit}
+                  {!isBlocked && (
+                    <View style={styles.opsRow}>
+                      {service.estado === 'ASIGNADA' && (
+                        <Pressable
+                          onPress={() => { setModalConfig({ type: 'origin', serviceNumber: service.numeroServicio }); setCodeInput(''); }}
+                          style={[styles.opsButton, styles.opsButtonPrimary]}
                         >
-                          <Text style={styles.opsButtonText}>Llegue al destino</Text>
-                        </LinearGradient>
-                      </Pressable>
-                    )}
+                          <Text style={styles.opsButtonText}>LLEGUÉ AL ORIGEN</Text>
+                        </Pressable>
+                      )}
 
-                    {service.estado === 'TERMINADO' && (
-                      <Pressable
+                      {service.estado === 'EN_TRANSITO' && (
+                        <Pressable
+                          onPress={() => setDestinationConfirmService(service)}
+                          style={[styles.opsButton, styles.opsButtonTransitPressable]}
+                        >
+                          <LinearGradient
+                            colors={['#ff8a3d', '#ff6b2c', '#ea4f16']}
+                            end={{ x: 1, y: 0.5 }}
+                            start={{ x: 0, y: 0.5 }}
+                            style={styles.opsButtonTransit}
+                          >
+                            <Text style={styles.opsButtonText}>LLEGUÉ AL DESTINO</Text>
+                          </LinearGradient>
+                        </Pressable>
+                      )}
+
+                      {service.estado === 'TERMINADO' && (
+                        <Pressable
                           onPress={() => navigation.navigate('ServicioDetalle', { serviceNumber: service.numeroServicio })}
-                        style={[styles.opsButton, styles.opsButtonSuccess]}
-                      >
-                        <Text style={styles.opsButtonText}>Entregar servicio</Text>
-                      </Pressable>
-                    )}
-                  </View>
-                )}
+                          style={[styles.opsButton, styles.opsButtonSuccess]}
+                        >
+                          <Text style={styles.opsButtonText}>ENTREGAR SERVICIO</Text>
+                        </Pressable>
+                      )}
+                    </View>
+                  )}
 
-                {isBlocked && service.estado === 'ASIGNADA' && (
-                  <Text style={styles.blockedText}>Hay un servicio activo. Finaliza ese primero.</Text>
-                )}
-              </Pressable>
-            );
-          })}
-        </SectionCard>
-      </RoleGate>
-    </ScrollView>
+                  {isBlocked && service.estado === 'ASIGNADA' && (
+                    <Text style={styles.blockedText}>Hay un servicio activo. Finaliza ese primero.</Text>
+                  )}
+                </Pressable>
+              );
+            })}
+          </View>
+        </RoleGate>
+      </ScrollView>
+
+      {/* FAB flotante para subir al inicio */}
+      {showScrollTop ? (
+        <Pressable
+          accessibilityLabel="Subir al inicio"
+          accessibilityRole="button"
+          onPress={scrollToTop}
+          style={({ pressed }) => [
+            styles.scrollTopFab,
+            pressed && styles.scrollTopFabPressed,
+          ]}
+        >
+          <MaterialCommunityIcons color="#FFFFFF" name="chevron-up" size={26} />
+        </Pressable>
+      ) : null}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  screenRoot: {
+    backgroundColor: colors.background,
+    flex: 1,
+  },
+
   content: {
     backgroundColor: colors.background,
     flexGrow: 1,
-    gap: spacing.lg,
+    gap: 0,
     padding: 0,
+    paddingTop: 0,
   },
-  sectionCardFull: {
-    borderRadius: 0,
-    borderWidth: 0,
-    flex: 1,
+
+  listContainer: {
+    gap: spacing.sm,
+    paddingHorizontal: CARD_MARGIN,
+    paddingTop: spacing.sm,
+    paddingBottom: 120,
   },
+
+  // ─── Banners ──────────────────────────────────────────────
   activeBanner: {
     backgroundColor: '#dff6ea',
     borderColor: '#b8e7cf',
-    borderRadius: 18,
+    borderRadius: 16,
     borderWidth: 1,
     gap: spacing.xs,
-    padding: spacing.md,
+    paddingHorizontal: CARD_MARGIN,
+    paddingVertical: spacing.md,
   },
   errorBanner: {
     backgroundColor: '#fdecec',
     borderColor: '#f3b9b9',
     borderRadius: 14,
     borderWidth: 1,
-    padding: spacing.md,
+    paddingHorizontal: CARD_MARGIN,
+    paddingVertical: spacing.md,
   },
   errorBannerText: {
     color: colors.danger,
@@ -438,23 +492,27 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
   },
+
+  // ─── Service Card ─────────────────────────────────────────
   serviceCard: {
-    backgroundColor: '#f7fafb',
-    borderRadius: 18,
+    backgroundColor: '#F2F4F7',
+    borderRadius: 16,
     gap: spacing.xs,
-    marginHorizontal: -spacing.lg,
-    padding: spacing.lg,
+    paddingHorizontal: CARD_MARGIN,
+    paddingVertical: spacing.md,
     shadowColor: '#0b2239',
-    shadowOffset: { width: 0, height: 8 },
+    shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.05,
-    shadowRadius: 16,
+    shadowRadius: 12,
   },
   serviceCardInTransit: {
-    backgroundColor: '#cfe9ff',
+    backgroundColor: '#D6E8F7',
   },
   serviceCardFinished: {
-    backgroundColor: '#e9eff4',
+    backgroundColor: '#E4E8EC',
   },
+
+  // ─── Info Row (Contrato + Estado) ─────────────────────────
   infoRow: {
     alignItems: 'flex-start',
     flexDirection: 'row',
@@ -469,12 +527,10 @@ const styles = StyleSheet.create({
     color: '#7c8f99',
     fontSize: 12,
     fontWeight: '700',
-    
   },
   contractWrap: {
     alignItems: 'center',
     flexDirection: 'row',
-    
   },
   contractText: {
     color: colors.textStrong,
@@ -529,6 +585,8 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     lineHeight: 26,
   },
+
+  // ─── Acciones externas (Phone / Maps / Waze) ──────────────
   actionsRow: {
     flexDirection: 'row',
     justifyContent: 'space-evenly',
@@ -561,6 +619,8 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
   },
+
+  // ─── Acciones operativas ─────────────────────────────────
   opsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -602,7 +662,8 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     marginTop: spacing.sm,
   },
-  // Modal
+
+  // ─── Modales ──────────────────────────────────────────────
   modalOverlay: {
     alignItems: 'center',
     backgroundColor: '#000000cc',
@@ -672,5 +733,27 @@ const styles = StyleSheet.create({
   },
   modalBtnConfirmText: {
     color: '#0b2239',
+  },
+
+  // ─── FAB subir al inicio ─────────────────────────────────
+  scrollTopFab: {
+    alignItems: 'center',
+    backgroundColor: '#0FA0F3',
+    borderRadius: 28,
+    bottom: 88,
+    elevation: 8,
+    height: 56,
+    justifyContent: 'center',
+    position: 'absolute',
+    right: 20,
+    shadowColor: '#0FA0F3',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    width: 56,
+  },
+  scrollTopFabPressed: {
+    opacity: 0.85,
+    transform: [{ scale: 0.95 }],
   },
 });
