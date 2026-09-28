@@ -4,7 +4,7 @@ import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import { PreoperationalOption, PreoperationalQuestion } from '../mocks/preoperational';
 import { fetchPreoperationalQuestions, submitPreoperationalAnswers } from '../services/preoperationalApi';
-import { fetchAssignedServices } from '../services/servicesApi';
+import { fetchAssignedServices, fetchCurrentServices } from '../services/servicesApi';
 import { clearBiometricCredentials } from '../services/biometricAuth';
 import { nowInColombiaIso } from '../services/firmasApi';
 import { fetchConductorRole, fetchOwnedVehicles } from '../services/roleApi';
@@ -179,12 +179,15 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   // Read-only feed for the PROPIETARIO home card: services assigned to whichever
   // owned vehicle (Locatario-based) is currently selected, independent of the
-  // conductor's own `services`/`mobilUser.Vehiculo` fetch above.
+  // conductor's own `services`/`mobilUser.Vehiculo` fetch above. Uses
+  // /services/current (not /services/assigned) so it reflects the vehicle's real
+  // state progression (ASIGNADA -> EN_TRANSITO -> TERMINADO -> COMPLETADO),
+  // with the same "no date filter" criteria the conductor's own list uses.
   const loadOwnerServices = (vehiculoCodigo: number) => {
     setIsLoadingOwnerServices(true);
     setOwnerServicesLoadError(null);
 
-    fetchAssignedServices(vehiculoCodigo)
+    fetchCurrentServices(vehiculoCodigo)
       .then((result) => {
         if (result.ok) {
           setOwnerServices(result.services);

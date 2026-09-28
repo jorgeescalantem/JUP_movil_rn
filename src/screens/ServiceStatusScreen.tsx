@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { Circle } from '@shopify/react-native-skia';
@@ -22,8 +22,10 @@ import {
 
 import { RoleGate } from '../components/RoleGate';
 import { OwnerBottomBar } from '../components/OwnerBottomBar';
+import { fetchVehicleServiceHistory } from '../services/servicesApi';
 import { useSession } from '../store/session';
 import { spacing } from '../theme';
+import { Service, ServiceState } from '../types/domain';
 
 // ─────────────────────────────────────────────────────────────
 // SCA Soluciones brand palette
@@ -92,45 +94,85 @@ const DARK_PALETTE: ScreenPalette = {
   chartLine: '#FB923C',
 };
 
-// ── Mock histogram data per filter ──────────────────────────────────────────
+// ── Histograma real: servicios completados (>=6) por dia, ultimos 7/15/30 dias ──
 type FilterKey = '7' | '15' | '30';
-
-const MOCK_DATA: Record<FilterKey, { day: string; count: number }[]> = {
-  '7': [
-    { day: 'LUN', count: 2 },
-    { day: 'MAR', count: 3 },
-    { day: 'MIE', count: 5 },
-    { day: 'JUE', count: 3 },
-    { day: 'VIE', count: 4 },
-    { day: 'SAB', count: 2 },
-    { day: 'DOM', count: 4 },
-  ],
-  '15': [
-    { day: '23A', count: 3 }, { day: '24A', count: 1 }, { day: '25A', count: 4 },
-    { day: '26A', count: 2 }, { day: '27A', count: 5 }, { day: '28A', count: 3 },
-    { day: '29A', count: 0 }, { day: '30A', count: 4 }, { day: '01M', count: 3 },
-    { day: '02M', count: 5 }, { day: '03M', count: 2 }, { day: '04M', count: 4 },
-    { day: '05M', count: 3 }, { day: '06M', count: 1 }, { day: '07M', count: 4 },
-  ],
-  '30': [
-    { day: '08', count: 2 }, { day: '09', count: 4 }, { day: '10', count: 3 },
-    { day: '11', count: 1 }, { day: '12', count: 5 }, { day: '13', count: 2 },
-    { day: '14', count: 3 }, { day: '15', count: 4 }, { day: '16', count: 2 },
-    { day: '17', count: 5 }, { day: '18', count: 3 }, { day: '19', count: 1 },
-    { day: '20', count: 4 }, { day: '21', count: 2 }, { day: '22', count: 3 },
-    { day: '23', count: 3 }, { day: '24', count: 1 }, { day: '25', count: 4 },
-    { day: '26', count: 2 }, { day: '27', count: 5 }, { day: '28', count: 3 },
-    { day: '29', count: 0 }, { day: '30', count: 4 }, { day: '01', count: 3 },
-    { day: '02', count: 5 }, { day: '03', count: 2 }, { day: '04', count: 4 },
-    { day: '05', count: 3 }, { day: '06', count: 1 }, { day: '07', count: 4 },
-  ],
-};
 
 const FILTER_OPTS: { key: FilterKey; label: string }[] = [
   { key: '7',  label: '7 días' },
   { key: '15', label: '15 días' },
   { key: '30', label: '30 días' },
 ];
+
+const WEEKDAY_LABELS_ES = ['DOM', 'LUN', 'MAR', 'MIE', 'JUE', 'VIE', 'SAB'];
+const MONTH_LETTERS_ES = ['E', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'];
+
+function pad2(value: number) {
+  return String(value).padStart(2, '0');
+}
+
+function toDateKey(date: Date) {
+  return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
+}
+
+function formatDayLabel(date: Date, filter: FilterKey) {
+  if (filter === '7') {
+    return WEEKDAY_LABELS_ES[date.getDay()];
+  }
+  if (filter === '15') {
+    return `${pad2(date.getDate())}${MONTH_LETTERS_ES[date.getMonth()]}`;
+  }
+  return pad2(date.getDate());
+}
+
+// Mismo criterio de "hoy" que usa el backend (colombiaTodayDate en
+// jup-api/src/modules/shared/colombiaTime.ts): Colombia es UTC-05:00 fijo,
+// sin DST, independiente de la zona horaria del dispositivo. A diferencia del
+// Home del propietario (que ya no filtra por fecha), este resumen si debe
+// quedarse acotado a "hoy".
+function colombiaTodayKey() {
+  const colombiaMs = Date.now() - 5 * 60 * 60 * 1000;
+  const colombiaDate = new Date(colombiaMs);
+  const pad = (value: number) => String(value).padStart(2, '0');
+  return `${colombiaDate.getUTCFullYear()}-${pad(colombiaDate.getUTCMonth() + 1)}-${pad(colombiaDate.getUTCDate())}`;
+}
+
+// service.fechaServicio siempre viene como "YYYY-MM-DDTHH:MM:SS-05:00" (ver
+// services.service.ts) - leer el prefijo evita una reconversion a UTC.
+function isServiceToday(service: Service) {
+  return service.fechaServicio.slice(0, 10) === colombiaTodayKey();
+}
+
+function buildStatusCountsFromServices(servicesList: Service[]): Record<ServiceState, number> {
+  return servicesList.reduce(
+    (accumulator, service) => {
+      accumulator[service.estado] += 1;
+      return accumulator;
+    },
+    { ASIGNADA: 0, EN_TRANSITO: 0, TERMINADO: 0, COMPLETADO: 0, procesado: 0 },
+  );
+}
+
+// Cuenta servicios reales (por fechaServicio) por dia dentro del rango de N
+// dias terminando hoy, para alimentar el histograma de la Card 3.
+function buildChartData(historyServices: Service[], filter: FilterKey): { day: string; count: number }[] {
+  const days = Number(filter);
+  const countsByDate = new Map<string, number>();
+
+  historyServices.forEach((service) => {
+    const key = service.fechaServicio.slice(0, 10);
+    countsByDate.set(key, (countsByDate.get(key) ?? 0) + 1);
+  });
+
+  const result: { day: string; count: number }[] = [];
+
+  for (let i = days - 1; i >= 0; i -= 1) {
+    const date = new Date();
+    date.setDate(date.getDate() - i);
+    result.push({ day: formatDayLabel(date, filter), count: countsByDate.get(toDateKey(date)) ?? 0 });
+  }
+
+  return result;
+}
 
 // Horizontal padding: screen(24) + card(24) each side → total 96
 const H_PADDING = 96;
@@ -255,22 +297,63 @@ const STATE_VISUALS: Record<StateVisualKey, StateVisual> = {
 };
 
 export function ServiceStatusScreen() {
-  const { activeService, ownerActiveService, statusCounts, role } = useSession();
+  const { activeService, ownerServices, statusCounts, role, mobilUser, selectedVehiculo } = useSession();
+
+  // A diferencia del Home del propietario (ya sin filtro de fecha), "Resumen
+  // Diario" si debe quedarse acotado a los servicios de hoy - se filtra aqui
+  // localmente en vez de en session.tsx para no afectar otras pantallas.
+  const todayOwnerServices = useMemo(() => ownerServices.filter(isServiceToday), [ownerServices]);
+
+  const displayStatusCounts = role === 'CONDUCTOR' ? statusCounts : buildStatusCountsFromServices(todayOwnerServices);
+
   // `activeService` only ever reflects the conductor's own local state
   // (arrivedAtOrigin/deliverService on their device); a PROPIETARIO/AMBOS
-  // viewing their vehicle's real summary needs `ownerActiveService` instead.
-  const displayActiveService = role === 'CONDUCTOR' ? activeService : ownerActiveService;
+  // viewing their vehicle's real summary needs today's owner service instead.
+  const displayActiveService =
+    role === 'CONDUCTOR'
+      ? activeService
+      : todayOwnerServices.find((service) => service.estado === 'EN_TRANSITO' || service.estado === 'TERMINADO') ?? null;
+
+  // Vehiculo relevante para el historial: el propio del conductor, o el
+  // seleccionado por el propietario/ambos (igual criterio que `statusCounts`).
+  const vehiculoCodigo = role === 'CONDUCTOR' ? mobilUser?.Vehiculo : selectedVehiculo?.codvehiculo;
 
   const { width: screenWidth } = useWindowDimensions();
   const [themeMode, setThemeMode] = useState<ThemeMode>('light');
   const [filter, setFilter] = useState<FilterKey>('7');
   const [selectedBarIndex, setSelectedBarIndex] = useState<number | null>(null);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [historyServices, setHistoryServices] = useState<Service[]>([]);
 
   const palette = themeMode === 'light' ? LIGHT_PALETTE : DARK_PALETTE;
   const styles = useMemo(() => createStyles(palette), [palette]);
 
-  const chartData = MOCK_DATA[filter];
+  useEffect(() => {
+    if (!vehiculoCodigo) {
+      setHistoryServices([]);
+      return;
+    }
+
+    const days = Number(filter);
+    const to = new Date();
+    const from = new Date();
+    from.setDate(from.getDate() - (days - 1));
+
+    let isCancelled = false;
+
+    fetchVehicleServiceHistory(vehiculoCodigo, toDateKey(from), toDateKey(to)).then((result) => {
+      if (isCancelled) {
+        return;
+      }
+      setHistoryServices(result.ok ? result.services : []);
+    });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [vehiculoCodigo, filter]);
+
+  const chartData = useMemo(() => buildChartData(historyServices, filter), [historyServices, filter]);
   const maxCount  = Math.max(...chartData.map((d) => d.count), 1);
   const chartW    = screenWidth - H_PADDING;
   const slotW     = chartW / chartData.length;
@@ -288,9 +371,9 @@ export function ServiceStatusScreen() {
     return `${day}/${month}/${year}`;
   };
 
-  // Today highlight only on 7-day view
-  const todayIndex   = new Date().getDay();
-  const highlightIdx = filter === '7' ? (todayIndex === 0 ? 6 : todayIndex - 1) : -1;
+  // Today highlight only on 7-day view - chartData now always ends at today
+  // (see buildChartData), so the last bar is always "today".
+  const highlightIdx = filter === '7' ? chartData.length - 1 : -1;
 
   const stateVisualKey: StateVisualKey = displayActiveService?.estado === 'TERMINADO'
     ? 'TERMINADO'
@@ -347,7 +430,7 @@ export function ServiceStatusScreen() {
                   <View key={key} style={[styles.statBox, { backgroundColor: tone.bg }]}>
                     <StatIcon color={tone.color} size={18} />
                     <Text style={[styles.statValue, { color: tone.color }]}>
-                      {(statusCounts as Record<string, number>)[key] ?? 0}
+                      {(displayStatusCounts as Record<string, number>)[key] ?? 0}
                     </Text>
                     <Text style={[styles.statLabel, { color: tone.color }]}>{label}</Text>
                   </View>

@@ -1,6 +1,7 @@
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { DrawerScreenProps } from '@react-navigation/drawer';
+import { useFocusEffect } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
   ArrowRight,
@@ -42,10 +43,6 @@ const SCA = {
 
 // Altura reservada para que la barra flotante no tape el último item.
 const BOTTOM_BAR_OFFSET = 120;
-
-function toInputDate(isoValue: string) {
-  return new Date(isoValue).toISOString().slice(0, 10);
-}
 
 function currency(value: number) {
   return `$${value.toLocaleString('es-CO', { maximumFractionDigits: 0 })}`;
@@ -222,17 +219,37 @@ export function PropietarioHomeScreen({}: Props) {
   const placa = selectedVehiculo?.placa ?? mobilUser?.Placa ?? '-';
   const userName = mobilUser?.Nombre ?? username ?? 'Sin nombre';
 
-  const todayServices = useMemo(() => {
-    const today = toInputDate(new Date().toISOString());
+  // El propietario no genera los cambios de estado (los hace el conductor en
+  // otro dispositivo), asi que el pull-to-refresh manual no basta: se
+  // refresca al entrar a la pantalla y cada 30s mientras siga enfocada.
+  // Depende de `selectedVehiculo` (no de `reloadOwnerServices`, cuya
+  // identidad cambia en cada recalculo del contexto) para evitar un loop de
+  // refetch continuo cuando `ownerServices` se actualiza.
+  useFocusEffect(
+    useCallback(() => {
+      reloadOwnerServices();
+
+      const intervalId = setInterval(reloadOwnerServices, 30000);
+
+      return () => clearInterval(intervalId);
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [selectedVehiculo]),
+  );
+
+  // Sin filtro por dia (mismo criterio que el listado del conductor): se
+  // muestran todos los servicios asignados/en curso del vehiculo. Un servicio
+  // desaparece de este listado en cuanto pasa a TERMINADO (o mas adelante),
+  // ya que a partir de ahi el propietario ya no necesita seguirlo aqui.
+  const activeServices = useMemo(() => {
     return ownerServices
-      .filter((service) => toInputDate(service.fechaServicio) === today)
+      .filter((service) => service.estado === 'ASIGNADA' || service.estado === 'EN_TRANSITO')
       .sort(
         (a, b) =>
           new Date(a.fechaServicio).getTime() - new Date(b.fechaServicio).getTime(),
       );
   }, [ownerServices]);
 
-  const totals = todayServices.reduce(
+  const totals = activeServices.reduce(
     (acc, service) => ({
       count: acc.count + 1,
       totalValue: acc.totalValue + service.valor,
@@ -297,14 +314,14 @@ export function PropietarioHomeScreen({}: Props) {
           </View>
 
           {/* ─── Lista de servicios ─────────────────────────── */}
-          {todayServices.length === 0 ? (
+          {activeServices.length === 0 ? (
             <View style={styles.emptyCard}>
               <Text style={styles.emptyText}>
                 {ownerServicesLoadError ?? 'No hay servicios programados aún.'}
               </Text>
             </View>
           ) : (
-            todayServices.map((service) => (
+            activeServices.map((service) => (
               <ServiceCard
                 key={`${service.orden}-${service.numeroServicio}`}
                 copago={service.copago}

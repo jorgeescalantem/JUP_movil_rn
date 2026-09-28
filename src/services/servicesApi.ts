@@ -53,3 +53,22 @@ export async function fetchVehicleServiceHistory(
   }
 }
 
+/**
+ * Servicios vigentes del vehiculo, en cualquier estado activo
+ * (ASIGNADA/EN_TRANSITO/TERMINADO/COMPLETADO/procesado), sin filtro de fecha
+ * - via jup-api. Usado por el resumen "Home" del propietario, con el mismo
+ * criterio "todos los asignados, sin importar el dia" que usa el conductor.
+ */
+export async function fetchCurrentServices(vehiculoCodigo: number): Promise<ServicesFetchResult> {
+  try {
+    const response = await jupApiFetch(`/services/current?vehiculo=${vehiculoCodigo}`);
+    return await parseServicesResponse(response, 'No se pudo cargar los servicios del vehiculo.');
+  } catch (error) {
+    if (isTimeoutError(error)) {
+      return { ok: false, message: 'Tiempo de espera agotado al cargar los servicios.' };
+    }
+
+    return { ok: false, message: 'No se pudo cargar los servicios del vehiculo.' };
+  }
+}
+
