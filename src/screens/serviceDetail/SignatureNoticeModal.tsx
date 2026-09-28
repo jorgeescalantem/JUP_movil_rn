@@ -1,6 +1,8 @@
+import { useMemo } from 'react';
 import { Modal, Pressable, Text, View } from 'react-native';
 
-import { serviceDetailModalStyles as styles } from './serviceDetailModals.styles';
+import { useTheme } from '../../theme';
+import { createServiceDetailModalStyles } from './serviceDetailModals.styles';
 
 type SignatureNoticeModalProps = {
   visible: boolean;
@@ -10,6 +12,9 @@ type SignatureNoticeModalProps = {
 // Shown right after the satisfaction survey, before the signature screen -
 // same look as the post-delivery feedback dialog in ServiceDetailScreen.
 export function SignatureNoticeModal({ visible, onAccept }: SignatureNoticeModalProps) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createServiceDetailModalStyles(colors), [colors]);
+
   return (
     <Modal animationType="fade" onRequestClose={onAccept} transparent visible={visible}>
       <View style={styles.dialogOverlay}>

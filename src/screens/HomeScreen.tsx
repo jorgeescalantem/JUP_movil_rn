@@ -1,6 +1,7 @@
+import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { colors, spacing } from '../theme';
+import { spacing, useTheme, type ThemeColors } from '../theme';
 
 const nextSteps = [
   'Crear componentes reutilizables en src/components.',
@@ -9,6 +10,9 @@ const nextSteps = [
 ];
 
 export function HomeScreen() {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   return (
     <View style={styles.container}>
       <View style={styles.hero}>
@@ -33,65 +37,67 @@ export function HomeScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.xl,
-    backgroundColor: colors.background,
-    gap: spacing.lg,
-  },
-  hero: {
-    gap: spacing.sm,
-    marginTop: spacing.lg,
-  },
-  eyebrow: {
-    color: colors.accent,
-    fontSize: 14,
-    fontWeight: '700',
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-  },
-  title: {
-    color: colors.text,
-    fontSize: 32,
-    fontWeight: '700',
-    lineHeight: 40,
-  },
-  description: {
-    color: colors.muted,
-    fontSize: 16,
-    lineHeight: 24,
-  },
-  card: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderRadius: 20,
-    borderWidth: 1,
-    padding: spacing.lg,
-    gap: spacing.md,
-  },
-  cardTitle: {
-    color: colors.text,
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  row: {
-    alignItems: 'flex-start',
-    flexDirection: 'row',
-    gap: spacing.sm,
-  },
-  bullet: {
-    width: 10,
-    height: 10,
-    borderRadius: 999,
-    backgroundColor: colors.accent,
-    marginTop: 6,
-  },
-  step: {
-    color: colors.text,
-    flex: 1,
-    fontSize: 15,
-    lineHeight: 22,
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.xl,
+      backgroundColor: colors.background,
+      gap: spacing.lg,
+    },
+    hero: {
+      gap: spacing.sm,
+      marginTop: spacing.lg,
+    },
+    eyebrow: {
+      color: colors.blue,
+      fontSize: 14,
+      fontWeight: '700',
+      letterSpacing: 1,
+      textTransform: 'uppercase',
+    },
+    title: {
+      color: colors.text,
+      fontSize: 32,
+      fontWeight: '700',
+      lineHeight: 40,
+    },
+    description: {
+      color: colors.muted,
+      fontSize: 16,
+      lineHeight: 24,
+    },
+    card: {
+      backgroundColor: colors.surface,
+      borderColor: colors.border,
+      borderRadius: 20,
+      borderWidth: 1,
+      padding: spacing.lg,
+      gap: spacing.md,
+    },
+    cardTitle: {
+      color: colors.text,
+      fontSize: 18,
+      fontWeight: '700',
+    },
+    row: {
+      alignItems: 'flex-start',
+      flexDirection: 'row',
+      gap: spacing.sm,
+    },
+    bullet: {
+      width: 10,
+      height: 10,
+      borderRadius: 999,
+      backgroundColor: colors.blue,
+      marginTop: 6,
+    },
+    step: {
+      color: colors.text,
+      flex: 1,
+      fontSize: 15,
+      lineHeight: 22,
+    },
+  });
+}

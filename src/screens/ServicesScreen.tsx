@@ -1,6 +1,6 @@
 import { FontAwesome5, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import {
   Linking,
   Modal,
@@ -16,12 +16,13 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { DrawerNavigationProp } from '@react-navigation/drawer';
+import { MoonStar, SunMedium } from 'lucide-react-native';
 
 import { RoleGate } from '../components/RoleGate';
 import { DrawerParamList } from '../navigation/AppDrawer';
 import { SectionCard } from '../components/SectionCard';
 import { useSession } from '../store/session';
-import { colors, spacing } from '../theme';
+import { spacing, useTheme, type ThemeColors } from '../theme';
 import { Service, ServiceState } from '../types/domain';
 
 function formatDateTime(value: string) {
@@ -44,13 +45,15 @@ function buildMapUrl(service: Service, app: 'google' | 'waze') {
   return `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
 }
 
-const STATE_COLORS: Record<ServiceState, string> = {
-  ASIGNADA: colors.warning,
-  EN_TRANSITO: colors.info,
-  TERMINADO: colors.muted,
-  COMPLETADO: colors.accent,
-  procesado: colors.accent,
-};
+function buildStateColors(colors: ThemeColors): Record<ServiceState, string> {
+  return {
+    ASIGNADA: colors.warning,
+    EN_TRANSITO: colors.info,
+    TERMINADO: colors.muted,
+    COMPLETADO: colors.blue,
+    procesado: colors.blue,
+  };
+}
 
 function formatStatusLabel(status: ServiceState) {
   if (status === 'ASIGNADA') return 'ASIGNADO';
@@ -73,6 +76,11 @@ export function ServicesScreen() {
     servicesLoadError,
     reloadAssignedServices,
   } = useSession();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  const STATE_COLORS = useMemo(() => buildStateColors(colors), [colors]);
+  const { isDark, toggle } = useTheme();
+  const ThemeIcon = isDark ? SunMedium : MoonStar;
   const [modalConfig, setModalConfig] = useState<ModalConfig>(null);
   const [codeInput, setCodeInput] = useState('');
   const [phonesDialogService, setPhonesDialogService] = useState<Service | null>(null);
@@ -274,6 +282,15 @@ export function ServicesScreen() {
           </Modal>
 
           <View style={styles.listContainer}>
+            <Pressable
+              accessibilityLabel="Cambiar tema"
+              hitSlop={8}
+              onPress={toggle}
+              style={styles.themeToggle}
+            >
+              <ThemeIcon color={colors.blue} size={20} />
+            </Pressable>
+
             {servicesLoadError ? (
               <Pressable onPress={reloadAssignedServices} style={styles.errorBanner}>
                 <Text style={styles.errorBannerText}>{servicesLoadError} Toca para reintentar.</Text>
@@ -317,7 +334,7 @@ export function ServicesScreen() {
                     <View style={styles.infoCol}>
                       <Text style={styles.infoLabel}>Contrato</Text>
                       <View style={styles.contractWrap}>
-                        <MaterialCommunityIcons color="#260ff3" name="file-document-outline" size={19} />
+                        <MaterialCommunityIcons color={colors.blue} name="file-document-outline" size={19} />
                         <Text style={styles.contractText}>{service.contrato}</Text>
                       </View>
                     </View>
@@ -437,7 +454,8 @@ export function ServicesScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   screenRoot: {
     backgroundColor: colors.background,
     flex: 1,
@@ -457,11 +475,20 @@ const styles = StyleSheet.create({
     paddingTop: spacing.sm,
     paddingBottom: 120,
   },
+  themeToggle: {
+    alignItems: 'center',
+    alignSelf: 'flex-end',
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: 999,
+    height: 40,
+    justifyContent: 'center',
+    width: 40,
+  },
 
   // ─── Banners ──────────────────────────────────────────────
   activeBanner: {
-    backgroundColor: '#dff6ea',
-    borderColor: '#b8e7cf',
+    backgroundColor: colors.successSoft,
+    borderColor: colors.success,
     borderRadius: 16,
     borderWidth: 1,
     gap: spacing.xs,
@@ -469,8 +496,8 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
   },
   errorBanner: {
-    backgroundColor: '#fdecec',
-    borderColor: '#f3b9b9',
+    backgroundColor: colors.dangerSoft,
+    borderColor: colors.danger,
     borderRadius: 14,
     borderWidth: 1,
     paddingHorizontal: CARD_MARGIN,
@@ -482,20 +509,20 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   activeLabel: {
-    color: '#12805c',
+    color: colors.success,
     fontSize: 12,
     fontWeight: '800',
     textTransform: 'uppercase',
   },
   activeText: {
-    color: '#121417',
+    color: colors.textStrong,
     fontSize: 15,
     fontWeight: '700',
   },
 
   // ─── Service Card ─────────────────────────────────────────
   serviceCard: {
-    backgroundColor: '#F2F4F7',
+    backgroundColor: colors.surfaceAlt,
     borderRadius: 16,
     gap: spacing.xs,
     paddingHorizontal: CARD_MARGIN,
@@ -506,10 +533,10 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
   },
   serviceCardInTransit: {
-    backgroundColor: '#D6E8F7',
+    backgroundColor: colors.blueSoft,
   },
   serviceCardFinished: {
-    backgroundColor: '#E4E8EC',
+    backgroundColor: colors.neutralSoft,
   },
 
   // ─── Info Row (Contrato + Estado) ─────────────────────────
@@ -524,7 +551,7 @@ const styles = StyleSheet.create({
     gap: 1,
   },
   infoLabel: {
-    color: '#7c8f99',
+    color: colors.muted,
     fontSize: 12,
     fontWeight: '700',
   },
@@ -538,13 +565,13 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   inTransitServiceNumber: {
-    color: '#0b4f7e',
+    color: colors.info,
     fontSize: 13,
     fontWeight: '800',
     marginTop: 11,
   },
   dateText: {
-    color: '#41535c',
+    color: colors.textMuted,
     fontSize: 13,
     fontWeight: '600',
     marginTop: 2,
@@ -555,8 +582,8 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   statePillTransit: {
-    backgroundColor: '#9fd8ff',
-    borderColor: '#3f97d8',
+    backgroundColor: colors.blueSoft,
+    borderColor: colors.blue,
     borderWidth: 1,
     borderRadius: 999,
     paddingHorizontal: spacing.sm,
@@ -568,19 +595,19 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   stateTextTransit: {
-    color: '#004c7c',
+    color: colors.info,
     fontSize: 12,
     fontWeight: '800',
     textAlign: 'center',
   },
   routeLabel: {
-    color: '#7c8f99',
+    color: colors.muted,
     fontSize: 15,
     fontWeight: '700',
     marginTop: spacing.sm,
   },
   routeValue: {
-    color: '#161a1d',
+    color: colors.textStrong,
     fontSize: 16,
     fontWeight: '800',
     lineHeight: 26,
@@ -598,7 +625,7 @@ const styles = StyleSheet.create({
   },
   actionCircle: {
     alignItems: 'center',
-    borderColor: '#ffffff',
+    borderColor: colors.white,
     borderRadius: 999,
     borderWidth: 5,
     height: 74,
@@ -615,7 +642,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#169cf3',
   },
   actionText: {
-    color: '#1b2328',
+    color: colors.textStrong,
     fontSize: 12,
     fontWeight: '700',
   },
@@ -649,7 +676,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   opsButtonSuccess: {
-    backgroundColor: colors.accent,
+    backgroundColor: colors.blue,
   },
   opsButtonText: {
     color: colors.background,
@@ -666,7 +693,7 @@ const styles = StyleSheet.create({
   // ─── Modales ──────────────────────────────────────────────
   modalOverlay: {
     alignItems: 'center',
-    backgroundColor: '#000000cc',
+    backgroundColor: colors.overlay,
     flex: 1,
     justifyContent: 'center',
     padding: spacing.xl,
@@ -724,7 +751,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceAlt,
   },
   modalBtnConfirm: {
-    backgroundColor: colors.accent,
+    backgroundColor: colors.blue,
   },
   modalBtnText: {
     color: colors.text,
@@ -732,13 +759,13 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   modalBtnConfirmText: {
-    color: '#0b2239',
+    color: colors.textStrong,
   },
 
   // ─── FAB subir al inicio ─────────────────────────────────
   scrollTopFab: {
     alignItems: 'center',
-    backgroundColor: '#0FA0F3',
+    backgroundColor: colors.blue,
     borderRadius: 28,
     bottom: 88,
     elevation: 8,
@@ -746,7 +773,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     position: 'absolute',
     right: 20,
-    shadowColor: '#0FA0F3',
+    shadowColor: colors.blue,
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.35,
     shadowRadius: 12,
@@ -757,3 +784,4 @@ const styles = StyleSheet.create({
     transform: [{ scale: 0.95 }],
   },
 });
+}

@@ -1,10 +1,10 @@
-import { ReactNode, useCallback, useEffect, useState } from 'react';
+import { ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
 import { ConnectionErrorScreen } from '../screens/ConnectionErrorScreen';
 import { checkApiConnection } from '../services/authApi';
 import { setSystemToken } from '../services/apiSessionStore';
-import { colors, spacing } from '../theme';
+import { spacing, useTheme, type ThemeColors } from '../theme';
 
 type ConnectivityStatus = 'checking' | 'error' | 'connected';
 
@@ -21,6 +21,8 @@ type ConnectivityStatus = 'checking' | 'error' | 'connected';
 export function ConnectivityGate({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<ConnectivityStatus>('checking');
   const [errorMessage, setErrorMessage] = useState<string | undefined>(undefined);
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   const runCheck = useCallback(async () => {
     setStatus('checking');
@@ -45,7 +47,7 @@ export function ConnectivityGate({ children }: { children: ReactNode }) {
   if (status === 'checking') {
     return (
       <View style={styles.loader}>
-        <ActivityIndicator color={colors.accent} size="large" />
+        <ActivityIndicator color={colors.blue} size="large" />
         <Text style={styles.loaderText}>Conectando con el servidor...</Text>
       </View>
     );
@@ -58,17 +60,19 @@ export function ConnectivityGate({ children }: { children: ReactNode }) {
   return <>{children}</>;
 }
 
-const styles = StyleSheet.create({
-  loader: {
-    alignItems: 'center',
-    backgroundColor: colors.background,
-    flex: 1,
-    gap: spacing.sm,
-    justifyContent: 'center',
-  },
-  loaderText: {
-    color: colors.muted,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    loader: {
+      alignItems: 'center',
+      backgroundColor: colors.background,
+      flex: 1,
+      gap: spacing.sm,
+      justifyContent: 'center',
+    },
+    loaderText: {
+      color: colors.muted,
+      fontSize: 14,
+      fontWeight: '600',
+    },
+  });
+}

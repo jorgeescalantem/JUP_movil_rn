@@ -1,7 +1,7 @@
-import { ReactNode } from 'react';
+import { ReactNode, useMemo } from 'react';
 import { Pressable, StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
 
-import { colors, spacing } from '../theme';
+import { spacing, useTheme, type ThemeColors } from '../theme';
 
 type SectionCardProps = {
   title: string;
@@ -14,6 +14,9 @@ type SectionCardProps = {
 };
 
 export function SectionCard({ title, subtitle, actionLabel, onPress, centerTitle, style, children }: SectionCardProps) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   return (
     <View style={[styles.card, style]}>
       <View style={styles.header}>
@@ -32,50 +35,52 @@ export function SectionCard({ title, subtitle, actionLabel, onPress, centerTitle
   );
 }
 
-const styles = StyleSheet.create({
-  card: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderRadius: 22,
-    borderWidth: 1,
-    gap: spacing.md,
-    padding: spacing.lg,
-  },
-  header: {
-    alignItems: 'flex-start',
-    flexDirection: 'row',
-    gap: spacing.md,
-    justifyContent: 'space-between',
-  },
-  headerCopy: {
-    flex: 1,
-    gap: spacing.xs,
-  },
-  headerCopyCentered: {
-    alignItems: 'center',
-  },
-  title: {
-    color: colors.textStrong,
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  titleCentered: {
-    textAlign: 'center',
-  },
-  subtitle: {
-    color: colors.muted,
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  actionButton: {
-    backgroundColor: colors.accentSoft,
-    borderRadius: 999,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-  },
-  actionLabel: {
-    color: colors.textStrong,
-    fontSize: 13,
-    fontWeight: '700',
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    card: {
+      backgroundColor: colors.surface,
+      borderColor: colors.border,
+      borderRadius: 22,
+      borderWidth: 1,
+      gap: spacing.md,
+      padding: spacing.lg,
+    },
+    header: {
+      alignItems: 'flex-start',
+      flexDirection: 'row',
+      gap: spacing.md,
+      justifyContent: 'space-between',
+    },
+    headerCopy: {
+      flex: 1,
+      gap: spacing.xs,
+    },
+    headerCopyCentered: {
+      alignItems: 'center',
+    },
+    title: {
+      color: colors.textStrong,
+      fontSize: 18,
+      fontWeight: '700',
+    },
+    titleCentered: {
+      textAlign: 'center',
+    },
+    subtitle: {
+      color: colors.muted,
+      fontSize: 14,
+      lineHeight: 20,
+    },
+    actionButton: {
+      backgroundColor: colors.blueSoft,
+      borderRadius: 999,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+    },
+    actionLabel: {
+      color: colors.textStrong,
+      fontSize: 13,
+      fontWeight: '700',
+    },
+  });
+}

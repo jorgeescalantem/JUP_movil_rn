@@ -1,6 +1,6 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 
 import { findConductorByDocument, registerMobilUser } from '../services/registerApi';
+import { useTheme, type ThemeColors } from '../theme';
 import { getShortDeviceId } from '../utils/deviceId';
 
 type RegisterScreenProps = {
@@ -23,6 +24,8 @@ type RegisterScreenProps = {
 type FeedbackModal = { title: string; message: string; onClose?: () => void } | null;
 
 export function RegisterScreen({ onBack }: RegisterScreenProps) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [documentNumber, setDocumentNumber] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -95,7 +98,7 @@ export function RegisterScreen({ onBack }: RegisterScreenProps) {
 
       <View style={styles.topBar}>
         <Pressable onPress={onBack} style={styles.backButton}>
-          <MaterialCommunityIcons color="#121417" name="arrow-left" size={30} />
+          <MaterialCommunityIcons color={colors.textStrong} name="arrow-left" size={30} />
         </Pressable>
       </View>
 
@@ -103,12 +106,12 @@ export function RegisterScreen({ onBack }: RegisterScreenProps) {
         <Text style={styles.cardTitle}>SOLICITAR ACCESO</Text>
 
         <View style={styles.fieldRow}>
-          <MaterialCommunityIcons color="#3b4a42" name="pound" size={30} />
+          <MaterialCommunityIcons color={colors.muted} name="pound" size={30} />
           <TextInput
             keyboardType="number-pad"
             onChangeText={setDocumentNumber}
             placeholder="Numero Documento"
-            placeholderTextColor="#3b4a42"
+            placeholderTextColor={colors.muted}
             style={styles.fieldInput}
             value={documentNumber}
           />
@@ -116,12 +119,12 @@ export function RegisterScreen({ onBack }: RegisterScreenProps) {
         <View style={styles.separator} />
 
         <View style={styles.fieldRow}>
-          <MaterialCommunityIcons color="#3b4a42" name="account-outline" size={30} />
+          <MaterialCommunityIcons color={colors.muted} name="account-outline" size={30} />
           <TextInput
             autoCapitalize="none"
             onChangeText={setUsername}
             placeholder="Nombre de Usuario"
-            placeholderTextColor="#3b4a42"
+            placeholderTextColor={colors.muted}
             style={styles.fieldInput}
             value={username}
           />
@@ -129,11 +132,11 @@ export function RegisterScreen({ onBack }: RegisterScreenProps) {
         <View style={styles.separator} />
 
         <View style={styles.fieldRow}>
-          <MaterialCommunityIcons color="#3b4a42" name="lock-outline" size={30} />
+          <MaterialCommunityIcons color={colors.muted} name="lock-outline" size={30} />
           <TextInput
             onChangeText={setPassword}
             placeholder="Contrasena"
-            placeholderTextColor="#3b4a42"
+            placeholderTextColor={colors.muted}
             secureTextEntry
             style={styles.fieldInput}
             value={password}
@@ -142,7 +145,7 @@ export function RegisterScreen({ onBack }: RegisterScreenProps) {
         <View style={styles.separator} />
 
         <View style={styles.fieldRow}>
-          <MaterialCommunityIcons color="#3b4a42" name="cellphone-key" size={30} />
+          <MaterialCommunityIcons color={colors.muted} name="cellphone-key" size={30} />
           <View style={styles.tokenWrap}>
             <Text style={styles.tokenLabel}>Mobil Token</Text>
             <Text style={styles.tokenValue}>{mobileToken ?? '...'}</Text>
@@ -158,9 +161,9 @@ export function RegisterScreen({ onBack }: RegisterScreenProps) {
             style={styles.submitGradient}
           >
             {isSubmitting ? (
-              <ActivityIndicator color="#f8fffe" />
+              <ActivityIndicator color={colors.white} />
             ) : (
-              <MaterialCommunityIcons color="#f8fffe" name="check" size={24} />
+              <MaterialCommunityIcons color={colors.white} name="check" size={24} />
             )}
             <Text style={styles.submitText}>{isSubmitting ? 'Creando cuenta...' : 'Solicitar'}</Text>
           </LinearGradient>
@@ -185,34 +188,35 @@ export function RegisterScreen({ onBack }: RegisterScreenProps) {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   screen: {
-    backgroundColor: '#f8f9fa',
+    backgroundColor: colors.background,
     flex: 1,
     paddingHorizontal: 16,
     paddingTop: 18,
   },
   modalOverlay: {
     alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.55)',
+    backgroundColor: colors.overlay,
     flex: 1,
     justifyContent: 'center',
     paddingHorizontal: 24,
   },
   modalBox: {
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.surface,
     borderRadius: 20,
     padding: 24,
     width: '100%',
   },
   modalTitle: {
-    color: '#121417',
+    color: colors.textStrong,
     fontSize: 18,
     fontWeight: '800',
     marginBottom: 8,
   },
   modalSubtitle: {
-    color: '#4a5568',
+    color: colors.textMuted,
     fontSize: 14,
     lineHeight: 20,
     marginBottom: 20,
@@ -228,10 +232,10 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   modalBtnConfirm: {
-    backgroundColor: '#0fa0f3',
+    backgroundColor: colors.blue,
   },
   modalBtnConfirmText: {
-    color: '#ffffff',
+    color: colors.white,
     fontSize: 14,
     fontWeight: '700',
   },
@@ -245,8 +249,8 @@ const styles = StyleSheet.create({
     padding: 2,
   },
   card: {
-    backgroundColor: '#ffffff',
-    borderColor: '#d6dfe0',
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
     borderRadius: 18,
     borderWidth: 1,
     marginTop: 132,
@@ -254,7 +258,7 @@ const styles = StyleSheet.create({
     paddingVertical: 20,
   },
   cardTitle: {
-    color: '#121417',
+    color: colors.textStrong,
     fontSize: 23,
     fontWeight: '900',
     marginBottom: 20,
@@ -267,13 +271,13 @@ const styles = StyleSheet.create({
     minHeight: 54,
   },
   fieldInput: {
-    color: '#121417',
+    color: colors.textStrong,
     flex: 1,
     fontSize: 17,
     fontWeight: '600',
   },
   separator: {
-    backgroundColor: '#8f9ba0',
+    backgroundColor: colors.border,
     height: 1,
     marginBottom: 10,
     marginTop: 4,
@@ -284,12 +288,12 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   tokenLabel: {
-    color: '#2f3e36',
+    color: colors.muted,
     fontSize: 14,
     fontWeight: '600',
   },
   tokenValue: {
-    color: '#121417',
+    color: colors.textStrong,
     fontSize: 18,
     fontWeight: '800',
     letterSpacing: 0.2,
@@ -307,14 +311,14 @@ const styles = StyleSheet.create({
     minHeight: 52,
   },
   submitText: {
-    color: '#f8fffe',
+    color: colors.white,
     fontSize: 18,
     fontWeight: '700',
   },
   cancelButton: {
     alignItems: 'center',
-    backgroundColor: '#ffe8e8',
-    borderColor: '#f3b8b8',
+    backgroundColor: colors.dangerSoft,
+    borderColor: colors.danger,
     borderRadius: 999,
     borderWidth: 1,
     justifyContent: 'center',
@@ -322,7 +326,7 @@ const styles = StyleSheet.create({
     minHeight: 50,
   },
   cancelText: {
-    color: '#ba1a1a',
+    color: colors.danger,
     fontSize: 17,
     fontWeight: '700',
   },
@@ -331,10 +335,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
   },
   privacyText: {
-    color: '#0b78b3',
+    color: colors.info,
     fontSize: 14,
     fontWeight: '700',
     lineHeight: 22,
     textDecorationLine: 'underline',
   },
 });
+}

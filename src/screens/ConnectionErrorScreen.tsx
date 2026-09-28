@@ -1,7 +1,8 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { colors, spacing } from '../theme';
+import { spacing, useTheme, type ThemeColors } from '../theme';
 
 type ConnectionErrorScreenProps = {
   message?: string;
@@ -9,6 +10,9 @@ type ConnectionErrorScreenProps = {
 };
 
 export function ConnectionErrorScreen({ message, onRetry }: ConnectionErrorScreenProps) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   return (
     <View style={styles.screen}>
       <View style={styles.card}>
@@ -25,45 +29,47 @@ export function ConnectionErrorScreen({ message, onRetry }: ConnectionErrorScree
   );
 }
 
-const styles = StyleSheet.create({
-  screen: {
-    alignItems: 'center',
-    backgroundColor: colors.background,
-    flex: 1,
-    justifyContent: 'center',
-    padding: spacing.lg,
-  },
-  card: {
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderRadius: 20,
-    borderWidth: 1,
-    gap: spacing.sm,
-    padding: spacing.lg,
-    width: '100%',
-  },
-  title: {
-    color: colors.textStrong,
-    fontSize: 20,
-    fontWeight: '800',
-    textAlign: 'center',
-  },
-  message: {
-    color: colors.muted,
-    fontSize: 14,
-    textAlign: 'center',
-  },
-  retryButton: {
-    backgroundColor: colors.accent,
-    borderRadius: 12,
-    marginTop: spacing.sm,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-  },
-  retryText: {
-    color: '#ffffff',
-    fontSize: 15,
-    fontWeight: '700',
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    screen: {
+      alignItems: 'center',
+      backgroundColor: colors.background,
+      flex: 1,
+      justifyContent: 'center',
+      padding: spacing.lg,
+    },
+    card: {
+      alignItems: 'center',
+      backgroundColor: colors.surface,
+      borderColor: colors.border,
+      borderRadius: 20,
+      borderWidth: 1,
+      gap: spacing.sm,
+      padding: spacing.lg,
+      width: '100%',
+    },
+    title: {
+      color: colors.textStrong,
+      fontSize: 20,
+      fontWeight: '800',
+      textAlign: 'center',
+    },
+    message: {
+      color: colors.muted,
+      fontSize: 14,
+      textAlign: 'center',
+    },
+    retryButton: {
+      backgroundColor: colors.blue,
+      borderRadius: 12,
+      marginTop: spacing.sm,
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.sm,
+    },
+    retryText: {
+      color: colors.white,
+      fontSize: 15,
+      fontWeight: '700',
+    },
+  });
+}

@@ -15,7 +15,7 @@ import {
   submitServiceSurvey as submitServiceSurveyRequest,
 } from '../services/serviceStateApi';
 import { loginMobilUser, releaseMobilKey } from '../services/userAuth';
-import { colors } from '../theme';
+import { useTheme, type ThemeColors } from '../theme';
 import { OwnedVehicle, Role, RoleCapability, Service, ServiceState } from '../types/domain';
 import { SanitizedMobilUser } from '../types/api';
 
@@ -108,6 +108,8 @@ function buildStatusCounts(services: Service[]): Record<ServiceState, number> {
 }
 
 export function SessionProvider({ children }: { children: ReactNode }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [isReady, setIsReady] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [username, setUsername] = useState<string | null>(DEFAULT_USERNAME);
@@ -630,7 +632,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   if (!isReady) {
     return (
       <View style={styles.loader}>
-        <ActivityIndicator color={colors.accent} size="large" />
+        <ActivityIndicator color={colors.blue} size="large" />
       </View>
     );
   }
@@ -648,11 +650,13 @@ export function useSession() {
   return context;
 }
 
-const styles = StyleSheet.create({
-  loader: {
-    alignItems: 'center',
-    backgroundColor: colors.background,
-    flex: 1,
-    justifyContent: 'center',
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    loader: {
+      alignItems: 'center',
+      backgroundColor: colors.background,
+      flex: 1,
+      justifyContent: 'center',
+    },
+  });
+}

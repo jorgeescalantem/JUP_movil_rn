@@ -1,7 +1,9 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useMemo } from 'react';
 import { Modal, Pressable, Text, TextInput, View } from 'react-native';
 
-import { serviceDetailModalStyles as styles } from './serviceDetailModals.styles';
+import { useTheme } from '../../theme';
+import { createServiceDetailModalStyles } from './serviceDetailModals.styles';
 
 export const SATISFACTION_LEVELS = [
   { value: 5, label: 'EXCELENTE', color: '#16a34a', emoji: '😄' },
@@ -32,6 +34,9 @@ export function SatisfactionModal({
   onClose,
   onConfirm,
 }: SatisfactionModalProps) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createServiceDetailModalStyles(colors), [colors]);
+
   return (
     <Modal animationType="fade" onRequestClose={onClose} transparent visible={visible}>
       <View style={styles.dialogOverlay}>

@@ -5,7 +5,7 @@ import DateTimePicker, { DateTimePickerChangeEvent } from '@react-native-communi
 import { RoleGate } from '../components/RoleGate';
 import { SectionCard } from '../components/SectionCard';
 import { useSession } from '../store/session';
-import { colors, spacing } from '../theme';
+import { spacing, useTheme, type ThemeColors } from '../theme';
 
 function toInputDate(isoValue: string) {
   return new Date(isoValue).toISOString().slice(0, 10);
@@ -27,6 +27,8 @@ function getDefaultDateRange() {
 
 export function ClosingsScreen() {
   const { services } = useSession();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const defaultRange = getDefaultDateRange();
   const [fromDate, setFromDate] = useState(defaultRange.from);
   const [toDate, setToDate] = useState(defaultRange.to);
@@ -121,58 +123,60 @@ export function ClosingsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  content: {
-    gap: spacing.lg,
-    padding: spacing.lg,
-  },
-  dateFilterRow: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    marginBottom: spacing.md,
-  },
-  dateFilterCol: {
-    flex: 1,
-    gap: spacing.xs,
-  },
-  dateFilterLabel: {
-    color: colors.muted,
-    fontSize: 12,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-  },
-  dateInputPressable: {
-    backgroundColor: colors.backgroundAlt,
-    borderColor: colors.border,
-    borderRadius: 12,
-    borderWidth: 1,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.sm,
-  },
-  dateInputText: {
-    color: colors.textStrong,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  serviceCard: {
-    backgroundColor: colors.surfaceAlt,
-    borderRadius: 18,
-    gap: spacing.xs,
-    padding: spacing.md,
-  },
-  serviceTitle: {
-    color: colors.textStrong,
-    fontSize: 16,
-    fontWeight: '700',
-    marginBottom: spacing.xs,
-  },
-  detailText: {
-    color: colors.text,
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  emptyText: {
-    color: colors.muted,
-    fontSize: 15,
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    content: {
+      gap: spacing.lg,
+      padding: spacing.lg,
+    },
+    dateFilterRow: {
+      flexDirection: 'row',
+      gap: spacing.sm,
+      marginBottom: spacing.md,
+    },
+    dateFilterCol: {
+      flex: 1,
+      gap: spacing.xs,
+    },
+    dateFilterLabel: {
+      color: colors.muted,
+      fontSize: 12,
+      fontWeight: '700',
+      textTransform: 'uppercase',
+    },
+    dateInputPressable: {
+      backgroundColor: colors.backgroundAlt,
+      borderColor: colors.border,
+      borderRadius: 12,
+      borderWidth: 1,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: spacing.sm,
+    },
+    dateInputText: {
+      color: colors.textStrong,
+      fontSize: 14,
+      fontWeight: '600',
+    },
+    serviceCard: {
+      backgroundColor: colors.surfaceAlt,
+      borderRadius: 18,
+      gap: spacing.xs,
+      padding: spacing.md,
+    },
+    serviceTitle: {
+      color: colors.textStrong,
+      fontSize: 16,
+      fontWeight: '700',
+      marginBottom: spacing.xs,
+    },
+    detailText: {
+      color: colors.text,
+      fontSize: 14,
+      lineHeight: 20,
+    },
+    emptyText: {
+      color: colors.muted,
+      fontSize: 15,
+    },
+  });
+}

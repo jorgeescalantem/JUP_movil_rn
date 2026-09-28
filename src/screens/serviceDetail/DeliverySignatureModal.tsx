@@ -1,8 +1,9 @@
-import { MutableRefObject } from 'react';
+import { MutableRefObject, useMemo } from 'react';
 import { Modal, Pressable, Text, TextInput, View } from 'react-native';
 import SignatureScreen from 'react-native-signature-canvas';
 
-import { serviceDetailModalStyles as styles, signatureWebStyle } from './serviceDetailModals.styles';
+import { useTheme } from '../../theme';
+import { createServiceDetailModalStyles, signatureWebStyle } from './serviceDetailModals.styles';
 
 type DeliverySignatureModalProps = {
   visible: boolean;
@@ -45,6 +46,9 @@ export function DeliverySignatureModal({
   onCancel,
   onConfirm,
 }: DeliverySignatureModalProps) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createServiceDetailModalStyles(colors), [colors]);
+
   return (
     <Modal animationType="slide" onRequestClose={onRequestClose} transparent visible={visible}>
       <View style={styles.dialogOverlay}>

@@ -12,7 +12,7 @@ import { FullScreenSignatureModal } from './serviceDetail/FullScreenSignatureMod
 import { SatisfactionModal } from './serviceDetail/SatisfactionModal';
 import { SignatureNoticeModal } from './serviceDetail/SignatureNoticeModal';
 import { useSession } from '../store/session';
-import { spacing } from '../theme';
+import { radius, spacing, useTheme, type ThemeColors } from '../theme';
 
 function formatDateOnly(value: string) {
   const date = new Date(value);
@@ -48,6 +48,8 @@ export function ServiceDetailScreen() {
   const navigation = useNavigation<DrawerNavigationProp<DrawerParamList>>();
   const { services, activeService, arrivedAtOrigin, arrivedAtDestination, deliverService, submitServiceSurvey, mobilUser } =
     useSession();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   const [originDialogOpen, setOriginDialogOpen] = useState(false);
   const [originCode, setOriginCode] = useState('');
@@ -117,7 +119,7 @@ export function ServiceDetailScreen() {
       <View style={styles.detailScreen}>
         <View style={styles.detailHeader}>
           <Pressable onPress={() => navigation.goBack()} style={styles.headerIconButton}>
-            <MaterialCommunityIcons color="#0f172a" name="arrow-left" size={26} />
+            <MaterialCommunityIcons color={colors.textStrong} name="arrow-left" size={26} />
           </Pressable>
           <Text style={styles.detailHeaderTitle}>Detalle no disponible</Text>
           <View style={styles.headerIconButton} />
@@ -440,7 +442,7 @@ export function ServiceDetailScreen() {
                 if (originError) setOriginError(null);
               }}
               placeholder="Código de servicio"
-              placeholderTextColor="#7b8791"
+              placeholderTextColor={colors.muted}
               style={styles.dialogInput}
               value={originCode}
             />
@@ -607,11 +609,11 @@ export function ServiceDetailScreen() {
 
       <View style={styles.detailHeader}>
         <Pressable onPress={() => navigation.goBack()} style={styles.headerIconButton}>
-          <MaterialCommunityIcons color="#0f172a" name="arrow-left" size={26} />
+          <MaterialCommunityIcons color={colors.textStrong} name="arrow-left" size={26} />
         </Pressable>
         <View style={styles.headerQuickActions}>
           <Pressable onPress={openPhones} style={styles.headerMiniAction}>
-            <MaterialCommunityIcons color="#0f172a" name="phone-outline" size={18} />
+            <MaterialCommunityIcons color={colors.textStrong} name="phone-outline" size={18} />
           </Pressable>
           {/* 👇 Ahora respeta el estado: destino si EN_TRANSITO/TERMINADO, origen si ASIGNADA */}
           <Pressable
@@ -634,14 +636,14 @@ export function ServiceDetailScreen() {
           <View style={styles.detailSplitRow}>
             <View style={styles.detailHalfBlock}>
               <View style={styles.detailLabelRow}>
-                <MaterialCommunityIcons color="#8b98a3" name="calendar-month-outline" size={16} />
+                <MaterialCommunityIcons color={colors.muted} name="calendar-month-outline" size={16} />
                 <Text style={styles.detailLabel}>FECHA</Text>
               </View>
               <Text style={styles.detailValue}>{formatDateOnly(service.fechaServicio)}</Text>
             </View>
             <View style={styles.detailHalfBlock}>
               <View style={styles.detailLabelRow}>
-                <MaterialCommunityIcons color="#8b98a3" name="clock-outline" size={16} />
+                <MaterialCommunityIcons color={colors.muted} name="clock-outline" size={16} />
                 <Text style={styles.detailLabel}>HORA</Text>
               </View>
               <Text style={styles.detailValue}>{formatTimeOnly(service.fechaServicio)}</Text>
@@ -650,7 +652,7 @@ export function ServiceDetailScreen() {
 
           <View style={styles.detailRowBlock}>
             <View style={styles.detailLabelRow}>
-              <MaterialCommunityIcons color="#8b98a3" name="map-marker-path" size={16} />
+              <MaterialCommunityIcons color={colors.muted} name="map-marker-path" size={16} />
               <Text style={styles.detailLabel}>ORIGEN</Text>
             </View>
             <Text style={styles.detailValueMultiline}>{service.origenDireccion.toUpperCase()}</Text>
@@ -658,7 +660,7 @@ export function ServiceDetailScreen() {
 
           <View style={styles.detailRowBlock}>
             <View style={styles.detailLabelRow}>
-              <MaterialCommunityIcons color="#8b98a3" name="map-marker-check-outline" size={16} />
+              <MaterialCommunityIcons color={colors.muted} name="map-marker-check-outline" size={16} />
               <Text style={styles.detailLabel}>DESTINO</Text>
             </View>
             <Text style={styles.detailValueMultiline}>{service.destinoDireccion.toUpperCase()}</Text>
@@ -666,7 +668,7 @@ export function ServiceDetailScreen() {
 
           <View style={styles.detailRowBlock}>
             <View style={styles.detailLabelRow}>
-              <MaterialCommunityIcons color="#8b98a3" name="text-box-outline" size={16} />
+              <MaterialCommunityIcons color={colors.muted} name="text-box-outline" size={16} />
               <Text style={styles.detailLabel}>OBSERVACIONES</Text>
             </View>
             <Text style={styles.detailValueMuted}>{service.zona || 'Sin observaciones'}</Text>
@@ -674,7 +676,7 @@ export function ServiceDetailScreen() {
 
           <View style={styles.detailRowBlock}>
             <View style={styles.detailLabelRow}>
-              <MaterialCommunityIcons color="#8b98a3" name="account-outline" size={16} />
+              <MaterialCommunityIcons color={colors.muted} name="account-outline" size={16} />
               <Text style={styles.detailLabel}>CLIENTE</Text>
             </View>
             <Text style={styles.detailValueMultiline}>
@@ -684,7 +686,7 @@ export function ServiceDetailScreen() {
 
           <View style={styles.detailRowBlock}>
             <View style={styles.detailLabelRow}>
-              <MaterialCommunityIcons color="#8b98a3" name="phone-outline" size={16} />
+              <MaterialCommunityIcons color={colors.muted} name="phone-outline" size={16} />
               <Text style={styles.detailLabel}>TELÉFONOS</Text>
             </View>
             <Text style={styles.detailValueMultiline}>{service.telefonos.join(', ')}</Text>
@@ -692,7 +694,7 @@ export function ServiceDetailScreen() {
 
           <View style={styles.detailRowBlock}>
             <View style={styles.detailLabelRow}>
-              <MaterialCommunityIcons color="#8b98a3" name="cash-refund" size={16} />
+              <MaterialCommunityIcons color={colors.muted} name="cash-refund" size={16} />
               <Text style={styles.detailLabel}>COPAGO</Text>
             </View>
             <Text style={styles.detailValue}>{formatCurrency(service.copago)}</Text>
@@ -700,7 +702,7 @@ export function ServiceDetailScreen() {
 
           <View style={styles.detailRowBlockLast}>
             <View style={styles.detailLabelRow}>
-              <MaterialCommunityIcons color="#8b98a3" name="office-building-outline" size={16} />
+              <MaterialCommunityIcons color={colors.muted} name="office-building-outline" size={16} />
               <Text style={styles.detailLabel}>COMPAÑÍA</Text>
             </View>
             <Text style={styles.detailValueMultiline}>{service.companiaNombre.toUpperCase()}</Text>
@@ -723,7 +725,7 @@ export function ServiceDetailScreen() {
             start={{ x: 0, y: 0.5 }}
             style={styles.detailStatusButton}
           >
-            <MaterialCommunityIcons color="#ffffff" name="arrow-right-bold" size={18} />
+            <MaterialCommunityIcons color={colors.white} name="arrow-right-bold" size={18} />
             <Text style={styles.detailStatusButtonText}>{ctaLabel}</Text>
           </LinearGradient>
         </Pressable>
@@ -732,9 +734,10 @@ export function ServiceDetailScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   detailScreen: {
-    backgroundColor: '#eef2f5',
+    backgroundColor: colors.surfaceAlt,
     flex: 1,
   },
   detailHeader: {
@@ -746,7 +749,7 @@ const styles = StyleSheet.create({
     paddingTop: spacing.lg,
   },
   detailHeaderTitle: {
-    color: '#0f172a',
+    color: colors.textStrong,
     fontSize: 16,
     fontWeight: '800',
   },
@@ -761,9 +764,9 @@ const styles = StyleSheet.create({
   },
   headerMiniAction: {
     alignItems: 'center',
-    backgroundColor: '#ffffff',
-    borderColor: '#dbe4ec',
-    borderRadius: 999,
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: radius.pill,
     borderWidth: 1,
     height: 30,
     justifyContent: 'center',
@@ -774,10 +777,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
   },
   detailCard: {
-    backgroundColor: '#eef2f5',
+    backgroundColor: colors.surfaceAlt,
   },
   detailSplitRow: {
-    borderBottomColor: '#d2d9df',
+    borderBottomColor: colors.border,
     borderBottomWidth: 1,
     flexDirection: 'row',
     gap: spacing.md,
@@ -788,13 +791,13 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   detailRowBlock: {
-    borderBottomColor: '#d2d9df',
+    borderBottomColor: colors.border,
     borderBottomWidth: 1,
     gap: 4,
     paddingVertical: spacing.sm,
   },
   detailRowBlockLast: {
-    borderBottomColor: '#d2d9df',
+    borderBottomColor: colors.border,
     borderBottomWidth: 1,
     gap: 4,
     paddingVertical: spacing.sm,
@@ -805,70 +808,70 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   detailLabel: {
-    color: '#97a1aa',
+    color: colors.muted,
     fontSize: 12,
     fontWeight: '800',
     letterSpacing: 0.5,
     textTransform: 'uppercase',
   },
   detailValue: {
-    color: '#0f172a',
+    color: colors.textStrong,
     fontSize: 15,
     fontWeight: '700',
   },
   detailValueMultiline: {
-    color: '#0f172a',
+    color: colors.textStrong,
     fontSize: 14,
     fontWeight: '700',
     lineHeight: 21,
   },
   detailValueMuted: {
-    color: '#4b5563',
+    color: colors.textMuted,
     fontSize: 14,
     fontWeight: '600',
     lineHeight: 21,
   },
   detailFooter: {
-    backgroundColor: '#eef2f5',
+    backgroundColor: colors.surfaceAlt,
     paddingBottom: spacing.lg,
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.xs,
   },
   blockedText: {
-    color: '#4b5563',
+    color: colors.textMuted,
     fontSize: 13,
     fontStyle: 'italic',
     marginBottom: spacing.sm,
     textAlign: 'center',
   },
   detailStatusButtonPressable: {
-    borderRadius: 999,
+    borderRadius: radius.pill,
     overflow: 'hidden',
   },
   detailStatusButton: {
     alignItems: 'center',
-    borderRadius: 999,
+    borderRadius: radius.pill,
     flexDirection: 'row',
     gap: spacing.xs,
     justifyContent: 'center',
     paddingVertical: 12,
   },
   detailStatusButtonText: {
-    color: '#ffffff',
+    color: colors.white,
     fontSize: 16,
     fontWeight: '800',
     textTransform: 'uppercase',
   },
   dialogOverlay: {
     alignItems: 'center',
-    backgroundColor: '#00000066',
+    backgroundColor: colors.overlay,
     flex: 1,
     justifyContent: 'center',
     padding: spacing.lg,
   },
   dialogCard: {
-    backgroundColor: '#ffffff',
-    borderColor: '#d9e1e8',
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
     borderRadius: 18,
     borderWidth: 1,
     gap: spacing.sm,
@@ -876,7 +879,7 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   dialogTitle: {
-    color: '#0f172a',
+    color: colors.textStrong,
     fontSize: 18,
     fontWeight: '800',
   },
@@ -884,22 +887,22 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   dialogSubtitle: {
-    color: '#4b5563',
+    color: colors.textMuted,
     fontSize: 13,
     lineHeight: 20,
   },
   dialogInput: {
-    backgroundColor: '#f7fafc',
-    borderColor: '#c8d6e5',
-    borderRadius: 12,
+    backgroundColor: colors.surfaceAlt,
+    borderColor: colors.border,
+    borderRadius: radius.md,
     borderWidth: 1,
-    color: '#0f172a',
+    color: colors.textStrong,
     fontSize: 16,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.sm,
   },
   dialogError: {
-    color: '#ba1a1a',
+    color: colors.danger,
     fontSize: 12,
     fontWeight: '700',
   },
@@ -913,7 +916,7 @@ const styles = StyleSheet.create({
   },
   dialogButton: {
     alignItems: 'center',
-    borderRadius: 12,
+    borderRadius: radius.md,
     flex: 1,
     justifyContent: 'center',
     minHeight: 46,
@@ -925,18 +928,18 @@ const styles = StyleSheet.create({
     flex: 0,
   },
   dialogCancelButton: {
-    backgroundColor: '#eff3f7',
+    backgroundColor: colors.surfaceAlt,
   },
   dialogConfirmButton: {
     backgroundColor: '#ff6424',
   },
   dialogCancelText: {
-    color: '#334155',
+    color: colors.text,
     fontSize: 14,
     fontWeight: '700',
   },
   dialogConfirmText: {
-    color: '#ffffff',
+    color: colors.white,
     fontSize: 14,
     fontWeight: '800',
   },
@@ -947,8 +950,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
   },
   emptyText: {
-    color: '#4b5563',
+    color: colors.textMuted,
     fontSize: 14,
     textAlign: 'center',
   },
 });
+}

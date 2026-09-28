@@ -33,32 +33,8 @@ import { ServiceHistoryCard } from '../components/ServiceHistoryCard';
 import { DrawerParamList } from '../navigation/AppDrawer';
 import { fetchVehicleServiceHistory } from '../services/servicesApi';
 import { useSession } from '../store/session';
-import { spacing } from '../theme';
+import { radius, spacing, useTheme, type ThemeColors } from '../theme';
 import { Service, SortKey } from '../types/domain';
-
-// ─────────────────────────────────────────────────────────────
-// SCA Soluciones brand palette
-// ─────────────────────────────────────────────────────────────
-const SCA = {
-  navy: '#1B2A4A',
-  navyDeep: '#131E36',
-  blue: '#0FA0F3',
-  blueSoft: '#E6F4FD',
-  sky: '#7FB3D5',
-  white: '#FFFFFF',
-  surface: '#FFFFFF',
-  surfaceSoft: '#F8FAFC',
-  surfaceAlt: '#F1F5F9',
-  muted: '#8B96AC',
-  textMuted: '#64748B',
-  border: '#E2E8F0',
-  borderSoft: '#D9E1E8',
-  success: '#10B981',
-  successSoft: '#E7F8F1',
-  danger: '#DC2626',
-  dangerSoft: '#FEE2E2',
-  neutralSoft: '#EEF1F6',
-} as const;
 
 const WEEKDAY_LABELS = ['Do', 'Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sa'];
 const MONTH_LABELS = [
@@ -146,13 +122,18 @@ function currency(value: number) {
 // ─────────────────────────────────────────────────────────────
 type KpiVariant = 'services' | 'amount' | 'copays';
 
-const KPI_STYLE: Record<KpiVariant, { Icon: LucideIcon; color: string; bg: string }> = {
-  services: { Icon: Receipt,    color: SCA.blue,    bg: SCA.blueSoft },
-  amount:   { Icon: TrendingUp, color: SCA.success, bg: SCA.successSoft },
-  copays:   { Icon: Wallet,     color: SCA.navy,    bg: SCA.neutralSoft },
-};
+function buildKpiStyle(colors: ThemeColors): Record<KpiVariant, { Icon: LucideIcon; color: string; bg: string }> {
+  return {
+    services: { Icon: Receipt,    color: colors.blue,    bg: colors.blueSoft },
+    amount:   { Icon: TrendingUp, color: colors.success, bg: colors.successSoft },
+    copays:   { Icon: Wallet,     color: colors.navy,    bg: colors.neutralSoft },
+  };
+}
 
 function KpiCard({ variant, value, label }: { variant: KpiVariant; value: string; label: string }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  const KPI_STYLE = useMemo(() => buildKpiStyle(colors), [colors]);
   const { Icon, color, bg } = KPI_STYLE[variant];
   return (
     <View style={styles.kpiCard}>
@@ -176,6 +157,8 @@ export function CompletedServicesScreen({ route }: Props) {
   const maxSelectableKey = dateKey(new Date());
   const minSelectableKey = dateKey(addDays(new Date(), -(MAX_RANGE_DAYS - 1)));
   const { selectedVehiculo } = useSession();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [historyServices, setHistoryServices] = useState<Service[]>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [historyError, setHistoryError] = useState<string | null>(null);
@@ -345,7 +328,7 @@ export function CompletedServicesScreen({ route }: Props) {
               >
                 <View style={styles.filterToggleHeaderLeft}>
                   <View style={styles.filterToggleIconWrap}>
-                    <MaterialCommunityIcons color={SCA.blue} name="filter-variant" size={16} />
+                    <MaterialCommunityIcons color={colors.blue} name="filter-variant" size={16} />
                   </View>
                   <View style={styles.filterToggleTextGroup}>
                     <Text style={styles.filterToggleTitle}>
@@ -357,9 +340,9 @@ export function CompletedServicesScreen({ route }: Props) {
                   </View>
                 </View>
                 {isFilterCollapsed ? (
-                  <ChevronDown color={SCA.muted} size={18} strokeWidth={2.5} />
+                  <ChevronDown color={colors.muted} size={18} strokeWidth={2.5} />
                 ) : (
-                  <ChevronUp color={SCA.muted} size={18} strokeWidth={2.5} />
+                  <ChevronUp color={colors.muted} size={18} strokeWidth={2.5} />
                 )}
               </Pressable>
 
@@ -379,7 +362,7 @@ export function CompletedServicesScreen({ route }: Props) {
                     <View style={styles.collapsibleHeaderLeft}>
                       <View style={styles.collapsibleIconWrap}>
                         <MaterialCommunityIcons
-                          color={SCA.blue}
+                          color={colors.blue}
                           name="calendar-range-outline"
                           size={16}
                         />
@@ -394,9 +377,9 @@ export function CompletedServicesScreen({ route }: Props) {
                       </View>
                     </View>
                     {showRangePicker ? (
-                      <ChevronUp color={SCA.muted} size={16} strokeWidth={2.5} />
+                      <ChevronUp color={colors.muted} size={16} strokeWidth={2.5} />
                     ) : (
-                      <ChevronDown color={SCA.muted} size={16} strokeWidth={2.5} />
+                      <ChevronDown color={colors.muted} size={16} strokeWidth={2.5} />
                     )}
                   </Pressable>
 
@@ -413,7 +396,7 @@ export function CompletedServicesScreen({ route }: Props) {
                           onPress={() => setCalendarMonth((current) => addMonths(current, -1))}
                           style={styles.calendarNavButton}
                         >
-                          <MaterialCommunityIcons color={SCA.blue} name="chevron-left" size={18} />
+                          <MaterialCommunityIcons color={colors.blue} name="chevron-left" size={18} />
                         </Pressable>
                         <Text style={styles.calendarMonthLabel}>
                           {MONTH_LABELS[calendarMonth.getMonth()]} {calendarMonth.getFullYear()}
@@ -423,7 +406,7 @@ export function CompletedServicesScreen({ route }: Props) {
                           onPress={() => setCalendarMonth((current) => addMonths(current, 1))}
                           style={styles.calendarNavButton}
                         >
-                          <MaterialCommunityIcons color={SCA.blue} name="chevron-right" size={18} />
+                          <MaterialCommunityIcons color={colors.blue} name="chevron-right" size={18} />
                         </Pressable>
                       </View>
 
@@ -478,7 +461,7 @@ export function CompletedServicesScreen({ route }: Props) {
                     <TextInput
                       onChangeText={setSearchText}
                       placeholder="Buscar por No. de servicio, cliente o compañía"
-                      placeholderTextColor={SCA.muted}
+                      placeholderTextColor={colors.muted}
                       style={styles.searchInput}
                       value={searchText}
                     />
@@ -547,14 +530,14 @@ export function CompletedServicesScreen({ route }: Props) {
             >
               {isLoadingHistory ? (
                 <View style={styles.feedbackCard}>
-                  <ActivityIndicator color={SCA.blue} size="small" />
+                  <ActivityIndicator color={colors.blue} size="small" />
                   <Text style={styles.feedbackText}>Cargando servicios…</Text>
                 </View>
               ) : null}
 
               {!isLoadingHistory && historyError ? (
                 <View style={styles.errorBox}>
-                  <AlertCircle color={SCA.danger} size={18} strokeWidth={2.5} />
+                  <AlertCircle color={colors.danger} size={18} strokeWidth={2.5} />
                   <Text style={styles.errorText}>{historyError}</Text>
                 </View>
               ) : null}
@@ -570,7 +553,7 @@ export function CompletedServicesScreen({ route }: Props) {
               {!isLoadingHistory && !historyError && completedServices.length === 0 ? (
                 <View style={styles.emptyCard}>
                   <View style={styles.emptyIconWrap}>
-                    <BarChart3 color={SCA.blue} size={26} strokeWidth={2} />
+                    <BarChart3 color={colors.blue} size={26} strokeWidth={2} />
                   </View>
                   <Text style={styles.emptyTitle}>
                     {isRangeApplied ? 'Sin resultados' : 'Aún no has filtrado'}
@@ -594,9 +577,10 @@ export function CompletedServicesScreen({ route }: Props) {
 
 const BOTTOM_BAR_OFFSET = 120;
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   screen: {
-    backgroundColor: SCA.surfaceSoft,
+    backgroundColor: colors.surfaceSoft,
     flex: 1,
   },
   content: {
@@ -609,9 +593,9 @@ const styles = StyleSheet.create({
   // ─── Toggle principal (minimiza todo) ────────────────────
   filterToggleHeader: {
     alignItems: 'center',
-    backgroundColor: SCA.surfaceSoft,
-    borderColor: SCA.border,
-    borderRadius: 12,
+    backgroundColor: colors.surfaceSoft,
+    borderColor: colors.border,
+    borderRadius: radius.md,
     borderWidth: StyleSheet.hairlineWidth,
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -626,8 +610,8 @@ const styles = StyleSheet.create({
   },
   filterToggleIconWrap: {
     alignItems: 'center',
-    backgroundColor: SCA.blueSoft,
-    borderRadius: 8,
+    backgroundColor: colors.blueSoft,
+    borderRadius: radius.sm,
     height: 26,
     justifyContent: 'center',
     width: 26,
@@ -637,13 +621,13 @@ const styles = StyleSheet.create({
     gap: 1,
   },
   filterToggleTitle: {
-    color: SCA.navy,
+    color: colors.navy,
     fontSize: 12,
     fontWeight: '700',
     letterSpacing: 0.2,
   },
   filterToggleHint: {
-    color: SCA.muted,
+    color: colors.muted,
     fontSize: 10,
     fontWeight: '500',
   },
@@ -657,9 +641,9 @@ const styles = StyleSheet.create({
   // ─── Selector de rango colapsable ────────────────────────
   collapsibleHeader: {
     alignItems: 'center',
-    backgroundColor: SCA.surfaceSoft,
-    borderColor: SCA.border,
-    borderRadius: 12,
+    backgroundColor: colors.surfaceSoft,
+    borderColor: colors.border,
+    borderRadius: radius.md,
     borderWidth: StyleSheet.hairlineWidth,
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -674,8 +658,8 @@ const styles = StyleSheet.create({
   },
   collapsibleIconWrap: {
     alignItems: 'center',
-    backgroundColor: SCA.blueSoft,
-    borderRadius: 8,
+    backgroundColor: colors.blueSoft,
+    borderRadius: radius.sm,
     height: 26,
     justifyContent: 'center',
     width: 26,
@@ -685,12 +669,12 @@ const styles = StyleSheet.create({
     gap: 1,
   },
   collapsibleHeaderTitle: {
-    color: SCA.navy,
+    color: colors.navy,
     fontSize: 12,
     fontWeight: '700',
   },
   collapsibleHeaderHint: {
-    color: SCA.muted,
+    color: colors.muted,
     fontSize: 10,
     fontWeight: '500',
   },
@@ -701,11 +685,11 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   searchInput: {
-    backgroundColor: SCA.surfaceSoft,
-    borderColor: SCA.border,
-    borderRadius: 12,
+    backgroundColor: colors.surfaceSoft,
+    borderColor: colors.border,
+    borderRadius: radius.md,
     borderWidth: StyleSheet.hairlineWidth,
-    color: SCA.navy,
+    color: colors.navy,
     flex: 1,
     fontSize: 12,
     fontWeight: '500',
@@ -715,9 +699,9 @@ const styles = StyleSheet.create({
 
   // ─── Calendario ──────────────────────────────────────────
   pickerWrap: {
-    backgroundColor: SCA.surfaceSoft,
-    borderColor: SCA.border,
-    borderRadius: 12,
+    backgroundColor: colors.surfaceSoft,
+    borderColor: colors.border,
+    borderRadius: radius.md,
     borderWidth: StyleSheet.hairlineWidth,
     marginTop: 4,
     overflow: 'hidden',
@@ -732,16 +716,16 @@ const styles = StyleSheet.create({
   },
   calendarNavButton: {
     alignItems: 'center',
-    backgroundColor: SCA.surface,
-    borderColor: SCA.border,
-    borderRadius: 999,
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: radius.pill,
     borderWidth: StyleSheet.hairlineWidth,
     height: 26,
     justifyContent: 'center',
     width: 26,
   },
   calendarMonthLabel: {
-    color: SCA.navy,
+    color: colors.navy,
     fontSize: 13,
     fontWeight: '700',
     textTransform: 'capitalize',
@@ -751,7 +735,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   weekDayLabel: {
-    color: SCA.muted,
+    color: colors.muted,
     flex: 1,
     fontSize: 11,
     fontWeight: '700',
@@ -767,39 +751,39 @@ const styles = StyleSheet.create({
     paddingVertical: 1,
   },
   dayCellInRange: {
-    backgroundColor: SCA.blueSoft,
+    backgroundColor: colors.blueSoft,
   },
   dayCellEdgeStart: {
-    backgroundColor: SCA.blueSoft,
+    backgroundColor: colors.blueSoft,
     borderBottomLeftRadius: 999,
     borderTopLeftRadius: 999,
   },
   dayCellEdgeEnd: {
-    backgroundColor: SCA.blueSoft,
+    backgroundColor: colors.blueSoft,
     borderBottomRightRadius: 999,
     borderTopRightRadius: 999,
   },
   dayCellInner: {
     alignItems: 'center',
-    borderRadius: 999,
+    borderRadius: radius.pill,
     height: 26,
     justifyContent: 'center',
     width: 26,
   },
   dayCellSelected: {
-    backgroundColor: SCA.blue,
+    backgroundColor: colors.blue,
   },
   dayText: {
-    color: SCA.navy,
+    color: colors.navy,
     fontSize: 11,
     fontWeight: '600',
   },
   dayTextDisabled: {
-    color: SCA.muted,
+    color: colors.muted,
     opacity: 0.4,
   },
   dayTextSelected: {
-    color: SCA.white,
+    color: colors.white,
   },
 
   // ─── Chips ───────────────────────────────────────────────
@@ -809,33 +793,33 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   chip: {
-    backgroundColor: SCA.surfaceSoft,
-    borderColor: SCA.border,
-    borderRadius: 999,
+    backgroundColor: colors.surfaceSoft,
+    borderColor: colors.border,
+    borderRadius: radius.pill,
     borderWidth: StyleSheet.hairlineWidth,
     paddingHorizontal: 10,
     paddingVertical: 4,
   },
   chipActive: {
-    backgroundColor: SCA.blue,
-    borderColor: SCA.blue,
+    backgroundColor: colors.blue,
+    borderColor: colors.blue,
   },
   chipText: {
-    color: SCA.navy,
+    color: colors.navy,
     fontSize: 11,
     fontWeight: '700',
   },
   chipTextActive: {
-    color: SCA.white,
+    color: colors.white,
   },
 
   // ─── Apply button ────────────────────────────────────────
   applyFilterButton: {
     alignItems: 'center',
-    backgroundColor: SCA.blue,
-    borderRadius: 12,
+    backgroundColor: colors.blue,
+    borderRadius: radius.md,
     paddingVertical: 8,
-    shadowColor: SCA.blue,
+    shadowColor: colors.blue,
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.2,
     shadowRadius: 8,
@@ -845,7 +829,7 @@ const styles = StyleSheet.create({
     transform: [{ scale: 0.98 }],
   },
   applyFilterButtonText: {
-    color: SCA.white,
+    color: colors.white,
     fontSize: 12,
     fontWeight: '800',
     letterSpacing: 0.3,
@@ -858,36 +842,36 @@ const styles = StyleSheet.create({
   },
   kpiCard: {
     alignItems: 'flex-start',
-    backgroundColor: SCA.surface,
-    borderColor: SCA.border,
-    borderRadius: 20,
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: radius.xl,
     borderWidth: StyleSheet.hairlineWidth,
     flex: 1,
     gap: spacing.xs,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.md,
-    shadowColor: SCA.navy,
+    shadowColor: colors.navy,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
     shadowRadius: 8,
   },
   kpiIconWrap: {
     alignItems: 'center',
-    borderRadius: 12,
+    borderRadius: radius.md,
     height: 32,
     justifyContent: 'center',
     marginBottom: 4,
     width: 32,
   },
   kpiValue: {
-    color: SCA.navy,
+    color: colors.navy,
     fontSize: 20,
     fontVariant: ['tabular-nums'],
     fontWeight: '800',
     letterSpacing: -0.3,
   },
   kpiLabel: {
-    color: SCA.muted,
+    color: colors.muted,
     fontSize: 11,
     fontWeight: '600',
     letterSpacing: 0.2,
@@ -902,9 +886,9 @@ const styles = StyleSheet.create({
   // ─── Feedback (loading) ───────────────────────────────────
   feedbackCard: {
     alignItems: 'center',
-    backgroundColor: SCA.surfaceSoft,
-    borderColor: SCA.border,
-    borderRadius: 16,
+    backgroundColor: colors.surfaceSoft,
+    borderColor: colors.border,
+    borderRadius: radius.lg,
     borderWidth: StyleSheet.hairlineWidth,
     flexDirection: 'row',
     gap: spacing.sm,
@@ -912,7 +896,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
   },
   feedbackText: {
-    color: SCA.muted,
+    color: colors.muted,
     fontSize: 13,
     fontWeight: '600',
   },
@@ -920,7 +904,7 @@ const styles = StyleSheet.create({
   // ─── Error ────────────────────────────────────────────────
   errorBox: {
     alignItems: 'center',
-    backgroundColor: SCA.dangerSoft,
+    backgroundColor: colors.dangerSoft,
     borderRadius: 14,
     flexDirection: 'row',
     gap: spacing.sm,
@@ -928,7 +912,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
   },
   errorText: {
-    color: SCA.danger,
+    color: colors.danger,
     flex: 1,
     fontSize: 13,
     fontWeight: '600',
@@ -938,9 +922,9 @@ const styles = StyleSheet.create({
   // ─── Empty state ──────────────────────────────────────────
   emptyCard: {
     alignItems: 'center',
-    backgroundColor: SCA.surfaceSoft,
-    borderColor: SCA.border,
-    borderRadius: 16,
+    backgroundColor: colors.surfaceSoft,
+    borderColor: colors.border,
+    borderRadius: radius.lg,
     borderStyle: 'dashed',
     borderWidth: 1.5,
     gap: 6,
@@ -949,24 +933,25 @@ const styles = StyleSheet.create({
   },
   emptyIconWrap: {
     alignItems: 'center',
-    backgroundColor: SCA.blueSoft,
-    borderRadius: 999,
+    backgroundColor: colors.blueSoft,
+    borderRadius: radius.pill,
     height: 52,
     justifyContent: 'center',
     marginBottom: 4,
     width: 52,
   },
   emptyTitle: {
-    color: SCA.navy,
+    color: colors.navy,
     fontSize: 15,
     fontWeight: '800',
     textAlign: 'center',
   },
   emptyText: {
-    color: SCA.muted,
+    color: colors.muted,
     fontSize: 13,
     fontWeight: '500',
     lineHeight: 18,
     textAlign: 'center',
   },
 });
+}

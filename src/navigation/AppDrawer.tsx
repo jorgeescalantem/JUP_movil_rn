@@ -7,6 +7,7 @@ import {
   createDrawerNavigator,
 } from '@react-navigation/drawer';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useMemo } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { CompletedServicesScreen } from '../screens/CompletedServicesScreen';
@@ -14,7 +15,7 @@ import { PropietarioHomeScreen } from '../screens/PropietarioHomeScreen';
 import { ServiceDetailScreen } from '../screens/ServiceDetailScreen';
 import { ServiceStatusScreen } from '../screens/ServiceStatusScreen';
 import { ServicesScreen } from '../screens/ServicesScreen';
-import { colors, spacing } from '../theme';
+import { spacing, useTheme, type ThemeColors } from '../theme';
 import { Role } from '../types/domain';
 import { useSession } from '../store/session';
 
@@ -28,20 +29,24 @@ export type DrawerParamList = {
 
 const Drawer = createDrawerNavigator<DrawerParamList>();
 
-const navigationTheme: Theme = {
-  ...DefaultTheme,
-  colors: {
-    ...DefaultTheme.colors,
-    background: colors.background,
-    card: colors.surface,
-    border: colors.border,
-    primary: colors.accent,
-    text: colors.textStrong,
-  },
-};
+function buildNavigationTheme(colors: ThemeColors): Theme {
+  return {
+    ...DefaultTheme,
+    colors: {
+      ...DefaultTheme.colors,
+      background: colors.background,
+      card: colors.surface,
+      border: colors.border,
+      primary: colors.blue,
+      text: colors.textStrong,
+    },
+  };
+}
 
 function CustomDrawerContent(props: DrawerContentComponentProps) {
   const { role, roleCapability, setRole, resetSession } = useSession();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   // Only offer a role switch for AMBOS; single-capability users have nothing to switch to.
   const roleOptions: Role[] = roleCapability === 'AMBOS' ? ['CONDUCTOR', 'PROPIETARIO'] : [roleCapability];
 
@@ -92,6 +97,9 @@ function CustomDrawerContent(props: DrawerContentComponentProps) {
 
 export function AppDrawer() {
   const { role } = useSession();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  const navigationTheme = useMemo(() => buildNavigationTheme(colors), [colors]);
 
   return (
     <NavigationContainer key={`nav-${role}`} theme={navigationTheme}>
@@ -99,7 +107,7 @@ export function AppDrawer() {
         key={role}
         drawerContent={(props) => <CustomDrawerContent {...props} />}
         screenOptions={{
-          drawerActiveBackgroundColor: colors.accentSoft,
+          drawerActiveBackgroundColor: colors.blueSoft,
           drawerActiveTintColor: colors.textStrong,
           drawerInactiveTintColor: colors.muted,
           drawerStyle: styles.drawer,
@@ -153,95 +161,97 @@ export function AppDrawer() {
   );
 }
 
-const styles = StyleSheet.create({
-  drawer: {
-    backgroundColor: colors.surface,
-  },
-  header: {
-    backgroundColor: colors.surface,
-  },
-  scene: {
-    backgroundColor: colors.background,
-  },
-  drawerContent: {
-    flex: 1,
-    paddingBottom: spacing.lg,
-  },
-  drawerHeader: {
-    alignItems: 'center',
-    gap: spacing.xs,
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.lg,
-  },
-  logo: {
-    height: 56,
-    marginBottom: spacing.xs,
-    alignSelf: 'center',
-    resizeMode: 'contain',
-    width: 56,
-  },
-  drawerEyebrow: {
-    color: colors.accent,
-    fontSize: 13,
-    fontWeight: '700',
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-  },
-  drawerTitle: {
-    color: colors.textStrong,
-    fontSize: 24,
-    fontWeight: '700',
-  },
-  drawerText: {
-    color: colors.muted,
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  roleSwitch: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    marginHorizontal: spacing.lg,
-    marginTop: spacing.lg,
-  },
-  roleButton: {
-    alignItems: 'center',
-    backgroundColor: colors.surfaceAlt,
-    borderColor: colors.border,
-    borderRadius: 999,
-    borderWidth: 1,
-    flexDirection: 'row',
-    flex: 1,
-    gap: spacing.xs,
-    justifyContent: 'center',
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.sm,
-  },
-  roleButtonActive: {
-    backgroundColor: colors.accent,
-    borderColor: colors.accent,
-  },
-  roleButtonText: {
-    color: colors.text,
-    fontSize: 12,
-    fontWeight: '700',
-    textAlign: 'center',
-  },
-  roleButtonTextActive: {
-    color: '#ffffff',
-  },
-  drawerList: {
-    flex: 1,
-    marginTop: spacing.lg,
-  },
-  logoutItem: {
-    borderTopColor: colors.border,
-    borderTopWidth: 1,
-    marginHorizontal: spacing.lg,
-    marginTop: spacing.md,
-    paddingTop: spacing.sm,
-  },
-  logoutLabel: {
-    color: colors.danger,
-    fontWeight: '700',
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    drawer: {
+      backgroundColor: colors.surface,
+    },
+    header: {
+      backgroundColor: colors.surface,
+    },
+    scene: {
+      backgroundColor: colors.background,
+    },
+    drawerContent: {
+      flex: 1,
+      paddingBottom: spacing.lg,
+    },
+    drawerHeader: {
+      alignItems: 'center',
+      gap: spacing.xs,
+      paddingHorizontal: spacing.lg,
+      paddingTop: spacing.lg,
+    },
+    logo: {
+      height: 56,
+      marginBottom: spacing.xs,
+      alignSelf: 'center',
+      resizeMode: 'contain',
+      width: 56,
+    },
+    drawerEyebrow: {
+      color: colors.blue,
+      fontSize: 13,
+      fontWeight: '700',
+      letterSpacing: 1,
+      textTransform: 'uppercase',
+    },
+    drawerTitle: {
+      color: colors.textStrong,
+      fontSize: 24,
+      fontWeight: '700',
+    },
+    drawerText: {
+      color: colors.muted,
+      fontSize: 14,
+      lineHeight: 20,
+    },
+    roleSwitch: {
+      flexDirection: 'row',
+      gap: spacing.sm,
+      marginHorizontal: spacing.lg,
+      marginTop: spacing.lg,
+    },
+    roleButton: {
+      alignItems: 'center',
+      backgroundColor: colors.surfaceAlt,
+      borderColor: colors.border,
+      borderRadius: 999,
+      borderWidth: 1,
+      flexDirection: 'row',
+      flex: 1,
+      gap: spacing.xs,
+      justifyContent: 'center',
+      paddingHorizontal: spacing.sm,
+      paddingVertical: spacing.sm,
+    },
+    roleButtonActive: {
+      backgroundColor: colors.blue,
+      borderColor: colors.blue,
+    },
+    roleButtonText: {
+      color: colors.text,
+      fontSize: 12,
+      fontWeight: '700',
+      textAlign: 'center',
+    },
+    roleButtonTextActive: {
+      color: '#ffffff',
+    },
+    drawerList: {
+      flex: 1,
+      marginTop: spacing.lg,
+    },
+    logoutItem: {
+      borderTopColor: colors.border,
+      borderTopWidth: 1,
+      marginHorizontal: spacing.lg,
+      marginTop: spacing.md,
+      paddingTop: spacing.sm,
+    },
+    logoutLabel: {
+      color: colors.danger,
+      fontWeight: '700',
+    },
+  });
+}

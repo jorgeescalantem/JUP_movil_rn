@@ -16,7 +16,8 @@
         "backgroundColor": "#edeeef"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.jaem.JUP_movil_rn"
+      "package": "com.jaem.JUP_movil_rn",
+      "permissions": ["ACCESS_COARSE_LOCATION", "ACCESS_FINE_LOCATION", "CALL_PHONE"]
     },
     "web": {
       "favicon": "./assets/iconjup.png"
@@ -29,6 +30,18 @@
         "expo-local-authentication",
         {
           "faceIDPermission": "Permite el acceso con reconocimiento facial para iniciar sesion mas rapido."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Permite el acceso a tu ubicacion para calcular rutas y distancias de tus servicios."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/iconjup.png"
         }
       ]
     ],

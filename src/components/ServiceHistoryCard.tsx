@@ -1,24 +1,9 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useMemo } from 'react';
 
-import { spacing } from '../theme';
+import { radius, spacing, useTheme, type ThemeColors } from '../theme';
 import { Service } from '../types/domain';
-
-// ─────────────────────────────────────────────────────────────
-// SCA Soluciones brand palette
-// ─────────────────────────────────────────────────────────────
-const SCA = {
-  navy: '#1B2A4A',
-  blue: '#0FA0F3',
-  blueSoft: '#E6F4FD',
-  white: '#FFFFFF',
-  surface: '#FFFFFF',
-  surfaceSoft: '#F8FAFC',
-  muted: '#8B96AC',
-  border: '#E2E8F0',
-  borderStrong: '#CBD5E1',
-  neutralSoft: '#EEF1F6',
-} as const;
 
 function currency(value: number) {
   return `$${value.toLocaleString('es-CO', { maximumFractionDigits: 0 })}`;
@@ -33,6 +18,9 @@ function formatDateTime(value: string) {
 }
 
 export function ServiceHistoryCard({ service }: { service: Service }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   return (
     <View style={styles.card}>
       {/* Acento lateral azul */}
@@ -58,7 +46,7 @@ export function ServiceHistoryCard({ service }: { service: Service }) {
         <View style={styles.routeBlock}>
           <View style={styles.routeItem}>
             <View style={[styles.routeIconWrap, styles.routeIconOrigin]}>
-              <MaterialCommunityIcons color={SCA.blue} name="map-marker-outline" size={12} />
+              <MaterialCommunityIcons color={colors.blue} name="map-marker-outline" size={12} />
             </View>
             <View style={styles.routeTextWrap}>
               <Text style={styles.routeLabel}>Origen</Text>
@@ -70,7 +58,7 @@ export function ServiceHistoryCard({ service }: { service: Service }) {
 
           <View style={styles.routeItem}>
             <View style={[styles.routeIconWrap, styles.routeIconDest]}>
-              <MaterialCommunityIcons color={SCA.navy} name="navigation-variant-outline" size={12} />
+              <MaterialCommunityIcons color={colors.navy} name="navigation-variant-outline" size={12} />
             </View>
             <View style={styles.routeTextWrap}>
               <Text style={styles.routeLabel}>Destino</Text>
@@ -125,15 +113,16 @@ export function ServiceHistoryCard({ service }: { service: Service }) {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   card: {
-    backgroundColor: SCA.surface,
-    borderColor: SCA.borderStrong,           // 👈 borde más notorio
-    borderRadius: 16,
+    backgroundColor: colors.surface,
+    borderColor: colors.borderStrong,           // 👈 borde más notorio
+    borderRadius: radius.lg,
     borderWidth: 1,                          // 👈 grosor visible
     flexDirection: 'row',
     overflow: 'hidden',
-    shadowColor: SCA.navy,
+    shadowColor: colors.navy,
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.06,                     // 👈 sombra un poco más marcada
     shadowRadius: 8,
@@ -141,7 +130,7 @@ const styles = StyleSheet.create({
 
   // Acento lateral azul SCA (marca visual de "servicio")
   accentBar: {
-    backgroundColor: SCA.blue,
+    backgroundColor: colors.blue,
     width: 4,                                // 👈 barra delgada de color
   },
 
@@ -165,25 +154,25 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   bullet: {
-    backgroundColor: SCA.blue,
+    backgroundColor: colors.blue,
     borderRadius: 4,
     height: 6,
     width: 6,
   },
   dateText: {
-    color: SCA.blue,
+    color: colors.blue,
     fontSize: 11,
     fontWeight: '700',
     letterSpacing: 0.1,
   },
   numberChip: {
-    backgroundColor: SCA.blueSoft,
-    borderRadius: 999,
+    backgroundColor: colors.blueSoft,
+    borderRadius: radius.pill,
     paddingHorizontal: 8,
     paddingVertical: 2,
   },
   numberChipText: {
-    color: SCA.blue,
+    color: colors.blue,
     fontSize: 10,
     fontWeight: '800',
     letterSpacing: 0.4,
@@ -200,31 +189,31 @@ const styles = StyleSheet.create({
   },
   routeIconWrap: {
     alignItems: 'center',
-    borderRadius: 8,
+    borderRadius: radius.sm,
     height: 22,
     justifyContent: 'center',
     marginTop: 1,
     width: 22,
   },
   routeIconOrigin: {
-    backgroundColor: SCA.blueSoft,
+    backgroundColor: colors.blueSoft,
   },
   routeIconDest: {
-    backgroundColor: SCA.neutralSoft,
+    backgroundColor: colors.neutralSoft,
   },
   routeTextWrap: {
     flex: 1,
     gap: 0,
   },
   routeLabel: {
-    color: SCA.muted,
+    color: colors.muted,
     fontSize: 9,
     fontWeight: '600',
     letterSpacing: 0.3,
     textTransform: 'uppercase',
   },
   routeValue: {
-    color: SCA.navy,
+    color: colors.navy,
     fontSize: 12,
     fontWeight: '600',
     lineHeight: 15,
@@ -247,27 +236,27 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   metaLabel: {
-    color: SCA.muted,
+    color: colors.muted,
     fontSize: 9,
     fontWeight: '700',
     letterSpacing: 0.3,
     textTransform: 'uppercase',
   },
   metaValue: {
-    color: SCA.navy,
+    color: colors.navy,
     flexShrink: 1,
     fontSize: 11,
     fontWeight: '600',
   },
   metaDivider: {
-    backgroundColor: SCA.border,
+    backgroundColor: colors.border,
     width: StyleSheet.hairlineWidth,
   },
 
   // ─── Footer ────────────────────────────────────────────────
   footer: {
     alignItems: 'center',
-    borderTopColor: SCA.border,
+    borderTopColor: colors.border,
     borderTopWidth: StyleSheet.hairlineWidth,
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -279,22 +268,23 @@ const styles = StyleSheet.create({
     gap: 0,
   },
   footerLabel: {
-    color: SCA.muted,
+    color: colors.muted,
     fontSize: 9,
     fontWeight: '600',
     letterSpacing: 0.3,
     textTransform: 'uppercase',
   },
   footerValue: {
-    color: SCA.navy,
+    color: colors.navy,
     fontSize: 13,
     fontVariant: ['tabular-nums'],
     fontWeight: '800',
   },
   footerDivider: {
-    backgroundColor: SCA.border,
+    backgroundColor: colors.border,
     height: 20,
     marginHorizontal: spacing.sm,
     width: StyleSheet.hairlineWidth,
   },
 });
+}

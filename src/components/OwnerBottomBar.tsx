@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { FlatList, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { DrawerNavigationProp } from '@react-navigation/drawer';
 import { useNavigation, useNavigationState } from '@react-navigation/native';
@@ -7,36 +7,20 @@ import { BarChart3, Car, History, LayoutDashboard, type LucideIcon } from 'lucid
 
 import { DrawerParamList } from '../navigation/AppDrawer';
 import { useSession } from '../store/session';
-import { colors, spacing } from '../theme';
-
-// ─────────────────────────────────────────────────────────────
-// SCA Soluciones brand palette (aligned with corporate identity)
-// ─────────────────────────────────────────────────────────────
-const SCA = {
-  navy: '#1B2A4A',
-  navyDeep: '#131E36',
-  blue: '#0FA0F3',
-  sky: '#7FB3D5',
-  white: '#FFFFFF',
-  surface: '#FFFFFF',
-  surfaceSoft: '#F8FAFC',
-  muted: '#8B96AC',
-  border: '#E2E8F0',
-} as const;
-
-// Gradiente de marca para el tab activo (azul SCA).
-const BRAND_GRADIENT = [SCA.sky, SCA.blue] as const;
+import { spacing, useTheme, type ThemeColors } from '../theme';
 
 function GradientIcon({ icon: Icon, size = 18 }: { icon: LucideIcon; size?: number }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const badgeSize = size + 20;
   return (
     <LinearGradient
-      colors={BRAND_GRADIENT}
+      colors={[colors.sky, colors.blue]}
       end={{ x: 1, y: 0.5 }}
       start={{ x: 0, y: 0.5 }}
       style={[styles.iconBadge, { width: badgeSize, height: badgeSize, borderRadius: badgeSize / 2 }]}
     >
-      <Icon color={SCA.white} size={size} />
+      <Icon color={colors.white} size={size} />
     </LinearGradient>
   );
 }
@@ -67,6 +51,8 @@ function TabItem({
   disabled?: boolean;
   onPress: () => void;
 }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <Pressable
       accessibilityRole="tab"
@@ -80,7 +66,7 @@ function TabItem({
         <GradientIcon icon={Icon} size={18} />
       ) : (
         <View style={styles.iconBadgeInactive}>
-          <Icon color={SCA.muted} size={20} />
+          <Icon color={colors.muted} size={20} />
         </View>
       )}
       <Text numberOfLines={1} style={[styles.tabLabel, focused ? styles.tabLabelActive : null]}>
@@ -94,6 +80,8 @@ function TabItem({
 export function OwnerBottomBar() {
   const navigation = useNavigation<DrawerNavigationProp<DrawerParamList>>();
   const { ownedVehicles, selectVehiculo } = useSession();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [isVehiclePickerOpen, setIsVehiclePickerOpen] = useState(false);
 
   // Detecta la ruta activa para resaltar el tab correspondiente.
@@ -158,7 +146,8 @@ export function OwnerBottomBar() {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   iconBadge: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -172,8 +161,8 @@ const styles = StyleSheet.create({
   },
   bottomBar: {
     alignItems: 'center',
-    backgroundColor: SCA.surface,
-    borderTopColor: SCA.border,
+    backgroundColor: colors.surface,
+    borderTopColor: colors.border,
     borderTopWidth: StyleSheet.hairlineWidth,
     elevation: 12,
     flexDirection: 'row',
@@ -181,7 +170,7 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.lg,
     paddingHorizontal: spacing.md,
     paddingTop: spacing.sm,
-    shadowColor: SCA.navy,
+    shadowColor: colors.navy,
     shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.08,
     shadowRadius: 12,
@@ -196,14 +185,14 @@ const styles = StyleSheet.create({
     opacity: 0.35,
   },
   tabLabel: {
-    color: SCA.muted,
+    color: colors.muted,
     fontSize: 11,
     fontWeight: '500',
     lineHeight: 13,
     textAlign: 'center',
   },
   tabLabelActive: {
-    color: SCA.navy,
+    color: colors.navy,
     fontWeight: '700',
   },
   modalOverlay: {
@@ -212,32 +201,32 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   modalBox: {
-    backgroundColor: SCA.surface,
+    backgroundColor: colors.surface,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     maxHeight: '70%',
     padding: spacing.lg,
-    shadowColor: SCA.navy,
+    shadowColor: colors.navy,
     shadowOffset: { width: 0, height: -6 },
     shadowOpacity: 0.1,
     shadowRadius: 16,
   },
   modalTitle: {
-    color: SCA.navy,
+    color: colors.navy,
     fontSize: 18,
     fontWeight: '700',
     marginBottom: spacing.sm,
   },
   vehicleOption: {
     alignItems: 'center',
-    borderBottomColor: SCA.border,
+    borderBottomColor: colors.border,
     borderBottomWidth: 1,
     flexDirection: 'row',
     gap: spacing.sm,
     paddingVertical: spacing.sm,
   },
   vehicleOptionText: {
-    color: SCA.navy,
+    color: colors.navy,
     fontSize: 16,
     fontWeight: '700',
   },
@@ -247,7 +236,8 @@ const styles = StyleSheet.create({
     padding: spacing.sm,
   },
   modalCloseText: {
-    color: SCA.blue,
+    color: colors.blue,
     fontWeight: '700',
   },
 });
+}

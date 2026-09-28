@@ -1,6 +1,6 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Image,
   KeyboardAvoidingView,
@@ -13,9 +13,11 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
+import { MoonStar, SunMedium } from 'lucide-react-native';
 
 import { useSession } from '../store/session';
 import { authenticateWithBiometrics, saveBiometricCredentials } from '../services/biometricAuth';
+import { useTheme, type ThemeColors } from '../theme';
 import { getShortDeviceId } from '../utils/deviceId';
 
 type LoginScreenProps = {
@@ -28,6 +30,10 @@ type FeedbackModal = { title: string; message: string } | null;
 export function LoginScreen({ onOpenRegister, onOpenRecover }: LoginScreenProps) {
   const { login } = useSession();
   const { height } = useWindowDimensions();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { isDark, toggle } = useTheme();
+  const ThemeIcon = isDark ? SunMedium : MoonStar;
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
@@ -110,7 +116,17 @@ export function LoginScreen({ onOpenRegister, onOpenRecover }: LoginScreenProps)
 
       <View style={styles.container}>
         <View style={[styles.card, isCompact ? styles.cardCompact : null]}>
-          <Text style={styles.title}>Iniciar Sesion</Text>
+          <View style={styles.titleRow}>
+            <Text style={styles.title}>Iniciar Sesion</Text>
+            <Pressable
+              accessibilityLabel="Cambiar tema"
+              hitSlop={8}
+              onPress={toggle}
+              style={styles.themeToggle}
+            >
+              <ThemeIcon color={colors.blue} size={20} />
+            </Pressable>
+          </View>
 
           <View style={styles.logoWrap}>
             <Image source={require('../../assets/logo1.png')} style={styles.logo} />
@@ -131,7 +147,7 @@ export function LoginScreen({ onOpenRegister, onOpenRecover }: LoginScreenProps)
                 autoCorrect={false}
                 onChangeText={setUsername}
                 placeholder="Ingrese su usuario"
-                placeholderTextColor="#6b7280"
+                placeholderTextColor={colors.muted}
                 style={styles.input}
                 value={username}
               />
@@ -152,7 +168,7 @@ export function LoginScreen({ onOpenRegister, onOpenRecover }: LoginScreenProps)
                 autoCorrect={false}
                 onChangeText={setPassword}
                 placeholder="........"
-                placeholderTextColor="#6b7280"
+                placeholderTextColor={colors.muted}
                 secureTextEntry={!isPasswordVisible}
                 style={styles.input}
                 value={password}
@@ -196,7 +212,7 @@ export function LoginScreen({ onOpenRegister, onOpenRecover }: LoginScreenProps)
               onPress={() => onBiometricLogin('FaceID')}
               style={styles.biometricButton}
             >
-              <MaterialCommunityIcons color="#006493" name="face-recognition" size={30} />
+              <MaterialCommunityIcons color={colors.info} name="face-recognition" size={30} />
               <Text style={styles.biometricText}>FaceID</Text>
             </Pressable>
 
@@ -204,7 +220,7 @@ export function LoginScreen({ onOpenRegister, onOpenRecover }: LoginScreenProps)
               onPress={() => onBiometricLogin('Huella')}
               style={styles.biometricButton}
             >
-              <MaterialCommunityIcons color="#006493" name="fingerprint" size={30} />
+              <MaterialCommunityIcons color={colors.info} name="fingerprint" size={30} />
               <Text style={styles.biometricText}>Huella</Text>
             </Pressable>
           </View>
@@ -221,32 +237,33 @@ export function LoginScreen({ onOpenRegister, onOpenRecover }: LoginScreenProps)
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   screen: {
-    backgroundColor: '#f8f9fa',
+    backgroundColor: colors.background,
     flex: 1,
   },
   modalOverlay: {
     alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.55)',
+    backgroundColor: colors.overlay,
     flex: 1,
     justifyContent: 'center',
     paddingHorizontal: 24,
   },
   modalBox: {
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.surface,
     borderRadius: 20,
     padding: 24,
     width: '100%',
   },
   modalTitle: {
-    color: '#121417',
+    color: colors.textStrong,
     fontSize: 18,
     fontWeight: '800',
     marginBottom: 8,
   },
   modalSubtitle: {
-    color: '#4a5568',
+    color: colors.textMuted,
     fontSize: 14,
     lineHeight: 20,
     marginBottom: 20,
@@ -262,10 +279,10 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   modalBtnConfirm: {
-    backgroundColor: '#0fa0f3',
+    backgroundColor: colors.blue,
   },
   modalBtnConfirmText: {
-    color: '#ffffff',
+    color: colors.white,
     fontSize: 14,
     fontWeight: '700',
   },
@@ -276,8 +293,8 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   card: {
-    backgroundColor: '#ffffff',
-    borderColor: '#bacac0',
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
     borderRadius: 20,
     borderWidth: 1,
     gap: 12,
@@ -290,11 +307,24 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   title: {
-    color: '#121417',
+    color: colors.textStrong,
+    flex: 1,
     fontSize: 24,
     fontWeight: '900',
     letterSpacing: -1,
     textAlign: 'center',
+  },
+  titleRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+  },
+  themeToggle: {
+    alignItems: 'center',
+    backgroundColor: colors.blueSoft,
+    borderRadius: 999,
+    height: 36,
+    justifyContent: 'center',
+    width: 36,
   },
   logoWrap: {
     alignItems: 'center',
@@ -307,13 +337,13 @@ const styles = StyleSheet.create({
     width: 88,
   },
   portalLabel: {
-    color: '#2f3e36',
+    color: colors.muted,
     fontSize: 12,
     fontWeight: '600',
     letterSpacing: 1,
   },
   deviceIdText: {
-    color: '#8c989b',
+    color: colors.muted,
     fontSize: 10,
     marginTop: 2,
     textAlign: 'center',
@@ -330,24 +360,24 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   label: {
-    color: '#121417',
+    color: colors.textStrong,
     fontSize: 16,
     fontWeight: '700',
   },
   forgot: {
-    color: '#006493',
+    color: colors.info,
     fontSize: 14,
     fontWeight: '600',
   },
   errorText: {
-    color: '#ba1a1a',
+    color: colors.danger,
     fontSize: 13,
     fontWeight: '700',
     textAlign: 'center',
   },
   inputWrap: {
     alignItems: 'center',
-    borderColor: '#bacac0',
+    borderColor: colors.border,
     borderRadius: 12,
     borderWidth: 1,
     flexDirection: 'row',
@@ -356,19 +386,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
   input: {
-    color: '#191c1d',
+    color: colors.text,
     flex: 1,
     fontSize: 14,
     paddingVertical: 10,
   },
   inputIcon: {
-    color: '#3b4a42',
+    color: colors.muted,
     fontSize: 16,
     fontWeight: '700',
     width: 20,
   },
   eyeIcon: {
-    color: '#3b4a42',
+    color: colors.muted,
     fontSize: 11,
     fontWeight: '700',
   },
@@ -391,13 +421,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   submitText: {
-    color: '#f8fffe',
+    color: colors.white,
     fontSize: 16,
     fontWeight: '800',
     letterSpacing: 0.5,
   },
   arrowIcon: {
-    color: '#f8fffe',
+    color: colors.white,
     fontSize: 20,
     fontWeight: '800',
   },
@@ -408,12 +438,12 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   divider: {
-    backgroundColor: '#bacac0',
+    backgroundColor: colors.border,
     flex: 1,
     height: 1,
   },
   dividerText: {
-    color: '#2f3e36',
+    color: colors.muted,
     fontSize: 12,
     fontWeight: '700',
     letterSpacing: 2,
@@ -424,7 +454,7 @@ const styles = StyleSheet.create({
   },
   biometricButton: {
     alignItems: 'center',
-    borderColor: '#bacac0',
+    borderColor: colors.border,
     borderRadius: 16,
     borderWidth: 1,
     flex: 1,
@@ -433,12 +463,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   biometricText: {
-    color: '#121417',
+    color: colors.textStrong,
     fontSize: 14,
     fontWeight: '600',
   },
   supportText: {
-    color: '#2f3e36',
+    color: colors.muted,
     fontSize: 14,
     fontWeight: '600',
     lineHeight: 20,
@@ -446,14 +476,15 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   testHint: {
-    color: '#2f3e36',
+    color: colors.muted,
     fontSize: 12,
     fontWeight: '700',
     marginTop: 4,
     textAlign: 'center',
   },
   supportLink: {
-    color: '#006493',
+    color: colors.info,
     fontWeight: '800',
   },
 });
+}

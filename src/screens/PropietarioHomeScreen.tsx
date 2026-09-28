@@ -18,7 +18,9 @@ import {
   Bus,
   Car,
   MapPin,
+  MoonStar,
   Navigation,
+  SunMedium,
   TrendingUp,
   Wallet,
   type LucideIcon,
@@ -28,28 +30,9 @@ import { OwnerBottomBar } from '../components/OwnerBottomBar';
 import { RoleGate } from '../components/RoleGate';
 import { DrawerParamList } from '../navigation/AppDrawer';
 import { useSession } from '../store/session';
-import { spacing } from '../theme';
+import { radius, spacing, useTheme, type ThemeColors } from '../theme';
 
 type Props = DrawerScreenProps<DrawerParamList, 'PropietarioHome'>;
-
-// ─────────────────────────────────────────────────────────────
-// SCA Soluciones brand palette
-// ─────────────────────────────────────────────────────────────
-const SCA = {
-  navy: '#1B2A4A',
-  navyDeep: '#131E36',
-  blue: '#0FA0F3',
-  blueSoft: '#E6F4FD',
-  sky: '#7FB3D5',
-  white: '#FFFFFF',
-  surface: '#FFFFFF',
-  surfaceSoft: '#F8FAFC',
-  muted: '#8B96AC',
-  border: '#E2E8F0',
-  success: '#10B981',
-  successSoft: '#E7F8F1',
-  neutralSoft: '#EEF1F6',
-} as const;
 
 // Altura reservada para que la barra flotante no tape el último item.
 const BOTTOM_BAR_OFFSET = 120;
@@ -70,6 +53,8 @@ function formatDateTime(value: string) {
 // Avatar con iniciales sobre gradiente SCA
 // ─────────────────────────────────────────────────────────────
 function Avatar({ name }: { name: string }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const initials = name
     .split(' ')
     .filter(Boolean)
@@ -80,7 +65,7 @@ function Avatar({ name }: { name: string }) {
 
   return (
     <LinearGradient
-      colors={[SCA.sky, SCA.blue]}
+      colors={[colors.sky, colors.blue]}
       end={{ x: 1, y: 1 }}
       start={{ x: 0, y: 0 }}
       style={styles.avatar}
@@ -95,14 +80,13 @@ function Avatar({ name }: { name: string }) {
 // ─────────────────────────────────────────────────────────────
 type KpiVariant = 'services' | 'amount' | 'copays';
 
-const KPI_STYLE: Record<
-  KpiVariant,
-  { Icon: LucideIcon; color: string; bg: string }
-> = {
-  services: { Icon: Bus,        color: SCA.blue,    bg: SCA.blueSoft },
-  amount:   { Icon: TrendingUp, color: SCA.success, bg: SCA.successSoft },
-  copays:   { Icon: Wallet,     color: SCA.navy,    bg: SCA.neutralSoft },
-};
+function buildKpiStyle(colors: ThemeColors): Record<KpiVariant, { Icon: LucideIcon; color: string; bg: string }> {
+  return {
+    services: { Icon: Bus,        color: colors.blue,    bg: colors.blueSoft },
+    amount:   { Icon: TrendingUp, color: colors.success, bg: colors.successSoft },
+    copays:   { Icon: Wallet,     color: colors.navy,    bg: colors.neutralSoft },
+  };
+}
 
 function KpiCard({
   variant,
@@ -113,6 +97,9 @@ function KpiCard({
   value: string;
   label: string;
 }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  const KPI_STYLE = useMemo(() => buildKpiStyle(colors), [colors]);
   const { Icon, color, bg } = KPI_STYLE[variant];
   return (
     <View style={styles.kpiCard}>
@@ -149,6 +136,9 @@ function ServiceCard({
   valor,
   copago,
 }: ServiceCardProps) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   return (
     <View style={styles.serviceCard}>
       {/* Header: fecha + placa */}
@@ -170,7 +160,7 @@ function ServiceCard({
       <View style={styles.routeBlock}>
         <View style={styles.routeItem}>
           <View style={[styles.routeIconWrap, styles.routeIconOrigin]}>
-            <MapPin color={SCA.blue} size={14} strokeWidth={2.5} />
+            <MapPin color={colors.blue} size={14} strokeWidth={2.5} />
           </View>
           <View style={styles.routeTextWrap}>
             <Text style={styles.routeLabel}>Origen</Text>
@@ -182,12 +172,12 @@ function ServiceCard({
 
         <View style={styles.routeConnector}>
           <View style={styles.routeConnectorLine} />
-          <ArrowRight color={SCA.muted} size={12} strokeWidth={2.5} />
+          <ArrowRight color={colors.muted} size={12} strokeWidth={2.5} />
         </View>
 
         <View style={styles.routeItem}>
           <View style={[styles.routeIconWrap, styles.routeIconDest]}>
-            <Navigation color={SCA.navy} size={14} strokeWidth={2.5} />
+            <Navigation color={colors.navy} size={14} strokeWidth={2.5} />
           </View>
           <View style={styles.routeTextWrap}>
             <Text style={styles.routeLabel}>Destino</Text>
@@ -224,6 +214,10 @@ export function PropietarioHomeScreen({}: Props) {
     mobilUser,
     selectedVehiculo,
   } = useSession();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { isDark, toggle } = useTheme();
+  const ThemeIcon = isDark ? SunMedium : MoonStar;
 
   // ─── Refs y estado para el FAB de subir al inicio ──────────
   const scrollViewRef = useRef<ScrollView>(null);
@@ -293,10 +287,10 @@ export function PropietarioHomeScreen({}: Props) {
           ref={scrollViewRef}
           refreshControl={
             <RefreshControl
-              colors={[SCA.blue]}
+              colors={[colors.blue]}
               onRefresh={reloadOwnerServices}
               refreshing={isLoadingOwnerServices}
-              tintColor={SCA.blue}
+              tintColor={colors.blue}
             />
           }
           scrollEventThrottle={16}
@@ -313,10 +307,18 @@ export function PropietarioHomeScreen({}: Props) {
                   Próximos servicios programados
                 </Text>
               </View>
+              <Pressable
+                accessibilityLabel="Cambiar tema"
+                hitSlop={8}
+                onPress={toggle}
+                style={styles.themeToggle}
+              >
+                <ThemeIcon color={colors.blue} size={20} />
+              </Pressable>
             </View>
 
             <View style={styles.vehicleChip}>
-              <Car color={SCA.blue} size={14} strokeWidth={2.5} />
+              <Car color={colors.blue} size={14} strokeWidth={2.5} />
               <Text numberOfLines={1} style={styles.vehicleChipText}>
                 Vehículo {placa}
               </Text>
@@ -393,10 +395,11 @@ export function PropietarioHomeScreen({}: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   // 👇 Contenedor raíz para poder posicionar el FAB
   screenRoot: {
-    backgroundColor: SCA.surfaceSoft,
+    backgroundColor: colors.surfaceSoft,
     flex: 1,
   },
   content: {
@@ -423,7 +426,7 @@ const styles = StyleSheet.create({
     width: 48,
   },
   avatarText: {
-    color: SCA.white,
+    color: colors.white,
     fontSize: 16,
     fontWeight: '700',
     letterSpacing: 0.5,
@@ -432,29 +435,37 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 2,
   },
+  themeToggle: {
+    alignItems: 'center',
+    backgroundColor: colors.blueSoft,
+    borderRadius: radius.pill,
+    height: 40,
+    justifyContent: 'center',
+    width: 40,
+  },
   userName: {
-    color: SCA.navy,
+    color: colors.navy,
     fontSize: 18,
     fontWeight: '700',
     letterSpacing: 0.2,
   },
   userMeta: {
-    color: SCA.muted,
+    color: colors.muted,
     fontSize: 13,
     fontWeight: '500',
   },
   vehicleChip: {
     alignItems: 'center',
     alignSelf: 'flex-start',
-    backgroundColor: SCA.blueSoft,
-    borderRadius: 999,
+    backgroundColor: colors.blueSoft,
+    borderRadius: radius.pill,
     flexDirection: 'row',
     gap: 6,
     paddingHorizontal: 12,
     paddingVertical: 6,
   },
   vehicleChipText: {
-    color: SCA.blue,
+    color: colors.blue,
     fontSize: 12,
     fontWeight: '700',
     letterSpacing: 0.3,
@@ -467,36 +478,36 @@ const styles = StyleSheet.create({
   },
   kpiCard: {
     alignItems: 'flex-start',
-    backgroundColor: SCA.surface,
-    borderColor: SCA.border,
-    borderRadius: 20,
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: radius.xl,
     borderWidth: StyleSheet.hairlineWidth,
     flex: 1,
     gap: spacing.xs,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.md,
-    shadowColor: SCA.navy,
+    shadowColor: colors.navy,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
     shadowRadius: 8,
   },
   kpiIconWrap: {
     alignItems: 'center',
-    borderRadius: 12,
+    borderRadius: radius.md,
     height: 32,
     justifyContent: 'center',
     marginBottom: 4,
     width: 32,
   },
   kpiValue: {
-    color: SCA.navy,
+    color: colors.navy,
     fontSize: 20,
     fontVariant: ['tabular-nums'],
     fontWeight: '800',
     letterSpacing: -0.3,
   },
   kpiLabel: {
-    color: SCA.muted,
+    color: colors.muted,
     fontSize: 11,
     fontWeight: '600',
     letterSpacing: 0.2,
@@ -506,27 +517,27 @@ const styles = StyleSheet.create({
   // ─── Empty state ───────────────────────────────────────────
   emptyCard: {
     alignItems: 'center',
-    backgroundColor: SCA.surface,
-    borderColor: SCA.border,
-    borderRadius: 20,
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: radius.xl,
     borderWidth: StyleSheet.hairlineWidth,
     padding: spacing.lg,
   },
   emptyText: {
-    color: SCA.muted,
+    color: colors.muted,
     fontSize: 14,
     textAlign: 'center',
   },
 
   // ─── Service Card ──────────────────────────────────────────
   serviceCard: {
-    backgroundColor: SCA.surface,
-    borderColor: SCA.border,
-    borderRadius: 20,
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: radius.xl,
     borderWidth: StyleSheet.hairlineWidth,
     gap: spacing.md,
     padding: spacing.md,
-    shadowColor: SCA.navy,
+    shadowColor: colors.navy,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
     shadowRadius: 8,
@@ -543,25 +554,25 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   serviceBullet: {
-    backgroundColor: SCA.blue,
+    backgroundColor: colors.blue,
     borderRadius: 4,
     height: 8,
     width: 8,
   },
   serviceDateText: {
-    color: SCA.blue,
+    color: colors.blue,
     fontSize: 13,
     fontWeight: '700',
     letterSpacing: 0.2,
   },
   plateChip: {
-    backgroundColor: SCA.blueSoft,
-    borderRadius: 999,
+    backgroundColor: colors.blueSoft,
+    borderRadius: radius.pill,
     paddingHorizontal: 10,
     paddingVertical: 4,
   },
   plateText: {
-    color: SCA.blue,
+    color: colors.blue,
     fontSize: 11,
     fontWeight: '800',
     letterSpacing: 0.6,
@@ -585,24 +596,24 @@ const styles = StyleSheet.create({
     width: 28,
   },
   routeIconOrigin: {
-    backgroundColor: SCA.blueSoft,
+    backgroundColor: colors.blueSoft,
   },
   routeIconDest: {
-    backgroundColor: SCA.neutralSoft,
+    backgroundColor: colors.neutralSoft,
   },
   routeTextWrap: {
     flex: 1,
     gap: 2,
   },
   routeLabel: {
-    color: SCA.muted,
+    color: colors.muted,
     fontSize: 11,
     fontWeight: '600',
     letterSpacing: 0.3,
     textTransform: 'uppercase',
   },
   routeValue: {
-    color: SCA.navy,
+    color: colors.navy,
     fontSize: 14,
     fontWeight: '600',
     lineHeight: 19,
@@ -615,7 +626,7 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   routeConnectorLine: {
-    backgroundColor: SCA.border,
+    backgroundColor: colors.border,
     height: 1,
     width: 16,
   },
@@ -623,7 +634,7 @@ const styles = StyleSheet.create({
   // ─── Footer del servicio ──────────────────────────────────
   serviceFooter: {
     alignItems: 'center',
-    borderTopColor: SCA.border,
+    borderTopColor: colors.border,
     borderTopWidth: StyleSheet.hairlineWidth,
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -635,20 +646,20 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   footerLabel: {
-    color: SCA.muted,
+    color: colors.muted,
     fontSize: 11,
     fontWeight: '600',
     letterSpacing: 0.3,
     textTransform: 'uppercase',
   },
   footerValue: {
-    color: SCA.navy,
+    color: colors.navy,
     fontSize: 15,
     fontWeight: '800',
     fontVariant: ['tabular-nums'],
   },
   footerDivider: {
-    backgroundColor: SCA.border,
+    backgroundColor: colors.border,
     height: 24,
     marginHorizontal: spacing.sm,
     width: StyleSheet.hairlineWidth,
@@ -657,7 +668,7 @@ const styles = StyleSheet.create({
   // ─── FAB subir al inicio ─────────────────────────────────
   scrollTopFab: {
     alignItems: 'center',
-    backgroundColor: SCA.blue,
+    backgroundColor: colors.blue,
     borderRadius: 28,
     bottom: 110,
     elevation: 8,
@@ -665,7 +676,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     position: 'absolute',
     right: 20,
-    shadowColor: SCA.blue,
+    shadowColor: colors.blue,
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.35,
     shadowRadius: 12,
@@ -676,3 +687,4 @@ const styles = StyleSheet.create({
     transform: [{ scale: 0.95 }],
   },
 });
+}

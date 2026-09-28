@@ -1,17 +1,13 @@
-import { MutableRefObject } from 'react';
+import { MutableRefObject, useMemo } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import SignatureScreen from 'react-native-signature-canvas';
 
+import { useTheme } from '../../theme';
 import {
-  serviceDetailModalStyles as styles,
+  createServiceDetailModalStyles,
   signatureWebStyleFull,
 } from './serviceDetailModals.styles';
-
-const SCA = {
-  navy: '#1B2A4A',
-  blue: '#0FA0F3',
-} as const;
 
 type FullScreenSignatureModalProps = {
   visible: boolean;
@@ -41,6 +37,8 @@ export function FullScreenSignatureModal({
   onUseSignature,
 }: FullScreenSignatureModalProps) {
   const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createServiceDetailModalStyles(colors), [colors]);
 
   return (
     <Modal
@@ -102,7 +100,7 @@ export function FullScreenSignatureModal({
                 onEnd={onSignatureEnd}
                 onEmpty={onSignatureEmpty}
                 onOK={onSignatureOk}
-                penColor={SCA.navy}
+                penColor={colors.navy}
                 ref={signatureFullScreenRef}
                 webStyle={signatureWebStyleFull}
               />

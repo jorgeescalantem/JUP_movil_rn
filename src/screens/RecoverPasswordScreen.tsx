@@ -1,6 +1,6 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 
 import { recoverPassword } from '../services/recoverApi';
+import { useTheme, type ThemeColors } from '../theme';
 
 type RecoverPasswordScreenProps = {
   onBack: () => void;
@@ -23,6 +24,8 @@ type RecoverPasswordScreenProps = {
 type FeedbackModal = { title: string; message: string; onClose?: () => void } | null;
 
 export function RecoverPasswordScreen({ onBack }: RecoverPasswordScreenProps) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [documentNumber, setDocumentNumber] = useState('');
   const [email, setEmail] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -78,14 +81,14 @@ export function RecoverPasswordScreen({ onBack }: RecoverPasswordScreenProps) {
 
       <View style={styles.topBar}>
         <Pressable onPress={onBack} style={styles.backButton}>
-          <MaterialCommunityIcons color="#121417" name="arrow-left" size={30} />
+          <MaterialCommunityIcons color={colors.textStrong} name="arrow-left" size={30} />
         </Pressable>
       </View>
 
       <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.scrollContent}>
         <View style={styles.card}>
         <View style={styles.iconWrap}>
-          <MaterialCommunityIcons color="#ffffff" name="shield-lock-outline" size={64} />
+          <MaterialCommunityIcons color={colors.white} name="shield-lock-outline" size={64} />
         </View>
 
         <Text style={styles.description}>
@@ -99,11 +102,11 @@ export function RecoverPasswordScreen({ onBack }: RecoverPasswordScreenProps) {
             keyboardType="number-pad"
             onChangeText={setDocumentNumber}
             placeholder="Ingresa documento"
-            placeholderTextColor="#8b9599"
+            placeholderTextColor={colors.muted}
             style={styles.input}
             value={documentNumber}
           />
-          <MaterialCommunityIcons color="#39a948" name="check-circle-outline" size={44} />
+          <MaterialCommunityIcons color={colors.success} name="check-circle-outline" size={44} />
         </View>
 
         <View style={styles.separator} />
@@ -117,11 +120,11 @@ export function RecoverPasswordScreen({ onBack }: RecoverPasswordScreenProps) {
             keyboardType="email-address"
             onChangeText={setEmail}
             placeholder="Ingresa tu correo"
-            placeholderTextColor="#8b9599"
+            placeholderTextColor={colors.muted}
             style={styles.input}
             value={email}
           />
-          <MaterialCommunityIcons color="#39a948" name="email-check-outline" size={44} />
+          <MaterialCommunityIcons color={colors.success} name="email-check-outline" size={44} />
         </View>
 
         <View style={styles.separator} />
@@ -134,9 +137,9 @@ export function RecoverPasswordScreen({ onBack }: RecoverPasswordScreenProps) {
             style={styles.submitGradient}
           >
             {isSubmitting ? (
-              <ActivityIndicator color="#f8fffe" />
+              <ActivityIndicator color={colors.white} />
             ) : (
-              <MaterialCommunityIcons color="#f8fffe" name="check" size={24} />
+              <MaterialCommunityIcons color={colors.white} name="check" size={24} />
             )}
             <Text style={styles.submitText}>{isSubmitting ? 'Enviando...' : 'Solicitar'}</Text>
           </LinearGradient>
@@ -147,34 +150,35 @@ export function RecoverPasswordScreen({ onBack }: RecoverPasswordScreenProps) {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   screen: {
-    backgroundColor: '#f8f9fa',
+    backgroundColor: colors.background,
     flex: 1,
     paddingHorizontal: 16,
     paddingTop: 18,
   },
   modalOverlay: {
     alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.55)',
+    backgroundColor: colors.overlay,
     flex: 1,
     justifyContent: 'center',
     paddingHorizontal: 24,
   },
   modalBox: {
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.surface,
     borderRadius: 20,
     padding: 24,
     width: '100%',
   },
   modalTitle: {
-    color: '#121417',
+    color: colors.textStrong,
     fontSize: 18,
     fontWeight: '800',
     marginBottom: 8,
   },
   modalSubtitle: {
-    color: '#4a5568',
+    color: colors.textMuted,
     fontSize: 14,
     lineHeight: 20,
     marginBottom: 20,
@@ -190,10 +194,10 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   modalBtnConfirm: {
-    backgroundColor: '#0fa0f3',
+    backgroundColor: colors.blue,
   },
   modalBtnConfirmText: {
-    color: '#ffffff',
+    color: colors.white,
     fontSize: 14,
     fontWeight: '700',
   },
@@ -210,8 +214,8 @@ const styles = StyleSheet.create({
     padding: 2,
   },
   card: {
-    backgroundColor: '#ffffff',
-    borderColor: '#d6dfe0',
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
     borderRadius: 18,
     borderWidth: 1,
     marginTop: 132,
@@ -221,7 +225,7 @@ const styles = StyleSheet.create({
   iconWrap: {
     alignItems: 'center',
     alignSelf: 'center',
-    backgroundColor: '#067082',
+    backgroundColor: colors.info,
     borderRadius: 999,
     height: 120,
     justifyContent: 'center',
@@ -229,14 +233,14 @@ const styles = StyleSheet.create({
     width: 120,
   },
   description: {
-    color: '#6d7579',
+    color: colors.textMuted,
     fontSize: 16,
     fontWeight: '600',
     lineHeight: 24,
     marginBottom: 12,
   },
   inputLabel: {
-    color: '#8b9599',
+    color: colors.muted,
     fontSize: 15,
     fontWeight: '700',
     marginBottom: 4,
@@ -248,13 +252,13 @@ const styles = StyleSheet.create({
     minHeight: 50,
   },
   input: {
-    color: '#7b858a',
+    color: colors.text,
     flex: 1,
     fontSize: 18,
     fontWeight: '700',
   },
   separator: {
-    backgroundColor: '#d6dfe0',
+    backgroundColor: colors.border,
     height: 1,
     marginBottom: 16,
     marginTop: 6,
@@ -273,8 +277,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 36,
   },
   submitText: {
-    color: '#f8fffe',
+    color: colors.white,
     fontSize: 16,
     fontWeight: '700',
   },
 });
+}

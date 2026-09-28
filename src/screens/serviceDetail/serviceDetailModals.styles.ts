@@ -1,39 +1,14 @@
 import { StyleSheet } from 'react-native';
 
-import { spacing } from '../../theme';
-
-// ─────────────────────────────────────────────────────────────
-// SCA Soluciones brand palette
-// ─────────────────────────────────────────────────────────────
-const SCA = {
-  navy: '#1B2A4A',
-  navyDeep: '#131E36',
-  blue: '#0FA0F3',
-  blueSoft: '#E6F4FD',
-  blueAccent: '#1B5B8A',
-  sky: '#7FB3D5',
-  white: '#FFFFFF',
-  surface: '#FFFFFF',
-  surfaceSoft: '#F8FAFC',
-  surfaceAlt: '#F1F5F9',
-  muted: '#8B96AC',
-  textMuted: '#64748B',
-  border: '#E2E8F0',
-  borderSoft: '#D9E1E8',
-  success: '#10B981',
-  successSoft: '#E7F8F1',
-  danger: '#DC2626',
-  dangerSoft: '#FEE2E2',
-  warning: '#B07800',
-  warningSoft: '#FFF8DC',
-} as const;
+import { radius, spacing, type ThemeColors } from '../../theme';
 
 // Shared by the satisfaction, delivery-signature and full-screen-signature
 // modals used from ServiceDetailScreen. Some generic dialog primitives here
 // intentionally duplicate a couple of entries also kept in
 // ServiceDetailScreen's own stylesheet, since those are still used by the
 // origin/destination/phones/feedback modals that were not extracted.
-export const serviceDetailModalStyles = StyleSheet.create({
+export function createServiceDetailModalStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   dialogOverlay: {
     alignItems: 'center',
     backgroundColor: '#00000066',
@@ -71,7 +46,7 @@ export const serviceDetailModalStyles = StyleSheet.create({
   dialogInput: {
     backgroundColor: '#f7fafc',
     borderColor: '#c8d6e5',
-    borderRadius: 12,
+    borderRadius: radius.md,
     borderWidth: 1,
     color: '#0f172a',
     fontSize: 16,
@@ -139,7 +114,7 @@ export const serviceDetailModalStyles = StyleSheet.create({
   },
   dialogButton: {
     alignItems: 'center',
-    borderRadius: 12,
+    borderRadius: radius.md,
     flex: 1,
     justifyContent: 'center',
     minHeight: 46,
@@ -210,9 +185,9 @@ export const serviceDetailModalStyles = StyleSheet.create({
     fontWeight: '700',
   },
   signaturePad: {
-    backgroundColor: SCA.surfaceSoft,
-    borderColor: SCA.borderSoft,
-    borderRadius: 16,
+    backgroundColor: colors.surfaceSoft,
+    borderColor: colors.border,
+    borderRadius: radius.lg,
     borderStyle: 'dashed',
     borderWidth: 1.5,
     height: 280,
@@ -221,13 +196,13 @@ export const serviceDetailModalStyles = StyleSheet.create({
 
     // ─── Full-screen signature modal ───────────────────────────
   fullSignatureScreen: {
-    backgroundColor: SCA.surfaceSoft,
+    backgroundColor: colors.surfaceSoft,
     flex: 1,
   },
   fullSignatureHeader: {
     alignItems: 'center',
-    backgroundColor: SCA.surface,
-    borderBottomColor: SCA.border,
+    backgroundColor: colors.surface,
+    borderBottomColor: colors.border,
     borderBottomWidth: StyleSheet.hairlineWidth,
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -237,29 +212,29 @@ export const serviceDetailModalStyles = StyleSheet.create({
     paddingTop: spacing.md,
   },
   fullSignatureHeaderTitle: {
-    color: SCA.navy,
+    color: colors.navy,
     fontSize: 16,
     fontWeight: '800',
     letterSpacing: -0.2,
   },
   fullSignatureHeaderBtn: {
-    backgroundColor: SCA.blueSoft,
-    borderColor: SCA.blue,
+    backgroundColor: colors.blueSoft,
+    borderColor: colors.blue,
     borderRadius: 10,
     borderWidth: StyleSheet.hairlineWidth,
     paddingHorizontal: spacing.md,
     paddingVertical: 8,
   },
   fullSignatureHeaderBtnText: {
-    color: SCA.blue,
+    color: colors.blue,
     fontSize: 13,
     fontWeight: '800',
     letterSpacing: 0.2,
   },
   fullSignatureCanvasWrap: {
-    backgroundColor: SCA.surfaceSoft,
-    borderColor: SCA.borderSoft,
-    borderRadius: 16,
+    backgroundColor: colors.surfaceSoft,
+    borderColor: colors.border,
+    borderRadius: radius.lg,
     borderStyle: 'dashed',
     borderWidth: 1.5,
     flex: 1,
@@ -273,23 +248,23 @@ export const serviceDetailModalStyles = StyleSheet.create({
     overflow: 'hidden',
   },
   fullSignatureFooter: {
-    backgroundColor: SCA.surfaceSoft,
+    backgroundColor: colors.surfaceSoft,
     paddingBottom: spacing.md,
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.sm,
   },
   fullSignatureUseBtn: {
     alignItems: 'center',
-    backgroundColor: SCA.blue,
+    backgroundColor: colors.blue,
     borderRadius: 14,
     paddingVertical: spacing.md,
-    shadowColor: SCA.blue,
+    shadowColor: colors.blue,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
     shadowRadius: 12,
   },
   fullSignatureUseBtnText: {
-    color: SCA.white,
+    color: colors.white,
     fontSize: 15,
     fontWeight: '800',
     letterSpacing: 0.3,
@@ -303,11 +278,12 @@ export const serviceDetailModalStyles = StyleSheet.create({
     paddingBottom: spacing.sm,
   },
   fullSignatureHintText: {
-    color: SCA.muted,
+    color: colors.muted,
     fontSize: 12,
     fontWeight: '500',
   },
-});
+  });
+}
 
 export const signatureWebStyle = `
   * {

@@ -5,7 +5,7 @@ import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, Text
 
 import { PreoperationalOption } from '../mocks/preoperational';
 import { useSession } from '../store/session';
-import { colors } from '../theme';
+import { useTheme, type ThemeColors } from '../theme';
 
 type AnswersMap = Record<string, PreoperationalOption>;
 
@@ -28,6 +28,8 @@ type AlertModal = { title: string; message: string; onClose?: () => void } | nul
 export function PreoperationalSurveyScreen() {
   const { mobilUser, preoperationalLoadError, preoperationalQuestions, reloadPreoperationalChecklist, submitPreoperational } =
     useSession();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [answers, setAnswers] = useState<AnswersMap>({});
   const [mileage, setMileage] = useState('');
   const [observations, setObservations] = useState('');
@@ -91,7 +93,7 @@ export function PreoperationalSurveyScreen() {
       </Modal>
       <View style={styles.headerRow}>
         <Text style={styles.screenTitle}>Preoperacional</Text>
-        <MaterialCommunityIcons color="#1aa8ef" name="send" size={30} />
+        <MaterialCommunityIcons color={colors.info} name="send" size={30} />
       </View>
 
       <Text style={styles.headerText}>{title}</Text>
@@ -105,7 +107,7 @@ export function PreoperationalSurveyScreen() {
         </View>
       ) : preoperationalQuestions.length === 0 ? (
         <View style={styles.loadingBox}>
-          <ActivityIndicator color={colors.accent} size="large" />
+          <ActivityIndicator color={colors.blue} size="large" />
           <Text style={styles.loadingText}>Cargando encuesta preoperacional...</Text>
         </View>
       ) : (
@@ -142,7 +144,7 @@ export function PreoperationalSurveyScreen() {
               maxLength={69}
               onChangeText={setMileage}
               placeholder="Ingresa kilometraje"
-              placeholderTextColor="#8c989b"
+              placeholderTextColor={colors.muted}
               style={styles.freeInput}
               value={mileage}
             />
@@ -159,7 +161,7 @@ export function PreoperationalSurveyScreen() {
               numberOfLines={3}
               onChangeText={setObservations}
               placeholder="Describe observaciones"
-              placeholderTextColor="#8c989b"
+              placeholderTextColor={colors.muted}
               style={[styles.freeInput, styles.observationsInput]}
               value={observations}
             />
@@ -176,10 +178,10 @@ export function PreoperationalSurveyScreen() {
               style={styles.submitGradient}
             >
               {isSubmitting ? (
-                <ActivityIndicator color="#f8fffe" />
+                <ActivityIndicator color={colors.white} />
               ) : (
                 <>
-                  <MaterialCommunityIcons color="#f8fffe" name="send" size={24} />
+                  <MaterialCommunityIcons color={colors.white} name="send" size={24} />
                   <Text style={styles.submitText}>Enviar</Text>
                 </>
               )}
@@ -191,9 +193,10 @@ export function PreoperationalSurveyScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   content: {
-    backgroundColor: '#f8f9fa',
+    backgroundColor: colors.background,
     gap: 12,
     paddingHorizontal: 14,
     paddingTop: 20,
@@ -205,12 +208,12 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   screenTitle: {
-    color: '#121417',
+    color: colors.textStrong,
     fontSize: 24,
     fontWeight: '900',
   },
   headerText: {
-    color: '#1aa8ef',
+    color: colors.info,
     fontSize: 18,
     fontWeight: '700',
     lineHeight: 28,
@@ -221,38 +224,38 @@ const styles = StyleSheet.create({
     paddingVertical: 40,
   },
   loadingText: {
-    color: '#5f6b70',
+    color: colors.textMuted,
     fontSize: 14,
     fontWeight: '600',
   },
   errorText: {
-    color: '#ba1a1a',
+    color: colors.danger,
     fontSize: 14,
     fontWeight: '700',
     marginBottom: 12,
   },
   retryButton: {
     alignSelf: 'flex-start',
-    backgroundColor: '#00affe',
+    backgroundColor: colors.blue,
     borderRadius: 10,
     paddingHorizontal: 16,
     paddingVertical: 10,
   },
   retryButtonText: {
-    color: '#ffffff',
+    color: colors.white,
     fontSize: 14,
     fontWeight: '700',
   },
   questionCard: {
-    backgroundColor: '#ffffff',
-    borderColor: '#b7d9ef',
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
     borderRadius: 16,
     borderWidth: 1,
     paddingHorizontal: 14,
     paddingVertical: 14,
   },
   questionText: {
-    color: '#161a1d',
+    color: colors.textStrong,
     fontSize: 16,
     fontWeight: '800',
     lineHeight: 24,
@@ -269,7 +272,7 @@ const styles = StyleSheet.create({
   },
   radioOuter: {
     alignItems: 'center',
-    borderColor: '#2f9be0',
+    borderColor: colors.blue,
     borderRadius: 999,
     borderWidth: 3,
     height: 22,
@@ -277,21 +280,21 @@ const styles = StyleSheet.create({
     width: 22,
   },
   radioOuterSelected: {
-    borderColor: '#0fa0f3',
+    borderColor: colors.blue,
   },
   radioInner: {
-    backgroundColor: '#0fa0f3',
+    backgroundColor: colors.blue,
     borderRadius: 999,
     height: 10,
     width: 10,
   },
   optionLabel: {
-    color: '#161a1d',
+    color: colors.textStrong,
     fontSize: 14,
     fontWeight: '800',
   },
   freeInput: {
-    color: '#1b2328',
+    color: colors.textStrong,
     fontSize: 16,
     marginTop: 10,
     minHeight: 42,
@@ -303,12 +306,12 @@ const styles = StyleSheet.create({
   },
   bottomLine: {
     alignItems: 'flex-end',
-    borderTopColor: '#8f9ba0',
+    borderTopColor: colors.border,
     borderTopWidth: 1,
     paddingTop: 8,
   },
   counter: {
-    color: '#5f6b70',
+    color: colors.textMuted,
     fontSize: 12,
     fontWeight: '700',
   },
@@ -325,31 +328,31 @@ const styles = StyleSheet.create({
     minHeight: 52,
   },
   submitText: {
-    color: '#f8fffe',
+    color: colors.white,
     fontSize: 18,
     fontWeight: '700',
   },
   modalOverlay: {
     alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.55)',
+    backgroundColor: colors.overlay,
     flex: 1,
     justifyContent: 'center',
     paddingHorizontal: 24,
   },
   modalBox: {
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.surface,
     borderRadius: 20,
     padding: 24,
     width: '100%',
   },
   modalTitle: {
-    color: '#121417',
+    color: colors.textStrong,
     fontSize: 18,
     fontWeight: '800',
     marginBottom: 8,
   },
   modalSubtitle: {
-    color: '#4a5568',
+    color: colors.textMuted,
     fontSize: 14,
     lineHeight: 20,
     marginBottom: 20,
@@ -365,16 +368,17 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   modalBtnConfirm: {
-    backgroundColor: '#0fa0f3',
+    backgroundColor: colors.blue,
   },
   modalBtnText: {
     fontSize: 14,
     fontWeight: '700',
   },
   modalBtnConfirmText: {
-    color: '#ffffff',
+    color: colors.white,
   },
   modalSingleActionBtn: {
     alignSelf: 'flex-end',
   },
 });
+}

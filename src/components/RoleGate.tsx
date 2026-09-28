@@ -1,7 +1,7 @@
-import { ReactNode } from 'react';
+import { ReactNode, useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { colors, spacing } from '../theme';
+import { spacing, useTheme, type ThemeColors } from '../theme';
 import { Role } from '../types/domain';
 import { useSession } from '../store/session';
 
@@ -19,6 +19,8 @@ export function RoleGate({
   children,
 }: RoleGateProps) {
   const { role } = useSession();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   if (allowedRoles.includes(role)) {
     return <>{children}</>;
@@ -32,26 +34,28 @@ export function RoleGate({
   );
 }
 
-const styles = StyleSheet.create({
-  wrapper: {
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderRadius: 22,
-    borderWidth: 1,
-    gap: spacing.sm,
-    padding: spacing.xl,
-  },
-  title: {
-    color: colors.textStrong,
-    fontSize: 20,
-    fontWeight: '700',
-    textAlign: 'center',
-  },
-  description: {
-    color: colors.muted,
-    fontSize: 15,
-    lineHeight: 22,
-    textAlign: 'center',
-  },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    wrapper: {
+      alignItems: 'center',
+      backgroundColor: colors.surface,
+      borderColor: colors.border,
+      borderRadius: 22,
+      borderWidth: 1,
+      gap: spacing.sm,
+      padding: spacing.xl,
+    },
+    title: {
+      color: colors.textStrong,
+      fontSize: 20,
+      fontWeight: '700',
+      textAlign: 'center',
+    },
+    description: {
+      color: colors.muted,
+      fontSize: 15,
+      lineHeight: 22,
+      textAlign: 'center',
+    },
+  });
+}

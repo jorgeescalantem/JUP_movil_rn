@@ -24,7 +24,7 @@ import { RoleGate } from '../components/RoleGate';
 import { OwnerBottomBar } from '../components/OwnerBottomBar';
 import { fetchVehicleServiceHistory } from '../services/servicesApi';
 import { useSession } from '../store/session';
-import { spacing } from '../theme';
+import { spacing, useTheme } from '../theme';
 import { Service, ServiceState } from '../types/domain';
 
 // ─────────────────────────────────────────────────────────────
@@ -50,8 +50,6 @@ const SCA = {
 } as const;
 
 // ── Theme (light/dark) ──────────────────────────────────────────────────────
-type ThemeMode = 'light' | 'dark';
-
 type ScreenPalette = {
   background: string;
   surface: string;
@@ -319,13 +317,15 @@ export function ServiceStatusScreen() {
   const vehiculoCodigo = role === 'CONDUCTOR' ? mobilUser?.Vehiculo : selectedVehiculo?.codvehiculo;
 
   const { width: screenWidth } = useWindowDimensions();
-  const [themeMode, setThemeMode] = useState<ThemeMode>('light');
+  // Sincronizado con el ThemeProvider global (App.tsx) - antes esta pantalla
+  // tenía su propio toggle local desconectado del resto de la app.
+  const { isDark, toggle: toggleGlobalTheme } = useTheme();
   const [filter, setFilter] = useState<FilterKey>('7');
   const [selectedBarIndex, setSelectedBarIndex] = useState<number | null>(null);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [historyServices, setHistoryServices] = useState<Service[]>([]);
 
-  const palette = themeMode === 'light' ? LIGHT_PALETTE : DARK_PALETTE;
+  const palette = isDark ? DARK_PALETTE : LIGHT_PALETTE;
   const styles = useMemo(() => createStyles(palette), [palette]);
 
   useEffect(() => {
@@ -381,9 +381,9 @@ export function ServiceStatusScreen() {
       ? 'EN_TRANSITO'
       : 'ACTIVO';
   const stateVisual = STATE_VISUALS[stateVisualKey];
-  const stateColors = stateVisual[themeMode];
+  const stateColors = stateVisual[isDark ? 'dark' : 'light'];
   const StateIcon = stateVisual.icon;
-  const ThemeIcon = themeMode === 'light' ? MoonStar : SunMedium;
+  const ThemeIcon = isDark ? SunMedium : MoonStar;
 
   return (
     <View style={{ flex: 1, backgroundColor: palette.background }}>
@@ -406,7 +406,7 @@ export function ServiceStatusScreen() {
             <Pressable
               accessibilityLabel="Cambiar tema"
               hitSlop={8}
-              onPress={() => setThemeMode((current) => (current === 'light' ? 'dark' : 'light'))}
+              onPress={toggleGlobalTheme}
               style={styles.themeToggle}
             >
               <ThemeIcon color={palette.accent} size={20} />
@@ -425,7 +425,7 @@ export function ServiceStatusScreen() {
 
             <View style={styles.statsGrid}>
               {STAT_CONFIGS.map(({ key, label, icon: StatIcon, light, dark }) => {
-                const tone = themeMode === 'light' ? light : dark;
+                const tone = isDark ? dark : light;
                 return (
                   <View key={key} style={[styles.statBox, { backgroundColor: tone.bg }]}>
                     <StatIcon color={tone.color} size={18} />
