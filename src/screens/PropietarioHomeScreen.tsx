@@ -1,8 +1,18 @@
-import { useCallback, useMemo } from 'react';
-import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useMemo, useRef, useState } from 'react';
+import {
+  NativeScrollEvent,
+  NativeSyntheticEvent,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { DrawerScreenProps } from '@react-navigation/drawer';
 import { useFocusEffect } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { Pressable } from 'react-native';
 import {
   ArrowRight,
   Bus,
@@ -215,6 +225,11 @@ export function PropietarioHomeScreen({}: Props) {
     selectedVehiculo,
   } = useSession();
 
+  // ─── Refs y estado para el FAB de subir al inicio ──────────
+  const scrollViewRef = useRef<ScrollView>(null);
+  const firstServiceY = useRef(0);
+  const [showScrollTop, setShowScrollTop] = useState(false);
+
   // Real assigned services for whichever owned vehicle is currently selected (Locatario-based).
   const placa = selectedVehiculo?.placa ?? mobilUser?.Placa ?? '-';
   const userName = mobilUser?.Nombre ?? username ?? 'Sin nombre';
@@ -258,11 +273,24 @@ export function PropietarioHomeScreen({}: Props) {
     { count: 0, totalValue: 0, totalCopago: 0 },
   );
 
+  // ─── FAB: mostrar cuando pasamos del primer servicio ──────
+  const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const y = event.nativeEvent.contentOffset.y;
+    const threshold = firstServiceY.current > 0 ? firstServiceY.current : 300;
+    setShowScrollTop(y > threshold);
+  };
+
+  const scrollToTop = () => {
+    scrollViewRef.current?.scrollTo({ animated: true, y: 0 });
+  };
+
   return (
-    <View style={styles.screen}>
+    <View style={styles.screenRoot}>
       <RoleGate allowedRoles={['PROPIETARIO', 'AMBOS']}>
         <ScrollView
           contentContainerStyle={styles.content}
+          onScroll={handleScroll}
+          ref={scrollViewRef}
           refreshControl={
             <RefreshControl
               colors={[SCA.blue]}
@@ -271,6 +299,7 @@ export function PropietarioHomeScreen({}: Props) {
               tintColor={SCA.blue}
             />
           }
+          scrollEventThrottle={16}
         >
           {/* ─── Header ─────────────────────────────────────── */}
           <View style={styles.header}>
@@ -321,28 +350,52 @@ export function PropietarioHomeScreen({}: Props) {
               </Text>
             </View>
           ) : (
-            activeServices.map((service) => (
-              <ServiceCard
+            activeServices.map((service, index) => (
+              <View
                 key={`${service.orden}-${service.numeroServicio}`}
-                copago={service.copago}
-                destinoDireccion={service.destinoDireccion}
-                fechaServicio={service.fechaServicio}
-                origenDireccion={service.origenDireccion}
-                placa={placa}
-                valor={service.valor}
-              />
+                onLayout={
+                  index === 0
+                    ? (e) => { firstServiceY.current = e.nativeEvent.layout.y; }
+                    : undefined
+                }
+              >
+                <ServiceCard
+                  copago={service.copago}
+                  destinoDireccion={service.destinoDireccion}
+                  fechaServicio={service.fechaServicio}
+                  origenDireccion={service.origenDireccion}
+                  placa={placa}
+                  valor={service.valor}
+                />
+              </View>
             ))
           )}
         </ScrollView>
-
-        <OwnerBottomBar />
       </RoleGate>
+
+      {/* 👇 FAB flotante para subir al inicio */}
+      {showScrollTop ? (
+        <Pressable
+          accessibilityLabel="Subir al inicio"
+          accessibilityRole="button"
+          onPress={scrollToTop}
+          style={({ pressed }) => [
+            styles.scrollTopFab,
+            pressed && styles.scrollTopFabPressed,
+          ]}
+        >
+          <MaterialCommunityIcons color="#FFFFFF" name="chevron-up" size={26} />
+        </Pressable>
+      ) : null}
+
+      <OwnerBottomBar />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: {
+  // 👇 Contenedor raíz para poder posicionar el FAB
+  screenRoot: {
     backgroundColor: SCA.surfaceSoft,
     flex: 1,
   },
@@ -599,5 +652,27 @@ const styles = StyleSheet.create({
     height: 24,
     marginHorizontal: spacing.sm,
     width: StyleSheet.hairlineWidth,
+  },
+
+  // ─── FAB subir al inicio ─────────────────────────────────
+  scrollTopFab: {
+    alignItems: 'center',
+    backgroundColor: SCA.blue,
+    borderRadius: 28,
+    bottom: 110,
+    elevation: 8,
+    height: 56,
+    justifyContent: 'center',
+    position: 'absolute',
+    right: 20,
+    shadowColor: SCA.blue,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    width: 56,
+  },
+  scrollTopFabPressed: {
+    opacity: 0.85,
+    transform: [{ scale: 0.95 }],
   },
 });

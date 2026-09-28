@@ -678,7 +678,9 @@ export function ServiceStatusScreen() {
 
             <Text style={styles.chartHint}>Toca una barra para ver el detalle del día</Text>
             {selectedDate !== null ? (
-              <Text style={styles.selectedDayText}>Fecha: {selectedDate}</Text>
+              <Text style={styles.selectedDayText}>
+                Fecha: {selectedDate} · Servicios: {selectedBarIndex !== null ? chartData[selectedBarIndex]?.count ?? 0 : 0}
+              </Text>
             ) : null}
           </Animated.View>
 
