@@ -1,5 +1,4 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Platform } from 'react-native';
 import Constants, { ExecutionEnvironment } from 'expo-constants';
 import * as Location from 'expo-location';
 import * as LocalAuthentication from 'expo-local-authentication';
@@ -41,20 +40,14 @@ export async function requestLocationPermission(): Promise<PermissionStatus> {
   }
 }
 
-/** Telefono - permite iniciar llamadas directas a clientes/pacientes desde la app. */
+/**
+ * Telefono - la app solo abre el marcador nativo via `Linking.openURL('tel:...')`,
+ * lo cual NO requiere el permiso CALL_PHONE (ese permiso solo aplica a apps que
+ * inician la llamada directamente sin pasar por el marcador). No hay nada que
+ * pedir a nivel de sistema, asi que se confirma de una vez.
+ */
 export async function requestPhonePermission(): Promise<PermissionStatus> {
-  if (Platform.OS !== 'android') {
-    // iOS no restringe abrir el marcador via `tel:` detras de un permiso en runtime.
-    return 'granted';
-  }
-
-  try {
-    const { PermissionsAndroid } = await import('react-native');
-    const result = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.CALL_PHONE);
-    return result === PermissionsAndroid.RESULTS.GRANTED ? 'granted' : 'denied';
-  } catch {
-    return 'unavailable';
-  }
+  return 'granted';
 }
 
 /** Notificaciones - avisos de nuevos servicios asignados y cambios de estado. */
