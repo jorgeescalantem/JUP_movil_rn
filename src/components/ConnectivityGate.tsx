@@ -1,22 +1,19 @@
 import { ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
+import { env } from '../config/env';
 import { ConnectionErrorScreen } from '../screens/ConnectionErrorScreen';
-import { checkApiConnection } from '../services/authApi';
-import { setSystemToken } from '../services/apiSessionStore';
 import { spacing, useTheme, type ThemeColors } from '../theme';
 
 type ConnectivityStatus = 'checking' | 'error' | 'connected';
 
+const HEALTH_CHECK_TIMEOUT_MS = 10000;
+
 /**
- * Gates the whole app behind a connectivity check against the real API.
- * While checking, shows a loader. If the check fails, shows a dedicated
- * error screen with a retry action. Only once the API responds successfully
+ * Gates the whole app behind a connectivity check against jup-api's own
+ * `/health` endpoint. While checking, shows a loader. If unreachable, shows
+ * a dedicated error screen with a retry action. Only once jup-api responds
  * does it render the actual application (login screen and beyond).
- *
- * The token returned by this system-level check is cached in-memory
- * (see apiSessionStore) so later authenticated calls, like the real user
- * login against the OData API, can reuse it.
  */
 export function ConnectivityGate({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<ConnectivityStatus>('checking');
@@ -28,15 +25,24 @@ export function ConnectivityGate({ children }: { children: ReactNode }) {
     setStatus('checking');
     setErrorMessage(undefined);
 
-    const result = await checkApiConnection();
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), HEALTH_CHECK_TIMEOUT_MS);
 
-    if (result.ok) {
-      setSystemToken(result.data.token);
+    try {
+      const response = await fetch(`${env.jupApiUrl}/health`, { signal: controller.signal });
+
+      if (!response.ok) {
+        setErrorMessage(`No se pudo establecer conexion con el servidor (codigo ${response.status}).`);
+        setStatus('error');
+        return;
+      }
+
       setStatus('connected');
-    } else {
-      setSystemToken(null);
-      setErrorMessage(result.message);
+    } catch {
+      setErrorMessage('No fue posible establecer conexion. Verifica tu internet e intenta nuevamente.');
       setStatus('error');
+    } finally {
+      clearTimeout(timeoutId);
     }
   }, []);
 

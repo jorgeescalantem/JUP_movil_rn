@@ -7,7 +7,6 @@ import { fetchPreoperationalQuestions, submitPreoperationalAnswers } from '../se
 import { fetchAssignedServices, fetchCurrentServices } from '../services/servicesApi';
 import { clearBiometricCredentials } from '../services/biometricAuth';
 import { nowInColombiaIso } from '../services/firmasApi';
-import { fetchConductorRole, fetchOwnedVehicles } from '../services/roleApi';
 import {
   arriveAtDestination,
   arriveAtOrigin,
@@ -365,26 +364,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
           return { ok: false, message: result.message };
         }
 
-        // Resolve the real role via Tcconductores (TusuarioMobil.Conductor is
-        // the FK). Best-effort: falls back to CONDUCTOR if the lookup fails,
-        // matching the previous default so login is never blocked by this.
-        let nextRoleCapability: RoleCapability = DEFAULT_ROLE_CAPABILITY;
-        let nextOwnedVehicles: OwnedVehicle[] = [];
-
-        const roleResult = await fetchConductorRole(result.user.Conductor);
-
-        if (roleResult.ok) {
-          nextRoleCapability = roleResult.roleCapability;
-
-          if (nextRoleCapability === 'PROPIETARIO' || nextRoleCapability === 'AMBOS') {
-            const vehiclesResult = await fetchOwnedVehicles(result.user.Conductor);
-
-            if (vehiclesResult.ok) {
-              nextOwnedVehicles = vehiclesResult.vehicles;
-            }
-          }
-        }
-
+        const nextRoleCapability = result.roleCapability;
+        const nextOwnedVehicles = result.ownedVehicles;
         const nextRole: Role = nextRoleCapability;
         const autoSelectedVehiculo = nextOwnedVehicles.length === 1 ? nextOwnedVehicles[0] : null;
 

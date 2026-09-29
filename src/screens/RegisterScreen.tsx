@@ -13,7 +13,7 @@ import {
   View,
 } from 'react-native';
 
-import { findConductorByDocument, registerMobilUser } from '../services/registerApi';
+import { registerAccount } from '../services/registerApi';
 import { useTheme, type ThemeColors } from '../theme';
 import { getShortDeviceId } from '../utils/deviceId';
 
@@ -52,18 +52,7 @@ export function RegisterScreen({ onBack }: RegisterScreenProps) {
     setIsSubmitting(true);
 
     try {
-      const conductorResult = await findConductorByDocument(documentNumber);
-
-      if (!conductorResult.ok) {
-        setFeedbackModal({ title: 'No fue posible continuar', message: conductorResult.message });
-        return;
-      }
-
-      const registerResult = await registerMobilUser({
-        conductor: conductorResult.conductor,
-        username,
-        password,
-      });
+      const registerResult = await registerAccount({ documentNumber, username, password });
 
       if (!registerResult.ok) {
         setFeedbackModal({ title: 'No fue posible continuar', message: registerResult.message });
