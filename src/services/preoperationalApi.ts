@@ -31,6 +31,30 @@ export async function fetchPreoperationalQuestions(): Promise<PreoperationalFetc
   }
 }
 
+export type PreoperationalStatusResult =
+  | { ok: true; submittedToday: boolean }
+  | { ok: false; message: string };
+
+/** Permite saltar la encuesta si el vehiculo ya tiene un preoperacional guardado hoy - via jup-api. */
+export async function fetchPreoperationalStatus(vehiculo: number): Promise<PreoperationalStatusResult> {
+  try {
+    const response = await jupApiFetch(`/preoperational/status?vehiculo=${vehiculo}`);
+    const data = (await response.json().catch(() => null)) as { submittedToday?: boolean; message?: string } | null;
+
+    if (!response.ok || typeof data?.submittedToday !== 'boolean') {
+      return { ok: false, message: data?.message ?? 'No se pudo consultar el estado del preoperacional.' };
+    }
+
+    return { ok: true, submittedToday: data.submittedToday };
+  } catch (error) {
+    if (isTimeoutError(error)) {
+      return { ok: false, message: 'Tiempo de espera agotado al consultar el preoperacional.' };
+    }
+
+    return { ok: false, message: 'No se pudo consultar el estado del preoperacional.' };
+  }
+}
+
 export type SubmitPreoperationalResult = { ok: true } | { ok: false; message: string };
 
 /** Envia las respuestas del preoperacional - via jup-api (guarda en TBPREOPERACIONALES). */

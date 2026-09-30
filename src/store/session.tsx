@@ -3,7 +3,7 @@ import { ReactNode, createContext, useContext, useEffect, useMemo, useState } fr
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import { PreoperationalOption, PreoperationalQuestion } from '../mocks/preoperational';
-import { fetchPreoperationalQuestions, submitPreoperationalAnswers } from '../services/preoperationalApi';
+import { fetchPreoperationalQuestions, fetchPreoperationalStatus, submitPreoperationalAnswers } from '../services/preoperationalApi';
 import { fetchAssignedServices, fetchCurrentServices } from '../services/servicesApi';
 import { clearBiometricCredentials } from '../services/biometricAuth';
 import { nowInColombiaIso } from '../services/firmasApi';
@@ -228,6 +228,23 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mobilUser]);
+
+  useEffect(() => {
+    // Si el vehiculo ya tiene un preoperacional guardado hoy (por ejemplo,
+    // enviado desde otro dispositivo, u otra sesion del mismo conductor), no
+    // tiene sentido mostrar la encuesta de nuevo: terminaria bloqueada al
+    // enviar con "Ya se registro el preoperacional de este vehiculo hoy".
+    // Marcarlo aqui deja que needsPreoperational lo salte y el usuario
+    // continue el flujo normal de la app.
+    if (mobilUser && roleCapability !== 'PROPIETARIO' && mobilUser.Vehiculo) {
+      fetchPreoperationalStatus(mobilUser.Vehiculo).then((result) => {
+        if (result.ok && result.submittedToday) {
+          setPreoperationalByUser((current) => ({ ...current, [mobilUser.Username]: getTodayKey() }));
+        }
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mobilUser, roleCapability]);
 
   useEffect(() => {
     let isMounted = true;
