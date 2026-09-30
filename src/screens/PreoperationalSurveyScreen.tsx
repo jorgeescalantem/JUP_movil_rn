@@ -56,7 +56,7 @@ export function PreoperationalSurveyScreen() {
       const result = await submitPreoperational({ answers, mileage, observations });
 
       if (!result.ok) {
-        setAlertModal({ title: 'Encuesta incompleta', message: result.message ?? 'Completa la encuesta antes de enviar.' });
+        setAlertModal({ title: 'No se pudo enviar', message: result.message ?? 'Completa la encuesta antes de enviar.' });
         return;
       }
 

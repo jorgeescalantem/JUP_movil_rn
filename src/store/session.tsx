@@ -218,8 +218,16 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, [selectedVehiculo]);
 
   useEffect(() => {
-    loadPreoperationalChecklist();
-  }, []);
+    // Antes se disparaba sin condicion en cada mount (incluso antes del
+    // login), y como /preoperational/questions requiere JWT, siempre fallaba
+    // con 401 "Sesion invalida o expirada" - ese error quedaba pegado en
+    // pantalla incluso despues de iniciar sesion correctamente, porque nada
+    // lo volvia a intentar. Ahora se dispara solo cuando ya hay sesion.
+    if (mobilUser) {
+      loadPreoperationalChecklist();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mobilUser]);
 
   useEffect(() => {
     let isMounted = true;
