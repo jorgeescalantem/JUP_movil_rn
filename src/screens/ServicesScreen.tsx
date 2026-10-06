@@ -2,6 +2,7 @@ import { FontAwesome5, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useMemo, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
   Linking,
   Modal,
   NativeScrollEvent,
@@ -86,6 +87,7 @@ export function ServicesScreen() {
   const [phonesDialogService, setPhonesDialogService] = useState<Service | null>(null);
   const [destinationConfirmService, setDestinationConfirmService] = useState<Service | null>(null);
   const [feedbackDialog, setFeedbackDialog] = useState<{ title: string; message: string } | null>(null);
+  const [isValidatingOrigin, setIsValidatingOrigin] = useState(false);
 
   // ─── Refs y estado para el FAB de subir al inicio ──────────
   const scrollViewRef = useRef<ScrollView>(null);
@@ -131,13 +133,18 @@ export function ServicesScreen() {
 
   const handleModalConfirm = async () => {
     if (!modalConfig) return;
-    const result = await arrivedAtOrigin(modalConfig.serviceNumber, codeInput);
-    if (!result.ok) {
-      setFeedbackDialog({ title: 'No fue posible continuar', message: result.message ?? 'Intenta nuevamente.' });
-      return;
+    setIsValidatingOrigin(true);
+    try {
+      const result = await arrivedAtOrigin(modalConfig.serviceNumber, codeInput);
+      if (!result.ok) {
+        setFeedbackDialog({ title: 'No fue posible continuar', message: result.message ?? 'Intenta nuevamente.' });
+        return;
+      }
+      setModalConfig(null);
+      setCodeInput('');
+    } finally {
+      setIsValidatingOrigin(false);
     }
-    setModalConfig(null);
-    setCodeInput('');
   };
 
   const confirmArrivedAtDestination = async () => {
@@ -195,7 +202,14 @@ export function ServicesScreen() {
                     <Text style={styles.modalBtnText}>Cancelar</Text>
                   </Pressable>
                   <Pressable onPress={handleModalConfirm} style={[styles.modalBtn, styles.modalBtnConfirm]}>
-                    <Text style={[styles.modalBtnText, styles.modalBtnConfirmText]}>Confirmar</Text>
+                    {isValidatingOrigin ? (
+                      <View style={styles.modalBtnLoading}>
+                        <ActivityIndicator color={colors.textStrong} size="small" />
+                        <Text style={[styles.modalBtnText, styles.modalBtnConfirmText]}>Validando</Text>
+                      </View>
+                    ) : (
+                      <Text style={[styles.modalBtnText, styles.modalBtnConfirmText]}>Confirmar</Text>
+                    )}
                   </Pressable>
                 </View>
               </View>
@@ -760,6 +774,11 @@ function createStyles(colors: ThemeColors) {
   },
   modalBtnConfirmText: {
     color: colors.textStrong,
+  },
+  modalBtnLoading: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: spacing.xs,
   },
 
   // ─── FAB subir al inicio ─────────────────────────────────

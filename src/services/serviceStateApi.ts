@@ -29,9 +29,9 @@ export function arriveAtOrigin(numeroServicio: string): Promise<ServiceActionRes
   return postAction(`/services/${numeroServicio}/arrive-origin`);
 }
 
-/** Paso 2: LLEGUE AL DESTINO - via jup-api (PROGRESO -> TERMINADO). */
-export function arriveAtDestination(numeroServicio: string): Promise<ServiceActionResult> {
-  return postAction(`/services/${numeroServicio}/arrive-destination`);
+/** Paso 2: LLEGUE AL DESTINO - via jup-api (PROGRESO -> TERMINADO, suma TBOrdenes.TERMINADOS). */
+export function arriveAtDestination(numeroServicio: string, codorden: number): Promise<ServiceActionResult> {
+  return postAction(`/services/${numeroServicio}/arrive-destination`, { codorden });
 }
 
 /** Paso 3: encuesta de satisfaccion - via jup-api (guarda en SERVOBSERVACIONES, solo si TERMINADO). */

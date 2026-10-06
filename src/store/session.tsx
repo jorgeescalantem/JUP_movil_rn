@@ -541,7 +541,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
           return { ok: false, message: 'El servicio no esta en estado EN_TRANSITO.' };
         }
 
-        const result = await arriveAtDestination(serviceNumber);
+        const result = await arriveAtDestination(serviceNumber, target.orden);
 
         if (!result.ok) {
           return result;

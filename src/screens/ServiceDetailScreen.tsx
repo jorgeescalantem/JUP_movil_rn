@@ -3,7 +3,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { DrawerNavigationProp } from '@react-navigation/drawer';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Linking, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Linking, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { DrawerParamList } from '../navigation/AppDrawer';
 import { nowInColombiaIso, toRawBase64 } from '../services/firmasApi';
@@ -461,7 +461,14 @@ export function ServiceDetailScreen() {
                 <Text style={styles.dialogCancelText}>Cancelar</Text>
               </Pressable>
               <Pressable onPress={handleConfirmOriginCode} style={[styles.dialogButton, styles.dialogConfirmButton]}>
-                <Text style={styles.dialogConfirmText}>Validar</Text>
+                {isProcessingAction ? (
+                  <View style={styles.dialogConfirmLoading}>
+                    <ActivityIndicator color={colors.white} size="small" />
+                    <Text style={styles.dialogConfirmText}>Validando</Text>
+                  </View>
+                ) : (
+                  <Text style={styles.dialogConfirmText}>Validar</Text>
+                )}
               </Pressable>
             </View>
           </View>
@@ -932,6 +939,11 @@ function createStyles(colors: ThemeColors) {
   },
   dialogConfirmButton: {
     backgroundColor: '#ff6424',
+  },
+  dialogConfirmLoading: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: spacing.xs,
   },
   dialogCancelText: {
     color: colors.text,
