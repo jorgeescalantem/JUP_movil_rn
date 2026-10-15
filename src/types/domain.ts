@@ -34,6 +34,7 @@ export type Service = {
   clienteDocumento: string;
   companiaNombre: string;
   zona: string;
+  observaciones: string;
   telefonos: string[];
   Guiacontrol: string | null;
   valor: number;

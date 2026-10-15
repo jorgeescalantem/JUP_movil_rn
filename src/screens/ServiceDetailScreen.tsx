@@ -678,7 +678,7 @@ export function ServiceDetailScreen() {
               <MaterialCommunityIcons color={colors.muted} name="text-box-outline" size={16} />
               <Text style={styles.detailLabel}>OBSERVACIONES</Text>
             </View>
-            <Text style={styles.detailValueMuted}>{service.zona || 'Sin observaciones'}</Text>
+            <Text style={styles.detailValueMuted}>{service.observaciones || ''}</Text>
           </View>
 
           <View style={styles.detailRowBlock}>
