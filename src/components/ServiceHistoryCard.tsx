@@ -1,6 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useMemo } from 'react';
+import { memo, useMemo } from 'react';
 
 import { radius, spacing, useTheme, type ThemeColors } from '../theme';
 import { Service } from '../types/domain';
@@ -17,7 +17,7 @@ function formatDateTime(value: string) {
   })}`;
 }
 
-export function ServiceHistoryCard({ service }: { service: Service }) {
+export const ServiceHistoryCard = memo(function ServiceHistoryCard({ service }: { service: Service }) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
@@ -73,14 +73,14 @@ export function ServiceHistoryCard({ service }: { service: Service }) {
         <View style={styles.metaBlock}>
           <View style={styles.metaItem}>
             <Text style={styles.metaLabel}>Cliente</Text>
-            <Text numberOfLines={1} style={styles.metaValue}>
+            <Text style={styles.metaValue}>
               {service.clienteNombre}
             </Text>
           </View>
           <View style={styles.metaDivider} />
           <View style={styles.metaItem}>
             <Text style={styles.metaLabel}>Compañía</Text>
-            <Text numberOfLines={1} style={styles.metaValue}>
+            <Text style={styles.metaValue}>
               {service.companiaNombre}
             </Text>
           </View>
@@ -111,7 +111,7 @@ export function ServiceHistoryCard({ service }: { service: Service }) {
       </View>
     </View>
   );
-}
+});
 
 function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
@@ -136,9 +136,9 @@ function createStyles(colors: ThemeColors) {
 
   cardContent: {
     flex: 1,
-    gap: 6,
+    gap: 8,
     paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.sm,
+    paddingVertical: spacing.sm + 2,
   },
 
   // ─── Header ────────────────────────────────────────────────
@@ -247,6 +247,7 @@ function createStyles(colors: ThemeColors) {
     flexShrink: 1,
     fontSize: 11,
     fontWeight: '600',
+    lineHeight: 16,
   },
   metaDivider: {
     backgroundColor: colors.border,

@@ -74,6 +74,16 @@ Estructura sugerida dentro de `src/`:
 
 ## 5) Control por rol (reglas de negocio)
 
+### Registro y activacion
+
+- El registro desde la app crea una cuenta en `TUSUARIO_MOBIL` mediante `POST /auth/register` de `jup-api`, con `ACTIVA = 0` y `ESTADO = 0`.
+- Un administrador debe activarla desde el aplicativo web (`ACTIVA = 1`) antes de que pueda iniciar sesion.
+- La app informa que la cuenta esta pendiente de activacion y regresa al login al cerrar el mensaje.
+- Las cuentas existentes no se modifican; una cuenta inactiva tambien impide registrar otra cuenta para el mismo conductor.
+- El documento debe corresponder a un registro activo de `TCCONDUCTORES` con `TIPO` igual a `CONDUCTOR`, `PROPIETARIO` o `AMBOS` (sin distinguir mayusculas ni espacios exteriores).
+- Para registrarse, `CONDUCTOR` requiere `VEHICULO_ACTIVO` existente en `TBVEHICULOS` con `ESTADO = 1`; `PROPIETARIO` requiere al menos un vehiculo con `LOCATARIO = Id` y `ESTADO = 1`; `AMBOS` puede cumplir cualquiera de las dos asociaciones.
+- Si no cumple las condiciones, no se crea la cuenta y la app muestra la alerta del servidor. No se asigna un vehiculo de conduccion a partir de los vehiculos del propietario.
+
 ### Roles
 
 - `CONDUCTOR`
@@ -138,7 +148,8 @@ Estructura sugerida dentro de `src/`:
 ## 9) Cierres (solo PROPIETARIO)
 
 - Pantalla con gráfica (Pie chart): **Terminados** vs **Completados**
-- Filtro de rango (default: últimos 30 días)
+- Filtro de rango (default: últimos 30 días, limitado al año actual): permite cualquier periodo desde el 1 de enero hasta hoy, con un máximo de 2 meses consecutivos desde la fecha inicial (15 de enero a 14 de marzo). Si el día inicial no existe dos meses después, permite hasta el último día de ese mes (31 de julio a 30 de septiembre). El mismo límite se aplica a las fechas recibidas por navegación.
+- En Historico, el icono junto al calendario borra las fechas y resultados sin cambiar busqueda ni ordenamiento; se debe seleccionar otro rango y pulsar Filtrar. Las tarjetas muestran los nombres completos del cliente y de la compañía, ajustan su altura al contenido y aprovechan más ancho de pantalla. Al desplazarse aparece un botón flotante para subir al inicio, encima de la barra inferior.
 - Tap en segmento o leyenda: abre lista filtrada (drilldown)
 
 Lista **Terminados**:

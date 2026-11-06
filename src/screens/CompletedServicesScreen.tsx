@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -15,7 +16,9 @@ import {
   BarChart3,
   ChevronDown,
   ChevronUp,
+  MoonStar,
   Receipt,
+  SunMedium,
   TrendingUp,
   Wallet,
   type LucideIcon,
@@ -36,21 +39,22 @@ import { useSession } from '../store/session';
 import { radius, spacing, useTheme, type ThemeColors } from '../theme';
 import { Service, SortKey } from '../types/domain';
 
-const WEEKDAY_LABELS = ['Do', 'Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sa'];
+const WEEKDAY_LABELS = ['Do', 'Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sá'];
 const MONTH_LABELS = [
   'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
   'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
 ];
 const MONTH_ABBR = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
-const MAX_RANGE_DAYS = 30;
+const MAX_RANGE_MONTHS = 2;
 
 function last30DaysRange() {
   const now = new Date();
   const start = new Date(now);
   start.setDate(now.getDate() - 29);
+  const yearStart = new Date(now.getFullYear(), 0, 1);
   return {
-    from: start.toISOString().slice(0, 10),
-    to: now.toISOString().slice(0, 10),
+    from: dateKey(start < yearStart ? yearStart : start),
+    to: dateKey(now),
   };
 }
 
@@ -75,16 +79,33 @@ function addMonths(date: Date, amount: number) {
   return new Date(date.getFullYear(), date.getMonth() + amount, 1);
 }
 
-function addDays(date: Date, amount: number) {
-  const next = new Date(date);
-  next.setDate(next.getDate() + amount);
-  return next;
+function maxRangeEndKey(from: string) {
+  const start = parseInputDate(from);
+  const targetMonth = start.getMonth() + MAX_RANGE_MONTHS;
+  const lastDay = new Date(start.getFullYear(), targetMonth + 1, 0).getDate();
+  const endDay = start.getDate() > lastDay ? lastDay : start.getDate() - 1;
+  return dateKey(new Date(start.getFullYear(), targetMonth, endDay));
 }
 
-function clampToSelectable(key: string, minKey: string, maxKey: string) {
-  if (key < minKey) return minKey;
-  if (key > maxKey) return maxKey;
-  return key;
+function rangeValidationError(from: string, to: string, minKey: string, maxKey: string): string | null {
+  if (
+    !/^\d{4}-\d{2}-\d{2}$/.test(from) ||
+    !/^\d{4}-\d{2}-\d{2}$/.test(to) ||
+    dateKey(parseInputDate(from)) !== from ||
+    dateKey(parseInputDate(to)) !== to
+  ) {
+    return 'Selecciona fechas válidas para filtrar.';
+  }
+  if (from > to) {
+    return 'La fecha inicial no puede ser posterior a la fecha final.';
+  }
+  if (from < minKey || to > maxKey) {
+    return 'Selecciona un periodo del año actual, desde el 1 de enero hasta hoy.';
+  }
+  if (to > maxRangeEndKey(from)) {
+    return 'El rango no puede superar 2 meses consecutivos desde la fecha inicial.';
+  }
+  return null;
 }
 
 function getMonthMatrix(monthDate: Date) {
@@ -143,7 +164,7 @@ function KpiCard({ variant, value, label }: { variant: KpiVariant; value: string
       <Text style={styles.kpiValue} numberOfLines={1} adjustsFontSizeToFit>
         {value}
       </Text>
-      <Text style={styles.kpiLabel} numberOfLines={2}>
+      <Text style={styles.kpiLabel} numberOfLines={1} adjustsFontSizeToFit>
         {label}
       </Text>
     </View>
@@ -154,22 +175,27 @@ type Props = DrawerScreenProps<DrawerParamList, 'ServiciosPrestados'>;
 
 export function CompletedServicesScreen({ route }: Props) {
   const defaults = last30DaysRange();
-  const maxSelectableKey = dateKey(new Date());
-  const minSelectableKey = dateKey(addDays(new Date(), -(MAX_RANGE_DAYS - 1)));
+  const today = new Date();
+  const maxSelectableKey = dateKey(today);
+  const minSelectableKey = dateKey(new Date(today.getFullYear(), 0, 1));
+  const requestedFrom = route.params?.fromDate ?? defaults.from;
+  const requestedTo = route.params?.toDate ?? defaults.to;
+  const initialRangeValid = !rangeValidationError(requestedFrom, requestedTo, minSelectableKey, maxSelectableKey);
   const { selectedVehiculo } = useSession();
-  const { colors } = useTheme();
+  const { colors, isDark, toggle } = useTheme();
+  const ThemeIcon = isDark ? SunMedium : MoonStar;
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [historyServices, setHistoryServices] = useState<Service[]>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [historyError, setHistoryError] = useState<string | null>(null);
   const [searchText, setSearchText] = useState('');
-  const [fromDateDraft, setFromDateDraft] = useState(route.params?.fromDate ?? defaults.from);
-  const [toDateDraft, setToDateDraft] = useState(route.params?.toDate ?? defaults.to);
+  const [fromDateDraft, setFromDateDraft] = useState(initialRangeValid ? requestedFrom : defaults.from);
+  const [toDateDraft, setToDateDraft] = useState(initialRangeValid ? requestedTo : defaults.to);
   const [fromDate, setFromDate] = useState<string | null>(
-    route.params?.autoApply ? (route.params.fromDate ?? defaults.from) : null,
+    route.params?.autoApply && initialRangeValid ? requestedFrom : null,
   );
   const [toDate, setToDate] = useState<string | null>(
-    route.params?.autoApply ? (route.params.toDate ?? defaults.to) : null,
+    route.params?.autoApply && initialRangeValid ? requestedTo : null,
   );
   const [sortKeyDraft, setSortKeyDraft] = useState<SortKey | null>(null);
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
@@ -177,11 +203,27 @@ export function CompletedServicesScreen({ route }: Props) {
   const [rangeAnchor, setRangeAnchor] = useState<string | null>(null);
   const [calendarMonth, setCalendarMonth] = useState(() => parseInputDate(fromDateDraft));
   const [isFilterCollapsed, setIsFilterCollapsed] = useState(false);
+  const [showScrollTop, setShowScrollTop] = useState(false);
 
   // ─── Refs y estado para el auto-scroll al listado ──────────
   const scrollViewRef = useRef<ScrollView>(null);
   const serviceListYRef = useRef(0);
   const shouldScrollAfterLoadRef = useRef(false);
+  const rangeLabel = fromDateDraft && toDateDraft
+    ? `${formatDisplayDate(fromDateDraft)} – ${formatDisplayDate(toDateDraft)}`
+    : 'Selecciona un rango de fechas';
+
+  const clearCalendarFilters = () => {
+    setFromDateDraft('');
+    setToDateDraft('');
+    setFromDate(null);
+    setToDate(null);
+    setRangeAnchor(null);
+    setHistoryServices([]);
+    setHistoryError(null);
+    setIsLoadingHistory(false);
+    shouldScrollAfterLoadRef.current = false;
+  };
 
   const toggleFilterCollapsed = () => {
     setIsFilterCollapsed((prev) => !prev);
@@ -189,7 +231,7 @@ export function CompletedServicesScreen({ route }: Props) {
 
   const openRangePicker = () => {
     setRangeAnchor(null);
-    setCalendarMonth(parseInputDate(fromDateDraft));
+    setCalendarMonth(fromDateDraft ? parseInputDate(fromDateDraft) : new Date());
     setShowRangePicker(true);
   };
 
@@ -198,9 +240,17 @@ export function CompletedServicesScreen({ route }: Props) {
     setShowRangePicker(false);
   };
 
+  const isSelectableDay = (key: string) => {
+    if (key < minSelectableKey || key > maxSelectableKey) return false;
+    if (!rangeAnchor) return true;
+    const from = key < rangeAnchor ? key : rangeAnchor;
+    const to = key < rangeAnchor ? rangeAnchor : key;
+    return !rangeValidationError(from, to, minSelectableKey, maxSelectableKey);
+  };
+
   const handleDayPress = (day: Date) => {
     const key = dateKey(day);
-    if (key < minSelectableKey || key > maxSelectableKey) return;
+    if (!isSelectableDay(key)) return;
 
     if (!rangeAnchor) {
       setRangeAnchor(key);
@@ -211,8 +261,8 @@ export function CompletedServicesScreen({ route }: Props) {
 
     const from = key < rangeAnchor ? key : rangeAnchor;
     const to = key < rangeAnchor ? rangeAnchor : key;
-    setFromDateDraft(clampToSelectable(from, minSelectableKey, maxSelectableKey));
-    setToDateDraft(clampToSelectable(to, minSelectableKey, maxSelectableKey));
+    setFromDateDraft(from);
+    setToDateDraft(to);
     setRangeAnchor(null);
     setShowRangePicker(false);
   };
@@ -223,6 +273,11 @@ export function CompletedServicesScreen({ route }: Props) {
     if (route.params?.autoApply) {
       const from = route.params.fromDate ?? defaults.from;
       const to = route.params.toDate ?? defaults.to;
+      const error = rangeValidationError(from, to, minSelectableKey, maxSelectableKey);
+      if (error) {
+        Alert.alert('Rango de fechas no permitido', error);
+        return;
+      }
       setFromDateDraft(from);
       setToDateDraft(to);
       setFromDate(from);
@@ -241,16 +296,24 @@ export function CompletedServicesScreen({ route }: Props) {
 
     setIsLoadingHistory(true);
     setHistoryError(null);
+    let isCancelled = false;
 
     fetchVehicleServiceHistory(selectedVehiculo.codvehiculo, fromDate, toDate)
       .then((result) => {
+        if (isCancelled) return;
         if (result.ok) {
           setHistoryServices(result.services);
         } else {
           setHistoryError(result.message);
         }
       })
-      .finally(() => setIsLoadingHistory(false));
+      .finally(() => {
+        if (!isCancelled) setIsLoadingHistory(false);
+      });
+
+    return () => {
+      isCancelled = true;
+    };
   }, [selectedVehiculo, fromDate, toDate]);
 
   // ─── Auto-scroll al listado cuando termina la carga ────────
@@ -287,14 +350,18 @@ export function CompletedServicesScreen({ route }: Props) {
     });
   }, [historyServices, searchText, sortKey]);
 
-  const totals = completedServices.reduce(
+  const totals = useMemo(() => completedServices.reduce(
     (accumulator, service) => ({
       totalValue: accumulator.totalValue + service.valor,
       totalCopago: accumulator.totalCopago + service.copago,
       count: accumulator.count + 1,
     }),
     { totalValue: 0, totalCopago: 0, count: 0 },
-  );
+  ), [completedServices]);
+
+  const serviceCards = useMemo(() => completedServices.map((service) => (
+    <ServiceHistoryCard key={service.numeroServicio} service={service} />
+  )), [completedServices]);
 
   const isRangeApplied = fromDate !== null && toDate !== null;
 
@@ -314,7 +381,13 @@ export function CompletedServicesScreen({ route }: Props) {
   return (
     <View style={styles.screen}>
       <RoleGate allowedRoles={['PROPIETARIO', 'AMBOS']}>
-        <ScrollView contentContainerStyle={styles.content} ref={scrollViewRef}>
+        <View style={styles.scrollArea}>
+        <ScrollView
+          contentContainerStyle={styles.content}
+          onScroll={(event) => setShowScrollTop(event.nativeEvent.contentOffset.y > 300)}
+          ref={scrollViewRef}
+          scrollEventThrottle={16}
+        >
 
           {/* ─── Filtro de fechas colapsable ───────────────── */}
           <Animated.View layout={LinearTransition.duration(220)}>
@@ -335,7 +408,7 @@ export function CompletedServicesScreen({ route }: Props) {
                       {isFilterCollapsed ? 'Mostrar filtros' : 'Ocultar filtros'}
                     </Text>
                     <Text numberOfLines={1} style={styles.filterToggleHint}>
-                      {formatDisplayDate(fromDateDraft)} – {formatDisplayDate(toDateDraft)}
+                      {rangeLabel}
                     </Text>
                   </View>
                 </View>
@@ -354,34 +427,45 @@ export function CompletedServicesScreen({ route }: Props) {
                   style={styles.filterBody}
                 >
                   {/* Selector de rango colapsable */}
-                  <Pressable
-                    accessibilityRole="button"
-                    onPress={() => (showRangePicker ? closeRangePicker() : openRangePicker())}
-                    style={styles.collapsibleHeader}
-                  >
-                    <View style={styles.collapsibleHeaderLeft}>
-                      <View style={styles.collapsibleIconWrap}>
-                        <MaterialCommunityIcons
-                          color={colors.blue}
-                          name="calendar-range-outline"
-                          size={16}
-                        />
+                  <View style={styles.calendarRangeRow}>
+                    <Pressable
+                      accessibilityRole="button"
+                      onPress={() => (showRangePicker ? closeRangePicker() : openRangePicker())}
+                      style={[styles.collapsibleHeader, styles.calendarRangeSelector]}
+                    >
+                      <View style={styles.collapsibleHeaderLeft}>
+                        <View style={styles.collapsibleIconWrap}>
+                          <MaterialCommunityIcons
+                            color={colors.blue}
+                            name="calendar-range-outline"
+                            size={16}
+                          />
+                        </View>
+                        <View style={styles.collapsibleHeaderText}>
+                          <Text numberOfLines={1} style={styles.collapsibleHeaderTitle}>
+                            {rangeLabel}
+                          </Text>
+                          <Text numberOfLines={1} style={styles.collapsibleHeaderHint}>
+                            {showRangePicker ? 'Cerrar calendario' : 'Cambiar rango'}
+                          </Text>
+                        </View>
                       </View>
-                      <View style={styles.collapsibleHeaderText}>
-                        <Text numberOfLines={1} style={styles.collapsibleHeaderTitle}>
-                          {formatDisplayDate(fromDateDraft)} – {formatDisplayDate(toDateDraft)}
-                        </Text>
-                        <Text numberOfLines={1} style={styles.collapsibleHeaderHint}>
-                          {showRangePicker ? 'Cerrar calendario' : 'Cambiar rango'}
-                        </Text>
-                      </View>
-                    </View>
-                    {showRangePicker ? (
-                      <ChevronUp color={colors.muted} size={16} strokeWidth={2.5} />
-                    ) : (
-                      <ChevronDown color={colors.muted} size={16} strokeWidth={2.5} />
-                    )}
-                  </Pressable>
+                      {showRangePicker ? (
+                        <ChevronUp color={colors.muted} size={16} strokeWidth={2.5} />
+                      ) : (
+                        <ChevronDown color={colors.muted} size={16} strokeWidth={2.5} />
+                      )}
+                    </Pressable>
+                    <Pressable
+                      accessibilityLabel="Borrar filtro de fechas"
+                      accessibilityRole="button"
+                      hitSlop={8}
+                      onPress={clearCalendarFilters}
+                      style={styles.calendarClearButton}
+                    >
+                      <MaterialCommunityIcons color={colors.blue} name="filter-remove-outline" size={18} />
+                    </Pressable>
+                  </View>
 
                   {/* Calendario expandible */}
                   {showRangePicker ? (
@@ -423,7 +507,7 @@ export function CompletedServicesScreen({ route }: Props) {
                             const isStart = key === fromDateDraft;
                             const isEnd = key === toDateDraft;
                             const isInRange = key > fromDateDraft && key < toDateDraft;
-                            const isOutOfRange = key < minSelectableKey || key > maxSelectableKey;
+                            const isOutOfRange = !isSelectableDay(key);
 
                             return (
                               <Pressable
@@ -490,8 +574,13 @@ export function CompletedServicesScreen({ route }: Props) {
                   {/* Aplicar */}
                   <Pressable
                     onPress={() => {
-                      const from = clampToSelectable(fromDateDraft, minSelectableKey, maxSelectableKey);
-                      const to = clampToSelectable(toDateDraft, minSelectableKey, maxSelectableKey);
+                      const from = fromDateDraft;
+                      const to = toDateDraft;
+                      const error = rangeValidationError(from, to, minSelectableKey, maxSelectableKey);
+                      if (error) {
+                        Alert.alert('Rango de fechas no permitido', error);
+                        return;
+                      }
                       setFromDateDraft(from);
                       setToDateDraft(to);
                       setFromDate(from);
@@ -515,7 +604,7 @@ export function CompletedServicesScreen({ route }: Props) {
           <View style={styles.kpiRow}>
             <KpiCard label="Servicios" value={String(totals.count)} variant="services" />
             <KpiCard label="Valor" value={currency(totals.totalValue)} variant="amount" />
-            <KpiCard label="Copago" value={currency(totals.totalCopago)} variant="copays" />
+            <KpiCard label="Copagos" value={currency(totals.totalCopago)} variant="copays" />
           </View>
 
           {/* ─── Listado de servicios ───────────────────────── */}
@@ -527,6 +616,7 @@ export function CompletedServicesScreen({ route }: Props) {
                   : ''
               }
               title="Detalle de servicios prestados"
+              style={styles.historySection}
             >
               {isLoadingHistory ? (
                 <View style={styles.feedbackCard}>
@@ -544,9 +634,7 @@ export function CompletedServicesScreen({ route }: Props) {
 
               {!isLoadingHistory && !historyError && completedServices.length > 0 ? (
                 <View style={styles.serviceList}>
-                  {completedServices.map((service) => (
-                    <ServiceHistoryCard key={service.numeroServicio} service={service} />
-                  ))}
+                  {serviceCards}
                 </View>
               ) : null}
 
@@ -568,6 +656,29 @@ export function CompletedServicesScreen({ route }: Props) {
             </SectionCard>
           </View>
         </ScrollView>
+        <Pressable
+          accessibilityLabel={isDark ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro'}
+          accessibilityRole="button"
+          hitSlop={8}
+          onPress={toggle}
+          style={styles.themeToggle}
+        >
+          <ThemeIcon color={colors.blue} size={20} />
+        </Pressable>
+        {showScrollTop ? (
+          <Pressable
+            accessibilityLabel="Subir al inicio"
+            accessibilityRole="button"
+            onPress={() => scrollViewRef.current?.scrollTo({ animated: true, y: 0 })}
+            style={({ pressed }) => [
+              styles.scrollTopFab,
+              pressed && styles.scrollTopFabPressed,
+            ]}
+          >
+            <MaterialCommunityIcons color={colors.white} name="chevron-up" size={26} />
+          </Pressable>
+        ) : null}
+        </View>
 
         <OwnerBottomBar />
       </RoleGate>
@@ -582,6 +693,49 @@ function createStyles(colors: ThemeColors) {
   screen: {
     backgroundColor: colors.surfaceSoft,
     flex: 1,
+  },
+  scrollArea: {
+    flex: 1,
+  },
+  historySection: {
+    marginHorizontal: -spacing.sm,
+    paddingHorizontal: spacing.md,
+  },
+  themeToggle: {
+    alignItems: 'center',
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: 999,
+    bottom: spacing.md,
+    elevation: 6,
+    height: 40,
+    justifyContent: 'center',
+    left: spacing.md,
+    position: 'absolute',
+    shadowColor: colors.navy,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    width: 40,
+  },
+  scrollTopFab: {
+    alignItems: 'center',
+    backgroundColor: colors.blue,
+    borderRadius: 28,
+    bottom: spacing.md,
+    elevation: 8,
+    height: 56,
+    justifyContent: 'center',
+    position: 'absolute',
+    right: spacing.md,
+    shadowColor: colors.navy,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    width: 56,
+  },
+  scrollTopFabPressed: {
+    opacity: 0.85,
+    transform: [{ scale: 0.95 }],
   },
   content: {
     gap: spacing.lg,
@@ -639,6 +793,22 @@ function createStyles(colors: ThemeColors) {
   },
 
   // ─── Selector de rango colapsable ────────────────────────
+  calendarRangeRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: spacing.xs,
+  },
+  calendarRangeSelector: {
+    flex: 1,
+  },
+  calendarClearButton: {
+    alignItems: 'center',
+    backgroundColor: colors.blueSoft,
+    borderRadius: radius.md,
+    height: 36,
+    justifyContent: 'center',
+    width: 36,
+  },
   collapsibleHeader: {
     alignItems: 'center',
     backgroundColor: colors.surfaceSoft,
@@ -871,6 +1041,7 @@ function createStyles(colors: ThemeColors) {
     letterSpacing: -0.3,
   },
   kpiLabel: {
+    alignSelf: 'stretch',
     color: colors.muted,
     fontSize: 11,
     fontWeight: '600',

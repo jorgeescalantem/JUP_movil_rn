@@ -61,7 +61,7 @@ export function RegisterScreen({ onBack }: RegisterScreenProps) {
 
       setFeedbackModal({
         title: 'Cuenta creada',
-        message: 'Tu cuenta fue creada correctamente. Ya puedes iniciar sesion.',
+        message: 'Tu cuenta fue creada y esta pendiente de activacion por un administrador desde el aplicativo web.',
         onClose: onBack,
       });
     } finally {

@@ -300,11 +300,11 @@ export function PropietarioHomeScreen({}: Props) {
             <View style={styles.headerTop}>
               <Avatar name={userName} />
               <View style={styles.headerIdentity}>
-                <Text numberOfLines={1} style={styles.userName}>
+                <Text style={styles.userName}>
                   {userName}
                 </Text>
                 <Text numberOfLines={1} style={styles.userMeta}>
-                  Próximos servicios programados
+                  Próximos servicios
                 </Text>
               </View>
               <Pressable
@@ -434,6 +434,7 @@ function createStyles(colors: ThemeColors) {
   headerIdentity: {
     flex: 1,
     gap: 2,
+    minWidth: 0,
   },
   themeToggle: {
     alignItems: 'center',
@@ -445,9 +446,10 @@ function createStyles(colors: ThemeColors) {
   },
   userName: {
     color: colors.navy,
-    fontSize: 18,
+    fontSize: 15,
     fontWeight: '700',
     letterSpacing: 0.2,
+    lineHeight: 20,
   },
   userMeta: {
     color: colors.muted,
